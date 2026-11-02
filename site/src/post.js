@@ -46,6 +46,16 @@
     };
   }
 
+  function halton(index, base) {
+    let f = 1, r = 0, i = index;
+    while (i > 0) {
+      f /= base;
+      r += f * (i % base);
+      i = Math.floor(i / base);
+    }
+    return r;
+  }
+
   class PostFX {
     constructor(renderer, opts) {
       this.renderer = renderer;
@@ -64,6 +74,11 @@
       this.bloomA = [];
       this.bloomB = [];
       this.streakRT = null;
+      this.compositeRT = null;
+      this.taaA = null; this.taaB = null; this.taaRead = null; this.taaWrite = null;
+      this.prevViewProj = new THREE.Matrix4();
+      this.taaReset = true;
+      this.taaFrame = 0;
       this.buildMaterials();
     }
 
@@ -379,6 +394,59 @@
       `,
       depthTest: false, depthWrite: false
     });
+
+    this.taaMat = new THREE.ShaderMaterial({
+      uniforms: {
+        tCurrent: { value: null },
+        tHistory: { value: null },
+        tDepth: { value: null },
+        uInvView: { value: new THREE.Matrix4() },
+        uInvProj: { value: new THREE.Matrix4() },
+        uPrevViewProj: { value: new THREE.Matrix4() },
+        uResolution: { value: new THREE.Vector2(1, 1) },
+        uReset: { value: 1 },
+        uBlend: { value: 0.14 }
+      },
+      vertexShader: VS,
+      fragmentShader: `
+        uniform sampler2D tCurrent, tHistory, tDepth;
+        uniform mat4 uInvView, uInvProj, uPrevViewProj;
+        uniform vec2 uResolution;
+        uniform float uReset, uBlend;
+        varying vec2 vUv;
+        void main() {
+          vec3 cur = texture2D(tCurrent, vUv).rgb;
+          if (uReset > 0.5) { gl_FragColor = vec4(cur, 1.0); return; }
+          float d = texture2D(tDepth, vUv).x;
+          vec4 clip = vec4(vUv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
+          vec4 view = uInvProj * clip;
+          view.xyz /= view.w;
+          vec3 world = (uInvView * vec4(view.xyz, 1.0)).xyz;
+          vec4 prev = uPrevViewProj * vec4(world, 1.0);
+          vec2 puv = prev.xy / max(prev.w, 0.0001) * 0.5 + 0.5;
+          if (puv.x < 0.0 || puv.y < 0.0 || puv.x > 1.0 || puv.y > 1.0) {
+            gl_FragColor = vec4(cur, 1.0); return;
+          }
+          vec2 px = 1.5 / uResolution;
+          vec3 mn = cur, mx = cur;
+          vec3 taps[4];
+          taps[0] = texture2D(tCurrent, vUv + vec2(px.x, 0.0)).rgb;
+          taps[1] = texture2D(tCurrent, vUv - vec2(px.x, 0.0)).rgb;
+          taps[2] = texture2D(tCurrent, vUv + vec2(0.0, px.y)).rgb;
+          taps[3] = texture2D(tCurrent, vUv - vec2(0.0, px.y)).rgb;
+          for (int i = 0; i < 4; i++) {
+            mn = min(mn, taps[i]);
+            mx = max(mx, taps[i]);
+          }
+          vec3 hist = texture2D(tHistory, puv).rgb;
+          hist = clamp(hist, mn, mx);
+          float dp = texture2D(tDepth, puv).x;
+          if (abs(dp - d) > 0.012) hist = cur;
+          gl_FragColor = vec4(mix(hist, cur, uBlend), 1.0);
+        }
+      `,
+      depthTest: false, depthWrite: false
+    });
     }
 
     setSize(w, h, pixelRatio) {
@@ -400,6 +468,12 @@
       this.sceneDepth.magFilter = THREE.NearestFilter;
       this.sceneRT.depthTexture = this.sceneDepth;
       this.finalMat.uniforms.tDepth.value = this.sceneDepth;
+      this.taaA = this.createRT(sw, sh);
+      this.taaB = this.createRT(sw, sh);
+      this.taaRead = this.taaA;
+      this.taaWrite = this.taaB;
+      this.taaMat.uniforms.uResolution.value.set(sw, sh);
+      this.taaReset = true;
       let lw = Math.max(1, Math.floor(sw * 0.5));
       let lh = Math.max(1, Math.floor(sh * 0.5));
       this.bloomA = []; this.bloomB = [];
@@ -422,8 +496,15 @@
       if (this.streakRT) this.streakRT.dispose();
       if (this.compositeRT) this.compositeRT.dispose();
       if (this.sceneDepth) this.sceneDepth.dispose();
+      if (this.taaA) this.taaA.dispose();
+      if (this.taaB) this.taaB.dispose();
       this.sceneDepth = null;
+      this.taaA = null; this.taaB = null; this.taaRead = null; this.taaWrite = null;
       this.bloomA = []; this.bloomB = [];
+    }
+
+    resetTAA() {
+      this.taaReset = true;
     }
 
     render(scene, camera, world, time, flash) {
@@ -431,13 +512,48 @@
       // 1. planar reflection render (handled by world)
       if (world && world.renderReflection) world.renderReflection(r, camera);
 
-      // 2. HDR scene
+      // 2. HDR scene, temporarily jittered by a sub-pixel Halton offset.
+      camera.updateMatrixWorld();
+      camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+      const proj = camera.projectionMatrix.clone();
+      const invProj = proj.clone().invert();
+      const viewProj = new THREE.Matrix4().multiplyMatrices(proj, camera.matrixWorldInverse);
+      const taa = this.opts.taa !== false;
+      this.taaFrame++;
+      if (taa) {
+        const jx = (halton(this.taaFrame, 2) - 0.5) * 2.0 / this.sceneRT.width;
+        const jy = (halton(this.taaFrame, 3) - 0.5) * 2.0 / this.sceneRT.height;
+        camera.projectionMatrix.elements[8] += jx;
+        camera.projectionMatrix.elements[9] += jy;
+      }
       r.setRenderTarget(this.sceneRT);
       r.clear();
       r.render(scene, camera);
+      camera.projectionMatrix.copy(proj);
+      camera.projectionMatrixInverse.copy(invProj);
+
+      // 2b. temporal resolve (static geometry reprojection + neighbourhood clamp)
+      if (taa) {
+        const T = this.taaMat.uniforms;
+        T.tCurrent.value = this.sceneRT.texture;
+        T.tHistory.value = this.taaRead.texture;
+        T.tDepth.value = this.sceneDepth;
+        T.uInvView.value.copy(camera.matrixWorld);
+        T.uInvProj.value.copy(invProj);
+        T.uPrevViewProj.value.copy(this.prevViewProj);
+        T.uReset.value = this.taaReset ? 1 : 0;
+        T.uBlend.value = 0.14;
+        this.quad.draw(this.taaMat, this.taaWrite);
+        const swap = this.taaRead;
+        this.taaRead = this.taaWrite;
+        this.taaWrite = swap;
+        this.taaReset = false;
+      }
+      this.prevViewProj.copy(viewProj);
+      const sceneTex = taa ? this.taaRead.texture : this.sceneRT.texture;
 
       // 3. bright pass -> bloom mip 0
-      this.brightMat.uniforms.tDiffuse.value = this.sceneRT.texture;
+      this.brightMat.uniforms.tDiffuse.value = sceneTex;
       this.brightMat.uniforms.uTexel.value.set(1 / this.sceneRT.width, 1 / this.sceneRT.height);
       this.quad.draw(this.brightMat, this.bloomA[0]);
 
@@ -468,7 +584,7 @@
 
       // 6. grade to screen
       const U = this.finalMat.uniforms;
-      U.tScene.value = this.sceneRT.texture;
+      U.tScene.value = sceneTex;
       U.tDepth.value = this.sceneDepth;
       U.uNear.value = camera.near;
       U.uFar.value = camera.far;

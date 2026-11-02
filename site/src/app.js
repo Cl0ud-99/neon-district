@@ -31,6 +31,7 @@
       this.fpsAccum = 0;
       this.fpsFrames = 0;
       this.lastHUD = 0;
+      this.perfTimer = 0;
       this.mouseDown = false;
       this.audio = new ND.AudioEngine();
       this.params = new URLSearchParams(location.search);
@@ -261,6 +262,7 @@
     }
 
     showMenu(initial) {
+      if (this.post) this.post.resetTAA();
       this.state = 'menu';
       this.stateTime = 0;
       document.body.dataset.state = 'menu';
@@ -275,6 +277,7 @@
 
     startPlay() {
       this.audio.init().then(() => this.audio.enterCue());
+      if (this.post) this.post.resetTAA();
       this.state = 'play';
       this.stateTime = 0;
       document.body.dataset.state = 'play';
@@ -289,6 +292,7 @@
       this.player.pitch = -0.015;
       this.player.bob = 0;
       this.zoneReached = false;
+      this.perfTimer = 0;
       this.camera.rotation.order = 'YXZ';
       this.camera.fov = 62;
       this.camera.updateProjectionMatrix();
@@ -302,9 +306,11 @@
 
     startCinematic() {
       this.audio.init().then(() => this.audio.enterCue());
+      if (this.post) this.post.resetTAA();
       this.state = 'cinematic';
       this.stateTime = 0;
       this.currentCaption = -1;
+      this.perfTimer = 0;
       document.body.dataset.state = 'cinematic';
       $('menu').classList.remove('visible');
       $('pause').classList.remove('visible');
@@ -338,6 +344,7 @@
 
     returnToMenu() {
       if (document.pointerLockElement) document.exitPointerLock();
+      if (this.post) this.post.resetTAA();
       this.showMenu(false);
     }
 
@@ -405,6 +412,7 @@
     }
 
     setCameraPreset(name) {
+      if (this.post) this.post.resetTAA();
       const c = this.camera;
       const presets = {
         hero: { p: [0, 1.85, 28], l: [0, 12.5, -78], fov: 55 },
@@ -436,6 +444,10 @@
       const elapsed = this.stateTime;
       let shot = this.cineShots[this.cineShots.length - 1];
       for (const s of this.cineShots) { if (elapsed >= s.t0 && elapsed <= s.t1) { shot = s; break; } }
+      if (shot !== this._lastCineShot) {
+        this._lastCineShot = shot;
+        if (this.post) this.post.resetTAA();
+      }
       let raw = (elapsed - shot.t0) / (shot.t1 - shot.t0);
       raw = Math.max(0, Math.min(1, raw));
       const k = smoother(raw);
@@ -563,6 +575,17 @@
         this.fps = this.fpsFrames / this.fpsAccum;
         this.fpsAccum = 0; this.fpsFrames = 0;
         this.updateHUD();
+        if (this.state === 'play' || this.state === 'cinematic') {
+          this.perfTimer += dt;
+          if (this.perfTimer > 6 && this.fps < 24 && this.qualityKey !== 'low') {
+            this.perfTimer = 0;
+            this.cycleQuality();
+            this.showToast('自动降低画质 // AUTO QUALITY');
+            setTimeout(() => this.showToast(''), 2600);
+          }
+        } else {
+          this.perfTimer = 0;
+        }
       }
       this.post.render(this.scene, this.camera, this.world, this.time, this.world.flash);
     }

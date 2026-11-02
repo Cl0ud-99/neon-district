@@ -4,7 +4,7 @@
 
 **DSH-PTC**
 
-**1 scene · 100% procedural · 0 assets · single-file build 0.86 MB**
+**1 scene · 100% procedural · 0 assets · single-file build 0.87 MB**
 
 [**Live preview**](https://cl0ud-99.github.io/neon-district/) — runs in the browser, nothing to install.
 
@@ -19,6 +19,7 @@ A real-time cyberpunk rain street built entirely in code: wet asphalt, mirrored 
 | ![rain market](docs/shots/hero.jpg) | ![water](docs/shots/water.jpg) |
 | ![kirin plaza](docs/shots/plaza.jpg) | ![cinematic](docs/shots/cinema.jpg) |
 | ![title](docs/shots/title.jpg) | ![detail](docs/shots/detail.jpg) |
+| ![street](docs/shots/street.jpg) | ![hud](docs/shots/hud.jpg) |
 
 ## What it is
 
@@ -27,10 +28,10 @@ A single-scene WebGL2 application. The deployable site is plain HTML plus classi
 | File | Role |
 | --- | --- |
 | `src/tex.js` | Canvas 2D texture atelier: facades, windows, billboards, shopfronts, smoke, koi, reflection environment |
-| `src/post.js` | HDR target, five-level bloom, depth AO/DOF, FXAA, ACES grade, grain, lens droplets, super-sampling |
+| `src/post.js` | TAA, HDR target, five-level bloom, depth AO/DOF, FXAA, ACES grade, grain, lens droplets, super-sampling |
 | `src/world.js` | City generator, baked static shadow map, hero building detail, wet ground, water, sky, planar mirror, lighting |
 | `src/props.js` | Storefronts, hero window bays/fire escapes, blade signs, cables, lanterns, volumetric shafts, steam, fog, hoverbike, gantry |
-| `src/actors.js` | Rain, fountain, citizens, flying traffic, holographic koi, ripples |
+| `src/actors.js` | Rain, fountain, citizens with coat/umbrella cloth detail, flying traffic, holographic koi, ripples |
 | `src/audio.js` | Procedural WebAudio rain, hum, synth pad and thunder |
 | `src/app.js` | Camera, state machine, title/cinematic UI, input, adaptive quality |
 
@@ -47,6 +48,8 @@ city / signs / rain (Three.js scene)
         ├──> static shadow map (baked once)
         │
         └──> HDR scene target (1.25× super-sample)
+                  │
+             TAA resolve (Halton jitter + depth reprojection)
                   │
              bright pass at ½ resolution
                   │
@@ -65,7 +68,8 @@ Details worth reading:
 - **Planar reflections are real geometry passes.** Every frame the whole city is rendered from a mirrored camera at a reduced resolution, then sampled by the wet ground and water shaders. Reflected image is blurred along screen-space Y to stretch window and neon highlights into wet-asphalt streaks.
 - **Water is its own material.** The plaza uses Fresnel-weighted mirror reflections, three ripple layers, sparse rain-drop rings, edge foam, a cold underwater light and a particle fountain. It is not a tinted copy of the street.
 - **Static shadows are baked once.** The city never moves, so a 2048² PCF-soft directional shadow map is rendered once, then reused for the whole session. Dynamic characters and props use contact-shadow decals instead of stale baked silhouettes. A depth-edge AO pass tightens seams where geometry meets the ground.
-- **No MSAA; FXAA + super-sampling.** The scene is rendered at 1.25× into an HDR target, then a separate FXAA pass cleans the final LDR image. Multisampled float targets caused a driver artifact on one test GPU, and this path is cheaper while keeping thin neon lines stable.
+- **TAA + FXAA + super-sampling.** The HDR frame is rendered with a Halton sub-pixel jitter, then resolved against the previous frame using depth reprojection and a neighbourhood clamp. FXAA cleans the final LDR image. Multisampled float targets caused a driver artifact on one test GPU, so this path is cheaper and keeps thin neon lines stable while reducing shimmer in motion.
+- **Adaptive quality.** If the measured frame rate drops below the threshold for six seconds during play/cinematic mode, the app steps down one quality tier automatically. The HUD’s quality control can override it at any time.
 - **Five independent bloom mips.** A soft-threshold prefilter at half resolution feeds a Gaussian chain; all mips plus a horizontal anamorphic streak are composited before tonemapping.
 - **Every procedural texture is drawn in 2D at boot.** No `.png`, `.jpg`, `.glb` or audio file is loaded. The repository contains only code and documentation images.
 - **Screens use a shader, not a video.** Slow scanlines, RGB split, flicker and occasional UV glitches are applied in GLSL to canvas-generated billboard artwork.
@@ -90,7 +94,7 @@ npm run dev
 # open http://127.0.0.1:5273/
 ```
 
-Or simply double-click `site/standalone.html` — it is a fully inlined 0.86 MB single file.
+Or simply double-click `site/standalone.html` — it is a fully inlined 0.87 MB single file.
 
 Rebuild the single-file version after editing `site/src/`:
 

@@ -174,20 +174,42 @@
     const skinMat = new THREE.MeshStandardMaterial({ color: 0x120f13, roughness: 0.9, metalness: 0.02 });
     const bootMat = new THREE.MeshStandardMaterial({ color: 0x050608, roughness: 0.5, metalness: 0.3 });
 
-    const coat = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.48, 1.18, 9), coatMat);
+    const coat = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.52, 1.18, 14), coatMat);
     coat.position.y = 0.92;
     group.add(coat);
-    const shoulders = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 7), coatMat);
+    const hem = new THREE.Mesh(new THREE.TorusGeometry(0.43, 0.012, 4, 26), trimMat);
+    hem.rotation.x = Math.PI / 2;
+    hem.position.y = 0.35;
+    group.add(hem);
+    const shoulders = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 9), coatMat);
     shoulders.scale.set(1.25, 0.55, 0.8);
     shoulders.position.y = 1.46;
     group.add(shoulders);
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.145, 10, 8), skinMat);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.145, 14, 10), skinMat);
     head.position.y = 1.68;
     group.add(head);
-    const hood = new THREE.Mesh(new THREE.SphereGeometry(0.19, 10, 8), coatMat);
+    const hood = new THREE.Mesh(new THREE.SphereGeometry(0.19, 14, 10), coatMat);
     hood.scale.set(1.1, 1.0, 1.06);
     hood.position.set(0, 1.7, -0.035);
     group.add(hood);
+    const arms = [];
+    for (const sx of [-1, 1]) {
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.55, 6), coatMat);
+      arm.position.set(sx * 0.29, 1.19, 0);
+      arm.rotation.z = sx * 0.08;
+      group.add(arm);
+      arms.push(arm);
+    }
+    if (rnd() > 0.56) {
+      const bag = new THREE.Mesh(new THREE.BoxGeometry(0.23, 0.32, 0.11), new THREE.MeshStandardMaterial({ color: 0x13151b, roughness: 0.45, metalness: 0.35 }));
+      bag.position.set(-0.36, 0.67, 0.03);
+      bag.rotation.z = 0.12;
+      group.add(bag);
+      const strap = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.7, 0.02), this.metalMat);
+      strap.position.set(-0.25, 1.22, 0.04);
+      strap.rotation.z = -0.18;
+      group.add(strap);
+    }
 
     const legs = [];
     for (const sx of [-0.12, 0.12]) {
@@ -220,11 +242,20 @@
     const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.1, 4), bootMat);
     stem.position.y = -0.52;
     umbrella.add(stem);
+    const ribPos = [];
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * TAU;
+      ribPos.push(0, 0.06, 0, Math.cos(a) * 0.7, -0.08, Math.sin(a) * 0.7);
+    }
+    const ribGeo = new THREE.BufferGeometry();
+    ribGeo.setAttribute('position', new THREE.Float32BufferAttribute(ribPos, 3));
+    const ribs = new THREE.LineSegments(ribGeo, new THREE.LineBasicMaterial({ color: new THREE.Color(trimCol).multiplyScalar(0.9), transparent: true, opacity: 0.72 }));
+    umbrella.add(ribs);
     umbrella.position.set(0.12, 2.04, 0);
     group.add(umbrella);
 
     this.addContactShadow(group, 1.15, 0.72, 0.5, 0.008);
-    group.userData = { legs, umbrella, phase: rnd() * TAU, speed: 0.45 + rnd() * 0.6, dir: rnd() > 0.5 ? 1 : -1 };
+    group.userData = { legs, arms, hem, umbrella, phase: rnd() * TAU, speed: 0.45 + rnd() * 0.6, dir: rnd() > 0.5 ? 1 : -1 };
     return group;
   };
 
@@ -577,8 +608,11 @@
       p.rotation.y = u.dir > 0 ? 0.1 : Math.PI - 0.1;
       u.legs[0].rotation.x = Math.sin(time * 5.2 + u.phase) * 0.38 * Math.min(1, u.speed);
       u.legs[1].rotation.x = -Math.sin(time * 5.2 + u.phase) * 0.38 * Math.min(1, u.speed);
-      u.umbrella.rotation.z = Math.sin(time * 1.3 + u.phase) * 0.06;
-      u.umbrella.rotation.x = Math.sin(time * 0.9 + u.phase) * 0.04;
+      u.umbrella.rotation.z = Math.sin(time * 1.3 + u.phase) * 0.075;
+      u.umbrella.rotation.x = Math.sin(time * 0.9 + u.phase) * 0.045;
+      u.arms[0].rotation.x = Math.sin(time * 5.2 + u.phase) * 0.26;
+      u.arms[1].rotation.x = -Math.sin(time * 5.2 + u.phase) * 0.26;
+      u.hem.rotation.z = Math.sin(time * 1.7 + u.phase) * 0.018;
     }
     // traffic
     for (const f of this.flyers) {
