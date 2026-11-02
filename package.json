@@ -1,0 +1,15 @@
+{
+  "name": "neon-district",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A real-time cyberpunk rain street — Three.js progressive demo, 100% procedural.",
+  "scripts": {
+    "dev": "node tools/serve.mjs",
+    "build": "node tools/build.mjs",
+    "shot": "node tools/shot.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

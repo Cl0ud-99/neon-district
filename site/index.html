@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05030a">
+<title>NEON DISTRICT — 雨夜街区 / Real-time Cinematic Demo</title>
+<style>
+  :root{
+    --bg:#05030a;
+    --ink:#f4e9f2;
+    --dim:rgba(244,233,242,.53);
+    --faint:rgba(244,233,242,.22);
+    --pink:#ff2e8b;
+    --pink-hot:#ff4da0;
+    --cyan:#44e7ff;
+    --cyan-dim:#2aa9bf;
+    --violet:#9d6cff;
+    --amber:#ffb45f;
+    --line:rgba(255,255,255,.16);
+    --font:"Bahnschrift Condensed","Bahnschrift","DIN Alternate","Arial Narrow","Microsoft YaHei",sans-serif;
+    --font-cn:"Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif;
+    --mono:"Cascadia Mono","Consolas","SFMono-Regular",monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;padding:0;overflow:hidden;background:var(--bg);color:var(--ink);font-family:var(--font);}
+  body{-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision;user-select:none;}
+  button{font-family:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;}
+  #scene{position:fixed;inset:0;width:100%;height:100%;display:block;background:#05030a;}
+  ::selection{background:var(--pink);color:white}
+  :focus-visible{outline:1px solid var(--cyan);outline-offset:4px}
+
+  /* ---------------------------------------------------------------------
+     boot / generator
+     --------------------------------------------------------------------- */
+  #boot{
+    position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;
+    background:
+      radial-gradient(ellipse at 50% 44%, rgba(255,46,139,.07), transparent 36%),
+      radial-gradient(ellipse at 76% 20%, rgba(68,231,255,.055), transparent 32%),
+      #040309;
+    transition:opacity 1.1s cubic-bezier(.2,.75,.2,1), visibility 1.1s;
+  }
+  #boot.gone{opacity:0;visibility:hidden;pointer-events:none}
+  #boot:after{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(0deg, rgba(255,255,255,.027) 0 1px, transparent 1px 4px);
+    opacity:.5;
+  }
+  .boot-inner{width:min(560px,84vw);position:relative;z-index:1}
+  .boot-logo{font-size:34px;font-weight:900;letter-spacing:-.09em;color:var(--ink);margin-bottom:20px;display:flex;align-items:baseline;gap:4px}
+  .boot-logo i{font-style:normal;color:var(--pink);font-size:20px;transform:translateY(-8px)}
+  .boot-kicker{font:400 11px/1 var(--mono);letter-spacing:.32em;color:var(--cyan);margin-bottom:10px;opacity:.8}
+  .boot-title{font-size:clamp(42px,6.4vw,76px);font-weight:900;letter-spacing:-.035em;line-height:.9;margin:0 0 18px;
+    background:linear-gradient(92deg,#fff 5%,#ffd8ea 43%,#ff4da0 56%,#7feeff 78%,#fff 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 0 26px rgba(255,46,139,.16));
+  }
+  .boot-sub{font:400 10px/1.8 var(--mono);letter-spacing:.24em;color:var(--dim);margin-bottom:50px}
+  .boot-bar-wrap{width:100%;height:1px;background:rgba(255,255,255,.1);position:relative;overflow:hidden}
+  #boot-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--pink),var(--cyan));box-shadow:0 0 12px var(--pink);transition:width .42s cubic-bezier(.2,.8,.3,1)}
+  #boot-status{margin-top:14px;font:400 10px/1.4 var(--mono);letter-spacing:.19em;color:var(--dim);text-transform:uppercase;min-height:15px}
+  #boot-status.error{color:#ff536a;letter-spacing:.08em}
+  .boot-meta{display:flex;justify-content:space-between;margin-top:46px;font:400 9px/1.5 var(--mono);letter-spacing:.18em;color:rgba(255,255,255,.28)}
+  .boot-corners{position:absolute;inset:28px;pointer-events:none}
+  .boot-corners:before,.boot-corners:after{content:"";position:absolute;width:34px;height:1px;background:rgba(255,255,255,.22)}
+  .boot-corners:before{left:0;top:0}.boot-corners:after{right:0;bottom:0}
+
+  /* ---------------------------------------------------------------------
+     title menu
+     --------------------------------------------------------------------- */
+  #menu{position:fixed;inset:0;z-index:30;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .7s ease, visibility .7s}
+  #menu.visible{opacity:1;visibility:visible;pointer-events:auto}
+  .menu-scrim{position:absolute;inset:0;
+    background:
+      linear-gradient(90deg, rgba(4,3,8,.94) 0%, rgba(4,3,8,.74) 31%, rgba(4,3,8,.26) 60%, rgba(4,3,8,.06) 75%, rgba(4,3,8,.46) 100%),
+      linear-gradient(0deg, rgba(4,3,8,.78) 0%, rgba(4,3,8,.06) 42%, rgba(4,3,8,.18) 100%);
+    pointer-events:none;
+  }
+  .menu-scrim:after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 1px,transparent 1px 4px);pointer-events:none}
+  .menu-top{position:absolute;left:clamp(24px,4vw,64px);right:clamp(24px,4vw,64px);top:clamp(20px,3.3vw,48px);display:flex;align-items:flex-start;justify-content:space-between;gap:40px}
+  .monogram{display:flex;align-items:flex-start;gap:2px;font-weight:900;font-size:34px;line-height:.82;letter-spacing:-.10em;color:var(--ink)}
+  .monogram i{font-style:normal;color:var(--pink);font-size:18px;margin-top:1px}
+  .menu-meta{font:400 9px/1.7 var(--mono);letter-spacing:.22em;color:rgba(255,255,255,.36);text-align:left;margin-left:auto;padding-top:4px}
+  .menu-meta b{color:rgba(255,255,255,.68);font-weight:400}
+  .menu-sector{font:400 9px/1.3 var(--mono);letter-spacing:.18em;color:var(--dim);text-align:right;padding-top:4px}
+  .menu-sector b{display:block;font:700 34px/1 var(--font);letter-spacing:-.03em;color:var(--cyan);text-shadow:0 0 20px rgba(68,231,255,.32)}
+  .menu-main{position:absolute;left:clamp(28px,7vw,118px);top:50%;transform:translateY(-49%);width:min(680px,72vw)}
+  .eyebrow{display:flex;align-items:center;gap:12px;font:400 10px/1 var(--mono);letter-spacing:.24em;color:rgba(255,255,255,.58);text-transform:uppercase;margin-bottom:22px}
+  .eyebrow .dot{width:5px;height:5px;border-radius:50%;background:var(--pink);box-shadow:0 0 12px var(--pink);animation:pulse 2.2s infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.75)}}
+  .title{position:relative;margin:0 0 14px;font-weight:900;line-height:.76;letter-spacing:-.055em;font-size:clamp(74px,10.6vw,174px);text-transform:uppercase;filter:drop-shadow(0 0 50px rgba(255,46,139,.18))}
+  .title span{display:block;position:relative}
+  .title .t1{color:transparent;-webkit-text-stroke:1.5px rgba(245,234,243,.82);text-shadow:6px 0 0 rgba(255,46,139,.14),-2px 0 0 rgba(68,231,255,.12)}
+  .title .t2{color:#f5eaf4;font-size:.95em;margin-left:-.025em;text-shadow:0 0 32px rgba(255,46,139,.12), 3px 0 0 rgba(255,46,139,.13)}
+  .title .t2:after{content:"";display:block;height:clamp(5px,.65vw,10px);width:32%;margin-top:8px;background:linear-gradient(90deg,var(--pink),rgba(255,46,139,.05));box-shadow:0 0 24px rgba(255,46,139,.4)}
+  .cn-title{font:400 clamp(13px,1.25vw,18px)/1 var(--font-cn);letter-spacing:.62em;color:var(--cyan);margin:20px 0 26px;text-shadow:0 0 18px rgba(68,231,255,.35)}
+  .tagline{font:400 13px/1.65 var(--font-cn);letter-spacing:.10em;color:rgba(255,255,255,.65);margin:0 0 36px}
+  .tagline span{font:400 9px/1 var(--mono);letter-spacing:.2em;color:rgba(255,255,255,.32)}
+  .buttons{display:flex;flex-wrap:wrap;gap:12px}
+  .btn{position:relative;min-width:246px;height:58px;display:inline-flex;align-items:center;gap:16px;padding:0 20px;text-align:left;
+    border:1px solid rgba(255,255,255,.16);background:rgba(4,4,9,.52);backdrop-filter:blur(8px);
+    clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px));
+    transition:transform .22s ease, background .22s ease, border-color .22s ease, color .22s ease;
+    font:400 11px/1.2 var(--mono);letter-spacing:.15em;text-transform:uppercase
+  }
+  .btn small{display:block;margin-top:4px;font:400 8px/1 var(--mono);letter-spacing:.13em;color:rgba(255,255,255,.4)}
+  .btn .btn-icon{font-size:12px;color:var(--cyan);width:19px;text-align:center;transition:transform .25s}
+  .btn:hover{transform:translateX(4px);border-color:rgba(255,255,255,.34);background:rgba(255,255,255,.07)}
+  .btn:hover .btn-icon{transform:translateX(3px)}
+  .btn.primary{background:linear-gradient(90deg,rgba(255,46,139,.92),rgba(255,46,139,.68));border-color:rgba(255,120,183,.6);box-shadow:0 0 32px rgba(255,46,139,.12)}
+  .btn.primary .btn-icon{color:white}
+  .btn.primary small{color:rgba(255,255,255,.6)}
+  .btn.primary:hover{background:linear-gradient(90deg,rgba(255,46,139,1),rgba(255,46,139,.8));box-shadow:0 0 42px rgba(255,46,139,.22)}
+  .btn.ghost{min-width:204px}
+  .btn.ghost:hover .btn-icon{color:var(--pink)}
+  .tech-row{display:flex;gap:16px;flex-wrap:wrap;margin-top:29px;font:400 8px/1 var(--mono);letter-spacing:.16em;color:rgba(255,255,255,.27)}
+  .tech-row span{display:flex;align-items:center;gap:16px}
+  .tech-row span:not(:last-child):after{content:"";width:3px;height:3px;background:rgba(255,46,139,.6);border-radius:50%}
+  .menu-side{position:absolute;right:clamp(26px,4.2vw,66px);top:50%;transform:translateY(-45%);display:flex;flex-direction:column;align-items:flex-end;gap:24px;color:rgba(255,255,255,.23)}
+  .vertical-jp{writing-mode:vertical-rl;font:400 13px/2.1 var(--font-cn);letter-spacing:.46em}
+  .side-line{width:1px;height:90px;background:linear-gradient(180deg,rgba(68,231,255,.4),transparent)}
+  .side-caption{font:400 8px/1.9 var(--mono);letter-spacing:.2em;text-align:right}
+  .menu-bottom{position:absolute;left:clamp(24px,4vw,64px);right:clamp(24px,4vw,64px);bottom:clamp(20px,3.2vw,44px);display:flex;justify-content:space-between;align-items:flex-end;gap:30px}
+  .controls-hint{font:400 9px/1.4 var(--mono);letter-spacing:.13em;color:rgba(255,255,255,.28)}
+  .controls-hint kbd{color:rgba(255,255,255,.58);font-family:var(--mono);font-size:9px;border-bottom:1px solid rgba(255,255,255,.22);padding-bottom:2px;margin-right:4px}
+  .legal{font:400 8px/1.7 var(--mono);letter-spacing:.13em;color:rgba(255,255,255,.2);text-align:right}
+
+  /* ---------------------------------------------------------------------
+     gameplay HUD
+     --------------------------------------------------------------------- */
+  #hud{position:fixed;inset:0;z-index:50;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .7s ease, visibility .7s}
+  #hud.visible{opacity:1;visibility:visible}
+  .hud-left{position:absolute;left:clamp(18px,2.4vw,36px);top:clamp(18px,2.4vw,32px);display:flex;flex-direction:column;gap:14px;padding:13px 22px 14px 15px;background:linear-gradient(90deg,rgba(3,2,8,.62),rgba(3,2,8,0));border-left:1px solid rgba(255,46,139,.55);filter:drop-shadow(0 2px 12px rgba(0,0,0,.7))}
+  .hud-brand{display:flex;gap:13px;align-items:flex-start}
+  .mini-mark{font:900 25px/0.8 var(--font);letter-spacing:-.1em;color:var(--ink);text-shadow:0 0 18px rgba(255,46,139,.3)}
+  .hud-brand > span:last-child{font:400 9px/1.55 var(--mono);letter-spacing:.18em;color:rgba(255,255,255,.58)}
+  .hud-brand small{display:block;font:400 8px/1.4 var(--mono);letter-spacing:.14em;color:rgba(255,255,255,.27)}
+  .hud-line{width:120px;height:1px;background:linear-gradient(90deg,rgba(255,46,139,.8),rgba(255,46,139,.04))}
+  .hud-data{font:400 8px/1.5 var(--mono);letter-spacing:.12em;color:rgba(255,255,255,.27)}
+  .hud-right{position:absolute;right:clamp(18px,2.4vw,36px);top:clamp(18px,2.4vw,32px);display:flex;flex-direction:column;align-items:flex-end;gap:9px;padding:12px 14px;background:linear-gradient(270deg,rgba(3,2,8,.6),rgba(3,2,8,0));border-right:1px solid rgba(68,231,255,.35);filter:drop-shadow(0 2px 12px rgba(0,0,0,.7))}
+  .clock-row{display:flex;align-items:center;gap:10px;font:400 14px/1 var(--mono);letter-spacing:.08em;color:rgba(255,255,255,.82);text-shadow:0 1px 4px #000}
+  .clock-row .divider{width:1px;height:11px;background:rgba(255,255,255,.18)}
+  .clock-row #fps{font-size:9px;color:rgba(68,231,255,.58);letter-spacing:.1em}
+  .zone{font:400 8px/1 var(--mono);letter-spacing:.2em;color:rgba(255,182,223,.55);text-transform:uppercase}
+  .icon-btn{pointer-events:auto;display:flex;align-items:center;gap:7px;margin-top:4px;font:400 8px/1 var(--mono);letter-spacing:.12em;color:rgba(255,255,255,.4);padding:7px 0;transition:color .2s}
+  .icon-btn:hover{color:rgba(255,255,255,.9)}
+  .icon-btn .icon{font-size:11px;color:rgba(68,231,255,.55)}
+  .icon-btn .qlabel{font-size:7px;color:rgba(255,46,139,.65);letter-spacing:.08em}
+  .icon-btn.muted .icon{color:var(--pink)}
+  .reticle{position:absolute;left:50%;top:50%;width:22px;height:22px;transform:translate(-50%,-50%);opacity:0;visibility:hidden;transition:opacity .5s}
+  .reticle.visible{opacity:.72;visibility:visible}
+  .reticle:before,.reticle:after{content:"";position:absolute;background:rgba(255,255,255,.76);box-shadow:0 0 7px rgba(68,231,255,.5)}
+  .reticle:before{left:10px;top:2px;width:1px;height:5px;box-shadow:0 13px 0 rgba(255,255,255,.76),0 0 7px rgba(68,231,255,.5)}
+  .reticle:after{top:10px;left:2px;width:5px;height:1px;box-shadow:13px 0 0 rgba(255,255,255,.76),0 0 7px rgba(68,231,255,.5)}
+  .reticle span{position:absolute;left:9px;top:9px;width:4px;height:4px;border-radius:50%;background:var(--pink);box-shadow:0 0 12px var(--pink)}
+  .mission{position:absolute;left:50%;bottom:clamp(24px,3.2vw,40px);transform:translateX(-50%);width:min(370px,64vw);padding:11px 14px 10px;background:linear-gradient(180deg,rgba(3,2,8,.06),rgba(3,2,8,.5));backdrop-filter:blur(5px);border-bottom:1px solid rgba(255,255,255,.12)}
+  .mission-top{display:flex;justify-content:space-between;align-items:baseline;font:400 8px/1.2 var(--mono);letter-spacing:.14em;color:rgba(255,255,255,.32);margin-bottom:8px}
+  .mission-top strong{font-weight:400;color:rgba(255,255,255,.62);letter-spacing:.1em}
+  .mission-bar{height:1px;background:rgba(255,255,255,.12);overflow:hidden}
+  .mission-bar i{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--pink),var(--cyan));box-shadow:0 0 9px var(--pink);transition:width .2s}
+  .hud-bottom-left{position:absolute;left:clamp(18px,2.4vw,36px);bottom:clamp(26px,3.2vw,42px);font:400 8px/1.6 var(--mono);letter-spacing:.12em;color:rgba(255,255,255,.48);text-shadow:0 1px 4px #000}
+  .hud-bottom-left kbd{font-family:var(--mono);font-size:8px;color:rgba(255,255,255,.55);border-bottom:1px solid rgba(255,255,255,.2);padding-bottom:1px}
+  .hud-bottom-left span{color:rgba(255,46,139,.4);margin:0 4px}
+
+  /* ---------------------------------------------------------------------
+     cinematic overlay
+     --------------------------------------------------------------------- */
+  #cinema-ui{position:fixed;inset:0;z-index:45;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .8s ease,visibility .8s}
+  #cinema-ui.visible{opacity:1;visibility:visible}
+  .bar{position:absolute;left:0;right:0;height:7.5vh;background:#020204;z-index:1}
+  .bar.top{top:0}.bar.bottom{bottom:0}
+  .cine-meta{position:absolute;left:clamp(24px,4.2vw,64px);right:clamp(24px,4.2vw,64px);top:2.35vh;z-index:3;display:flex;justify-content:space-between;align-items:center;font:400 7px/1 var(--mono);letter-spacing:.24em;color:rgba(255,255,255,.24);text-transform:uppercase;pointer-events:none}
+  .cine-meta .rec{display:flex;align-items:center;gap:6px;color:rgba(255,92,140,.55)}
+  .cine-meta .rec:before{content:"";width:4px;height:4px;border-radius:50%;background:var(--pink);box-shadow:0 0 6px var(--pink)}
+  .cine-location{position:absolute;left:clamp(28px,4.6vw,74px);top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:15px;opacity:0;transition:opacity 1s ease;z-index:2}
+  .cine-location.visible{opacity:1}
+  .cine-location .line{width:1px;height:45px;background:linear-gradient(180deg,var(--cyan),transparent)}
+  .cine-location b{display:block;font:400 13px/1.4 var(--font-cn);letter-spacing:.18em;color:rgba(255,255,255,.8)}
+  .cine-location small{display:block;font:400 8px/1.4 var(--mono);letter-spacing:.19em;color:rgba(255,255,255,.36);margin-top:4px}
+  .caption{position:absolute;left:50%;bottom:12.5vh;transform:translateX(-50%) translateY(6px);text-align:center;opacity:0;transition:opacity .8s ease,transform .8s ease;z-index:2;width:min(800px,84vw)}
+  .caption.visible{opacity:1;transform:translateX(-50%) translateY(0)}
+  #caption-zh{font:400 clamp(16px,1.55vw,22px)/1.5 var(--font-cn);letter-spacing:.20em;color:rgba(255,255,255,.9);text-shadow:0 0 24px rgba(255,46,139,.35)}
+  #caption-en{font:400 8px/1.8 var(--mono);letter-spacing:.24em;color:rgba(255,255,255,.38);margin-top:3px}
+  .cine-title{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);text-align:center;opacity:0;transition:opacity 1.2s ease;z-index:2}
+  .cine-title.visible{opacity:1}
+  .ct-mark{font:900 48px/1 var(--font);letter-spacing:-.12em;color:var(--pink);text-shadow:0 0 50px rgba(255,46,139,.45);margin-bottom:15px}
+  .cine-title > div:nth-child(2){font:900 clamp(40px,6vw,90px)/.9 var(--font);letter-spacing:-.04em;color:#fff}
+  .cine-title small{display:block;font:400 9px/1.6 var(--mono);letter-spacing:.28em;color:rgba(255,255,255,.42);margin-top:15px}
+  .cine-exit{position:absolute;right:clamp(24px,4vw,58px);bottom:calc(7.5vh + 22px);pointer-events:auto;font:400 8px/1 var(--mono);letter-spacing:.16em;color:rgba(255,255,255,.25);z-index:2;padding:8px}
+  .cine-exit:hover{color:rgba(255,255,255,.7)}
+
+  /* ---------------------------------------------------------------------
+     pause / help / toast
+     --------------------------------------------------------------------- */
+  #pause{position:fixed;inset:0;z-index:100;background:rgba(3,2,7,.55);backdrop-filter:blur(13px);display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;transition:opacity .45s,visibility .45s}
+  #pause.visible{opacity:1;visibility:visible}
+  .pause-card{width:min(380px,86vw);border:1px solid rgba(255,255,255,.14);background:rgba(5,4,10,.72);padding:42px;clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,18px 100%,0 calc(100% - 18px));text-align:left}
+  .pause-card h2{font:300 46px/1 var(--font-cn);letter-spacing:.18em;margin:0 0 8px;color:#fff}
+  .pause-card p{font:400 10px/1.8 var(--font-cn);letter-spacing:.1em;color:rgba(255,255,255,.38);margin:0 0 28px}
+  .pause-card .btn{width:100%;margin-top:9px;min-width:0}
+  .help{position:fixed;right:clamp(18px,2.4vw,36px);top:120px;z-index:80;width:290px;padding:24px;background:rgba(4,3,9,.82);border:1px solid rgba(255,255,255,.13);backdrop-filter:blur(14px);clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px));opacity:0;visibility:hidden;transform:translateY(-6px);transition:.3s ease;pointer-events:none}
+  .help.visible{opacity:1;visibility:visible;transform:translateY(0)}
+  .help h3{font:400 10px/1 var(--mono);letter-spacing:.2em;color:var(--pink);margin:0 0 17px}
+  .help-row{display:flex;justify-content:space-between;gap:12px;font:400 9px/2 var(--mono);letter-spacing:.08em;color:rgba(255,255,255,.45)}
+  .help-row b{font-weight:400;color:rgba(255,255,255,.75);text-align:right}
+  .help-note{font:400 9px/1.8 var(--font-cn);letter-spacing:.06em;color:rgba(255,255,255,.28);margin-top:18px;padding-top:15px;border-top:1px solid rgba(255,255,255,.1)}
+  #toast{position:fixed;left:50%;bottom:16vh;transform:translate(-50%,8px);z-index:120;font:400 9px/1 var(--mono);letter-spacing:.18em;color:rgba(255,255,255,.55);background:rgba(4,3,9,.66);border:1px solid rgba(255,255,255,.08);padding:12px 18px;opacity:0;visibility:hidden;transition:.35s ease;pointer-events:none;backdrop-filter:blur(8px)}
+  #toast.visible{opacity:1;visibility:visible;transform:translate(-50%,0)}
+  #fade{position:fixed;inset:0;z-index:190;background:#040309;pointer-events:none;opacity:0;transition:opacity 1.2s ease}
+  .scanlines{position:fixed;inset:0;z-index:95;pointer-events:none;opacity:.25;background:repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 1px,transparent 1px 3px);mix-blend-mode:screen}
+
+  /* corner deco */
+  .corner{position:fixed;width:30px;height:30px;z-index:60;pointer-events:none;opacity:.28}
+  .corner.tl{left:16px;top:16px;border-left:1px solid rgba(255,255,255,.4);border-top:1px solid rgba(255,255,255,.4)}
+  .corner.tr{right:16px;top:16px;border-right:1px solid rgba(255,255,255,.4);border-top:1px solid rgba(255,255,255,.4)}
+  .corner.bl{left:16px;bottom:16px;border-left:1px solid rgba(255,255,255,.4);border-bottom:1px solid rgba(255,255,255,.4)}
+  .corner.br{right:16px;bottom:16px;border-right:1px solid rgba(255,255,255,.4);border-bottom:1px solid rgba(255,255,255,.4)}
+
+  /* screenshot mode */
+  body.shot-mode .menu, body.shot-mode #hud, body.shot-mode #cinema-ui, body.shot-mode #pause, body.shot-mode .scanlines, body.shot-mode .corner, body.shot-mode #boot, body.shot-mode #toast {display:none !important}
+
+  /* responsive */
+  @media (max-width:900px){
+    .menu-main{width:80vw;left:7vw;top:47%}
+    .title{font-size:clamp(58px,14vw,104px)}
+    .menu-side,.menu-meta{display:none}
+    .menu-sector{display:block}
+    .menu-bottom .legal{display:none}
+    .buttons{flex-direction:column;align-items:flex-start}
+    .btn{min-width:234px}
+    .tagline{margin-bottom:26px}
+    .cine-location{display:none}
+    .hud-data,.hud-bottom-left{display:none}
+    .mission{width:70vw}
+    .help{top:100px;right:14px;width:260px}
+  }
+  @media (max-width:560px){
+    .menu-main{top:44%;width:86vw;left:6vw}
+    .title{font-size:20vw}
+    .cn-title{letter-spacing:.36em;font-size:11px}
+    .tagline{font-size:11px}
+    .btn{height:52px}
+    .menu-top{left:18px;right:18px}
+    .menu-sector b{font-size:26px}
+    .boot-inner{width:84vw}
+    #caption-zh{font-size:14px}
+  }
+</style>
+</head>
+<body data-state="boot">
+<canvas id="scene" aria-label="NEON DISTRICT real-time 3D scene"></canvas>
+
+<div id="boot">
+  <div class="boot-inner">
+    <div class="boot-logo">N<i>/</i>D</div>
+    <div class="boot-kicker">DEEPSEEK HARNESS // REAL-TIME DEMO</div>
+    <div class="boot-title">NEON DISTRICT</div>
+    <div class="boot-sub">霓虹街区 · 雨夜叙事场景<br>PROCEDURAL CITY / HDR / PLANAR REFLECTIONS / VOLUMETRIC RAIN</div>
+    <div class="boot-bar-wrap"><div id="boot-bar"></div></div>
+    <div id="boot-status">BOOTING CITY // 初始化城市</div>
+    <div class="boot-meta"><span>WEBGL2 RENDERER</span><span>BUILD 0.9.7</span><span>SECTOR 07</span></div>
+  </div>
+  <div class="boot-corners"></div>
+</div>
+
+<div id="menu">
+  <div class="menu-scrim"></div>
+  <div class="menu-top">
+    <div class="monogram">N<i>/</i>D</div>
+    <div class="menu-meta">DEEPSEEK HARNESS PRESENTS<br><b>REAL-TIME CINEMATIC DEMO</b></div>
+    <div class="menu-sector">SECTOR<b>07</b></div>
+  </div>
+  <div class="menu-main">
+    <div class="eyebrow"><span class="dot"></span>新九州 · 雨夜 23:47 / SECTOR 07</div>
+    <h1 class="title"><span class="t1">NEON</span><span class="t2">DISTRICT</span></h1>
+    <div class="cn-title">霓 虹 街 区</div>
+    <p class="tagline">一道从未干透的街。<br><span>THE STREET THAT NEVER DRIES.</span></p>
+    <div class="buttons">
+      <button id="btn-enter" class="btn primary"><span class="btn-icon">▶</span><span>进入街区<small>EXPLORE SECTOR 07</small></span></button>
+      <button id="btn-cinema" class="btn ghost"><span class="btn-icon">◈</span><span>电影模式<small>CINEMATIC REEL</small></span></button>
+    </div>
+    <div class="tech-row"><span>WEBGL2</span><span>PROCEDURAL CITY</span><span>NO ASSETS</span><span>HDR PIPELINE</span></div>
+  </div>
+  <div class="menu-side">
+    <div class="vertical-jp">雨は、やまない</div>
+    <div class="side-line"></div>
+    <div class="side-caption">KOWLOON NEW TERRITORIES<br>NEON DISTRICT / 2099</div>
+  </div>
+  <div class="menu-bottom">
+    <div class="controls-hint"><kbd>WASD</kbd> 移动 <kbd>MOUSE</kbd> 视角 <kbd>SHIFT</kbd> 疾跑</div>
+    <div class="legal">EVERY PIXEL GENERATED IN REAL TIME.<br>© 2099 KIRIN HEAVY INDUSTRIES // ALL RAIN RESERVED.</div>
+  </div>
+</div>
+
+<div id="hud">
+  <div class="hud-left">
+    <div class="hud-brand"><span class="mini-mark">N/</span><span>NEON DISTRICT<small>KOWLOON · SECTOR 07</small></span></div>
+    <div class="hud-line"></div>
+    <div class="hud-data">WET BULB 14.8°C · RAIN 92% · WIND NE 12</div>
+  </div>
+  <div class="hud-right">
+    <div class="clock-row"><span id="clock">23:47:00</span><span class="divider"></span><span id="fps">60 FPS</span></div>
+    <div class="zone" id="zone-status">RAIN MARKET / 雨市</div>
+    <button id="btn-mute" class="icon-btn"><span class="icon">◉</span><span class="label">声音</span></button>
+    <button id="btn-quality" class="icon-btn"><span class="icon">▦</span><span class="label">画质</span><span id="quality-label" class="qlabel">HIGH</span></button>
+    <button id="btn-help" class="icon-btn"><span class="icon">?</span><span class="label">帮助</span></button>
+  </div>
+  <div id="reticle" class="reticle"><span></span></div>
+  <div class="mission">
+    <div class="mission-top"><span>DESTINATION</span><strong>麒麟广场 / KIRIN PLAZA</strong><span>120M</span></div>
+    <div class="mission-bar"><i id="mission-progress"></i></div>
+  </div>
+  <div class="hud-bottom-left"><kbd>WASD</kbd> MOVE <span>·</span> <kbd>MOUSE</kbd> LOOK <span>·</span> <kbd>SHIFT</kbd> RUN <span>·</span> <kbd>C</kbd> CINEMA <span>·</span> <kbd>ESC</kbd> PAUSE</div>
+</div>
+
+<div id="cinema-ui">
+  <div class="bar top"></div><div class="bar bottom"></div>
+  <div class="cine-meta"><span class="rec">ND—07 / KOWLOON UNIT</span><span>CINEMATIC REEL 01 · 35MM · 23:47:12</span></div>
+  <div id="cine-location" class="cine-location"><span class="line"></span><div><b>新九州 · 第七区</b><small>NEO-KYUSHU / SECTOR 07</small></div></div>
+  <div id="caption" class="caption"><div id="caption-zh"></div><div id="caption-en"></div></div>
+  <div id="cine-title" class="cine-title"><div class="ct-mark">N/D</div><div>NEON DISTRICT</div><small>雨夜街区 · 实时渲染演示</small></div>
+  <button id="btn-cine-exit" class="cine-exit">ESC 退出</button>
+</div>
+
+<div id="pause">
+  <div class="pause-card">
+    <div class="eyebrow"><span class="dot"></span>SIGNAL PAUSED</div>
+    <h2>暂停</h2>
+    <p>你已离开霓虹街区。<br><span style="font-family:var(--mono);font-size:8px;letter-spacing:.18em;color:rgba(255,255,255,.22)">THE RAIN WAITS FOR YOU.</span></p>
+    <button id="btn-resume" class="btn primary"><span class="btn-icon">▶</span><span>继续<small>RESUME EXPLORATION</small></span></button>
+    <button id="btn-pause-menu" class="btn ghost"><span class="btn-icon">◂</span><span>返回标题<small>BACK TO TITLE</small></span></button>
+  </div>
+</div>
+
+<div id="help" class="help">
+  <h3>FIELD MANUAL / 操作</h3>
+  <div class="help-row"><span>WASD</span><b>移动 / MOVE</b></div>
+  <div class="help-row"><span>MOUSE</span><b>视角 / LOOK</b></div>
+  <div class="help-row"><span>SHIFT</span><b>疾跑 / RUN</b></div>
+  <div class="help-row"><span>C</span><b>电影模式 / CINEMA</b></div>
+  <div class="help-row"><span>M</span><b>声音 / AUDIO</b></div>
+  <div class="help-row"><span>ESC</span><b>暂停 / PAUSE</b></div>
+  <div class="help-note">这里是一个完全由代码生成的实时场景。所有招牌、建筑、雨水与反射均在浏览器中逐帧计算。</div>
+</div>
+
+<div id="toast"></div>
+<div id="fade"></div>
+<div class="scanlines"></div>
+<div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+
+<script src="vendor/three.min.js"></script>
+<script src="src/tex.js"></script>
+<script src="src/post.js"></script>
+<script src="src/world.js"></script>
+<script src="src/props.js"></script>
+<script src="src/actors.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/app.js"></script>
+</body>
+</html>

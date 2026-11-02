@@ -1,0 +1,27 @@
+# dependencies / caches
+node_modules/
+.pnpm-store/
+.npm-cache/
+.chrome-profile/
+
+# build artifacts
+dist/
+build/
+*.tsbuildinfo
+
+# local tooling
+serve.log
+serve.log.err
+*.log
+/shots/
+*.pem
+*.key
+*.crt
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
