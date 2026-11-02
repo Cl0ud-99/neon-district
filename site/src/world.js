@@ -399,6 +399,24 @@
     });
   }
 
+  function addFacadeWindowVariation(mat, seed) {
+    mat.onBeforeCompile = (shader) => {
+      shader.uniforms.uFacadeSeed = { value: seed };
+      shader.fragmentShader = 'uniform float uFacadeSeed;\n' + shader.fragmentShader;
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>
+        vec2 cell = floor(vEmissiveMapUv * vec2(7.0, 17.0));
+        float winSeed = fract(sin(dot(cell, vec2(12.9898, 78.233)) + uFacadeSeed) * 43758.5453);
+        float winLit = smoothstep(0.10, 0.90, winSeed);
+        totalEmissiveRadiance *= mix(0.28, 1.28, winLit);
+        float winLuma = dot(totalEmissiveRadiance, vec3(0.333));
+        totalEmissiveRadiance *= mix(0.62, 1.0, smoothstep(0.008, 0.055, winLuma));`
+      );
+    };
+    mat.customProgramCacheKey = () => 'facade-window-variation-' + seed.toFixed(3);
+  }
+
   class World {
     constructor(scene, renderer, opts) {
       this.scene = scene;
@@ -425,6 +443,8 @@
       this.railMatrices = [];
       this.pipeMatrices = [];
       this.ledgeMatrices = [];
+      this.facadeSillMatrices = [];
+      this.facadeMullionMatrices = [];
       this.neonBatches = { magenta: [], cyan: [], amber: [], violet: [] };
       this.roofTanks = [];
       this.reflectionHidden = [];
@@ -510,6 +530,7 @@
           fragmentShader: windowFrag
         });
       });
+      this.facadeBumpBase = ND.Tex.canvasToTexture(ND.Tex.facadeBump(), false);
       this.bodyMat = new THREE.MeshStandardMaterial({ color: 0x14131b, roughness: 0.82, metalness: 0.12 });
       this.roofMat = new THREE.MeshStandardMaterial({ color: 0x0b0c12, roughness: 0.72, metalness: 0.25 });
       this.metalMat = new THREE.MeshStandardMaterial({ color: 0x11131a, roughness: 0.38, metalness: 0.72 });
@@ -646,10 +667,39 @@
         roughness: 0.32 + rnd() * 0.18,
         metalness: 0.28 + rnd() * 0.2
       });
+      addFacadeWindowVariation(mat, rnd() * 100);
+      const bump = this.facadeBumpBase.clone();
+      bump.needsUpdate = true;
+      bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
+      bump.repeat.copy(tex.repeat);
+      bump.offset.copy(tex.offset);
+      bump.anisotropy = 4;
+      mat.bumpMap = bump;
+      mat.bumpScale = 0.018;
       const facade = new THREE.Mesh(new THREE.PlaneGeometry(len, h), mat);
       facade.position.set(side * (b.facadeX - 0.02), h / 2, z);
       facade.rotation.y = -side * Math.PI / 2;
       group.add(facade);
+
+      // Real facade relief for mid-ground buildings: thin floor sills and
+      // window mullions break the single-plane texture silhouette.
+      const cols = Math.max(2, Math.round(len / 1.93));
+      const colStep = len / cols;
+      for (let c = 1; c < cols; c++) {
+        const dummy = new THREE.Object3D();
+        dummy.position.set(side * (b.facadeX - 0.13), h / 2 + 0.8, z - len / 2 + c * colStep);
+        dummy.scale.set(0.055, h - 2.2, 0.06);
+        dummy.updateMatrix();
+        this.facadeMullionMatrices.push(dummy.matrix.clone());
+      }
+      const floors = Math.max(2, Math.floor((h - 4) / 5.4));
+      for (let f = 0; f < floors; f++) {
+        const dummy = new THREE.Object3D();
+        dummy.position.set(side * (b.facadeX - 0.16), 3.2 + f * 5.4, z);
+        dummy.scale.set(0.24, 0.11, len * 0.94);
+        dummy.updateMatrix();
+        this.facadeSillMatrices.push(dummy.matrix.clone());
+      }
 
       // side facade facing the nearest alley / cross street
       if (rnd() > 0.45) {
@@ -658,6 +708,15 @@
         stex.repeat.set(Math.max(1, depth / 13.5), Math.max(1, h / 30.0));
         const smat = mat.clone();
         smat.map = stex; smat.emissiveMap = stex;
+        addFacadeWindowVariation(smat, rnd() * 100);
+        const sbump = bump.clone();
+        sbump.needsUpdate = true;
+        sbump.wrapS = sbump.wrapT = THREE.RepeatWrapping;
+        sbump.repeat.copy(stex.repeat);
+        sbump.offset.copy(stex.offset);
+        sbump.anisotropy = 4;
+        smat.bumpMap = sbump;
+        smat.bumpScale = 0.018;
         const sidePlane = new THREE.Mesh(new THREE.PlaneGeometry(depth, h), smat);
         sidePlane.position.set(side * (b.facadeX + depth / 2), h / 2, z + len / 2 + 0.01);
         group.add(sidePlane);
@@ -945,6 +1004,18 @@
       this.ledgeMatrices.forEach((m, i) => ledgeMesh.setMatrixAt(i, m));
       ledgeMesh.instanceMatrix.needsUpdate = true;
       this.scene.add(ledgeMesh);
+      if (this.facadeSillMatrices.length) {
+        const sillMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x15141c, roughness: 0.46, metalness: 0.48 }), this.facadeSillMatrices.length);
+        this.facadeSillMatrices.forEach((m, i) => sillMesh.setMatrixAt(i, m));
+        sillMesh.instanceMatrix.needsUpdate = true;
+        this.scene.add(sillMesh);
+      }
+      if (this.facadeMullionMatrices.length) {
+        const mullionMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x0c0d14, roughness: 0.34, metalness: 0.72 }), this.facadeMullionMatrices.length);
+        this.facadeMullionMatrices.forEach((m, i) => mullionMesh.setMatrixAt(i, m));
+        mullionMesh.instanceMatrix.needsUpdate = true;
+        this.scene.add(mullionMesh);
+      }
       const ledMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }), this.acLedMatrices.length);
       this.acLedMatrices.forEach((m, i) => {
         ledMesh.setMatrixAt(i, m);

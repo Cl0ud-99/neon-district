@@ -246,6 +246,33 @@
     return c;
   };
 
+  // A grayscale height field matching the 7 x 17 window grid. Used as a
+  // bump map on distant facades so mullions and sill shadows catch the neon.
+  T.facadeBump = function () {
+    const W = 256, H = 512;
+    const c = makeCanvas(W, H);
+    const x = c.getContext('2d');
+    x.fillStyle = '#b4b4b4'; x.fillRect(0, 0, W, H);
+    const cols = 7, rows = 17, mx = 12, my = 12;
+    const cw = (W - mx * 2) / cols, ch = (H - my * 2) / rows;
+    for (let r = 0; r < rows; r++) {
+      for (let col = 0; col < cols; col++) {
+        const wx = mx + col * cw + cw * 0.18;
+        const wy = my + r * ch + ch * 0.18;
+        const ww = cw * 0.64, wh = ch * 0.56;
+        x.fillStyle = '#252525'; x.fillRect(wx, wy, ww, wh);
+        x.fillStyle = '#555555'; x.fillRect(wx + ww * 0.5, wy, 1.5, wh);
+        x.fillStyle = '#555555'; x.fillRect(wx, wy + wh * 0.55, ww, 1.5);
+      }
+      const ly = my + r * ch;
+      x.fillStyle = '#d0d0d0'; x.fillRect(0, ly, W, 1.5);
+      x.fillStyle = '#666666'; x.fillRect(0, ly + 2, W, 2);
+    }
+    x.fillStyle = '#e0e0e0'; x.fillRect(0, 0, W, 4);
+    x.fillStyle = '#4a4a4a'; x.fillRect(0, H - 5, W, 5);
+    return c;
+  };
+
   /* -----------------------------------------------------------------------
      Billboard artwork. Built around bold silhouettes and type so they read
      even after being blurred by bloom and rain.

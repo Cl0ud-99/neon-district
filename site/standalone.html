@@ -611,6 +611,33 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     return c;
   };
 
+  // A grayscale height field matching the 7 x 17 window grid. Used as a
+  // bump map on distant facades so mullions and sill shadows catch the neon.
+  T.facadeBump = function () {
+    const W = 256, H = 512;
+    const c = makeCanvas(W, H);
+    const x = c.getContext('2d');
+    x.fillStyle = '#b4b4b4'; x.fillRect(0, 0, W, H);
+    const cols = 7, rows = 17, mx = 12, my = 12;
+    const cw = (W - mx * 2) / cols, ch = (H - my * 2) / rows;
+    for (let r = 0; r < rows; r++) {
+      for (let col = 0; col < cols; col++) {
+        const wx = mx + col * cw + cw * 0.18;
+        const wy = my + r * ch + ch * 0.18;
+        const ww = cw * 0.64, wh = ch * 0.56;
+        x.fillStyle = '#252525'; x.fillRect(wx, wy, ww, wh);
+        x.fillStyle = '#555555'; x.fillRect(wx + ww * 0.5, wy, 1.5, wh);
+        x.fillStyle = '#555555'; x.fillRect(wx, wy + wh * 0.55, ww, 1.5);
+      }
+      const ly = my + r * ch;
+      x.fillStyle = '#d0d0d0'; x.fillRect(0, ly, W, 1.5);
+      x.fillStyle = '#666666'; x.fillRect(0, ly + 2, W, 2);
+    }
+    x.fillStyle = '#e0e0e0'; x.fillRect(0, 0, W, 4);
+    x.fillStyle = '#4a4a4a'; x.fillRect(0, H - 5, W, 5);
+    return c;
+  };
+
   /* -----------------------------------------------------------------------
      Billboard artwork. Built around bold silhouettes and type so they read
      even after being blurred by bloom and rain.
@@ -2277,6 +2304,24 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     });
   }
 
+  function addFacadeWindowVariation(mat, seed) {
+    mat.onBeforeCompile = (shader) => {
+      shader.uniforms.uFacadeSeed = { value: seed };
+      shader.fragmentShader = 'uniform float uFacadeSeed;\n' + shader.fragmentShader;
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>
+        vec2 cell = floor(vEmissiveMapUv * vec2(7.0, 17.0));
+        float winSeed = fract(sin(dot(cell, vec2(12.9898, 78.233)) + uFacadeSeed) * 43758.5453);
+        float winLit = smoothstep(0.10, 0.90, winSeed);
+        totalEmissiveRadiance *= mix(0.28, 1.28, winLit);
+        float winLuma = dot(totalEmissiveRadiance, vec3(0.333));
+        totalEmissiveRadiance *= mix(0.62, 1.0, smoothstep(0.008, 0.055, winLuma));`
+      );
+    };
+    mat.customProgramCacheKey = () => 'facade-window-variation-' + seed.toFixed(3);
+  }
+
   class World {
     constructor(scene, renderer, opts) {
       this.scene = scene;
@@ -2303,6 +2348,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.railMatrices = [];
       this.pipeMatrices = [];
       this.ledgeMatrices = [];
+      this.facadeSillMatrices = [];
+      this.facadeMullionMatrices = [];
       this.neonBatches = { magenta: [], cyan: [], amber: [], violet: [] };
       this.roofTanks = [];
       this.reflectionHidden = [];
@@ -2388,6 +2435,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
           fragmentShader: windowFrag
         });
       });
+      this.facadeBumpBase = ND.Tex.canvasToTexture(ND.Tex.facadeBump(), false);
       this.bodyMat = new THREE.MeshStandardMaterial({ color: 0x14131b, roughness: 0.82, metalness: 0.12 });
       this.roofMat = new THREE.MeshStandardMaterial({ color: 0x0b0c12, roughness: 0.72, metalness: 0.25 });
       this.metalMat = new THREE.MeshStandardMaterial({ color: 0x11131a, roughness: 0.38, metalness: 0.72 });
@@ -2524,10 +2572,39 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         roughness: 0.32 + rnd() * 0.18,
         metalness: 0.28 + rnd() * 0.2
       });
+      addFacadeWindowVariation(mat, rnd() * 100);
+      const bump = this.facadeBumpBase.clone();
+      bump.needsUpdate = true;
+      bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
+      bump.repeat.copy(tex.repeat);
+      bump.offset.copy(tex.offset);
+      bump.anisotropy = 4;
+      mat.bumpMap = bump;
+      mat.bumpScale = 0.018;
       const facade = new THREE.Mesh(new THREE.PlaneGeometry(len, h), mat);
       facade.position.set(side * (b.facadeX - 0.02), h / 2, z);
       facade.rotation.y = -side * Math.PI / 2;
       group.add(facade);
+
+      // Real facade relief for mid-ground buildings: thin floor sills and
+      // window mullions break the single-plane texture silhouette.
+      const cols = Math.max(2, Math.round(len / 1.93));
+      const colStep = len / cols;
+      for (let c = 1; c < cols; c++) {
+        const dummy = new THREE.Object3D();
+        dummy.position.set(side * (b.facadeX - 0.13), h / 2 + 0.8, z - len / 2 + c * colStep);
+        dummy.scale.set(0.055, h - 2.2, 0.06);
+        dummy.updateMatrix();
+        this.facadeMullionMatrices.push(dummy.matrix.clone());
+      }
+      const floors = Math.max(2, Math.floor((h - 4) / 5.4));
+      for (let f = 0; f < floors; f++) {
+        const dummy = new THREE.Object3D();
+        dummy.position.set(side * (b.facadeX - 0.16), 3.2 + f * 5.4, z);
+        dummy.scale.set(0.24, 0.11, len * 0.94);
+        dummy.updateMatrix();
+        this.facadeSillMatrices.push(dummy.matrix.clone());
+      }
 
       // side facade facing the nearest alley / cross street
       if (rnd() > 0.45) {
@@ -2536,6 +2613,15 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         stex.repeat.set(Math.max(1, depth / 13.5), Math.max(1, h / 30.0));
         const smat = mat.clone();
         smat.map = stex; smat.emissiveMap = stex;
+        addFacadeWindowVariation(smat, rnd() * 100);
+        const sbump = bump.clone();
+        sbump.needsUpdate = true;
+        sbump.wrapS = sbump.wrapT = THREE.RepeatWrapping;
+        sbump.repeat.copy(stex.repeat);
+        sbump.offset.copy(stex.offset);
+        sbump.anisotropy = 4;
+        smat.bumpMap = sbump;
+        smat.bumpScale = 0.018;
         const sidePlane = new THREE.Mesh(new THREE.PlaneGeometry(depth, h), smat);
         sidePlane.position.set(side * (b.facadeX + depth / 2), h / 2, z + len / 2 + 0.01);
         group.add(sidePlane);
@@ -2823,6 +2909,18 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.ledgeMatrices.forEach((m, i) => ledgeMesh.setMatrixAt(i, m));
       ledgeMesh.instanceMatrix.needsUpdate = true;
       this.scene.add(ledgeMesh);
+      if (this.facadeSillMatrices.length) {
+        const sillMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x15141c, roughness: 0.46, metalness: 0.48 }), this.facadeSillMatrices.length);
+        this.facadeSillMatrices.forEach((m, i) => sillMesh.setMatrixAt(i, m));
+        sillMesh.instanceMatrix.needsUpdate = true;
+        this.scene.add(sillMesh);
+      }
+      if (this.facadeMullionMatrices.length) {
+        const mullionMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x0c0d14, roughness: 0.34, metalness: 0.72 }), this.facadeMullionMatrices.length);
+        this.facadeMullionMatrices.forEach((m, i) => mullionMesh.setMatrixAt(i, m));
+        mullionMesh.instanceMatrix.needsUpdate = true;
+        this.scene.add(mullionMesh);
+      }
       const ledMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }), this.acLedMatrices.length);
       this.acLedMatrices.forEach((m, i) => {
         ledMesh.setMatrixAt(i, m);
@@ -4191,18 +4289,25 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   /* ---------------------------------------------------------------------
      Citizens in raincoats with luminous umbrellas.
      --------------------------------------------------------------------- */
-  World.prototype._makeCitizen = function (index) {
+  const CITIZEN_STYLES = ['commuter', 'courier', 'vendor', 'elder', 'punk', 'droid'];
+  const CITIZEN_HUES = [0.64, 0.38, 0.075, 0.78, 0.89, 0.54];
+
+  World.prototype._makeCitizen = function (index, forceStyle) {
     const rnd = ND.util.mulberry32(30103 + index * 77);
     const group = new THREE.Group();
-    const coatCol = new THREE.Color().setHSL(0.64 + rnd() * 0.12, 0.16 + rnd() * 0.18, 0.035 + rnd() * 0.035);
+    const style = forceStyle || CITIZEN_STYLES[index % CITIZEN_STYLES.length];
+    const si = CITIZEN_STYLES.indexOf(style);
+    const hue = CITIZEN_HUES[si] + rnd() * 0.025;
+    const coatCol = new THREE.Color().setHSL(hue, 0.16 + rnd() * 0.18, 0.035 + rnd() * 0.035);
     const coatMat = new THREE.MeshStandardMaterial({ color: coatCol, roughness: 0.7, metalness: 0.18 });
     const trimCol = [0xff2d8e, 0x26e7ff, 0xb969ff, 0xffa349][Math.floor(rnd() * 4)];
     const trimMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(trimCol).multiplyScalar(1.9), toneMapped: false });
     const skinMat = new THREE.MeshStandardMaterial({ color: 0x120f13, roughness: 0.9, metalness: 0.02 });
     const bootMat = new THREE.MeshStandardMaterial({ color: 0x050608, roughness: 0.5, metalness: 0.3 });
 
-    const coat = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.52, 1.18, 14), coatMat);
-    coat.position.y = 0.92;
+    const coatLen = style === 'courier' ? 0.84 : style === 'punk' ? 0.9 : style === 'elder' ? 1.08 : 1.18;
+    const coat = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.52, coatLen, 14), coatMat);
+    coat.position.y = 0.33 + coatLen / 2;
     group.add(coat);
     const hem = new THREE.Mesh(new THREE.TorusGeometry(0.43, 0.012, 4, 26), trimMat);
     hem.rotation.x = Math.PI / 2;
@@ -4218,7 +4323,66 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     const hood = new THREE.Mesh(new THREE.SphereGeometry(0.19, 14, 10), coatMat);
     hood.scale.set(1.1, 1.0, 1.06);
     hood.position.set(0, 1.7, -0.035);
+    hood.visible = style === 'commuter' || style === 'courier' || style === 'elder';
     group.add(hood);
+    if (style === 'vendor') {
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.19, 0.06, 12), coatMat);
+      cap.position.set(0, 1.82, -0.01);
+      group.add(cap);
+      const brim = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.025, 0.2), bootMat);
+      brim.position.set(0, 1.79, 0.09);
+      group.add(brim);
+      const apron = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.48, 0.035), new THREE.MeshStandardMaterial({ color: 0x6e3b25, roughness: 0.82, metalness: 0.02 }));
+      apron.position.set(0, 0.84, 0.27);
+      apron.rotation.z = 0.02;
+      group.add(apron);
+    } else if (style === 'punk') {
+      const hair = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.26, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color(trimCol).multiplyScalar(2.2), toneMapped: false }));
+      hair.position.set(0, 1.88, -0.01);
+      hair.rotation.z = -0.18;
+      group.add(hair);
+      const jacket = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.45, 0.3), new THREE.MeshStandardMaterial({ color: 0x170d1c, roughness: 0.38, metalness: 0.55 }));
+      jacket.position.set(0, 1.12, 0.02);
+      group.add(jacket);
+    } else if (style === 'droid') {
+      const visor = new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.07, 0.05), new THREE.MeshBasicMaterial({ color: new THREE.Color(0x5ff4ff).multiplyScalar(2.0), toneMapped: false }));
+      visor.position.set(0, 1.7, 0.135);
+      group.add(visor);
+      const chest = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.52, 0.28), new THREE.MeshStandardMaterial({ color: 0x1b2028, roughness: 0.3, metalness: 0.85 }));
+      chest.position.set(0, 1.1, 0.04);
+      group.add(chest);
+      for (const sx of [-1, 1]) {
+        const pad = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.25), this.metalMat);
+        pad.position.set(sx * 0.31, 1.48, 0);
+        pad.rotation.z = sx * 0.12;
+        group.add(pad);
+      }
+    } else if (style === 'elder') {
+      const shawl = new THREE.Mesh(new THREE.SphereGeometry(0.35, 12, 8), new THREE.MeshStandardMaterial({ color: 0x2b1a35, roughness: 0.9, metalness: 0.05, side: THREE.DoubleSide }));
+      shawl.scale.set(1.35, 0.3, 0.95);
+      shawl.position.set(0, 1.42, -0.01);
+      group.add(shawl);
+      const cane = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.018, 1.05, 5), this.metalMat);
+      cane.position.set(0.38, 0.52, 0.1);
+      cane.rotation.z = -0.08;
+      group.add(cane);
+      const caneLight = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 5), new THREE.MeshBasicMaterial({ color: new THREE.Color(trimCol).multiplyScalar(2.0), toneMapped: false }));
+      caneLight.position.set(0.4, 1.06, 0.1);
+      group.add(caneLight);
+    } else if (style === 'courier') {
+      const pack = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.55, 0.28), new THREE.MeshStandardMaterial({ color: 0x12222a, roughness: 0.62, metalness: 0.3 }));
+      pack.position.set(0, 1.06, -0.3);
+      group.add(pack);
+      const packLight = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.035, 0.03), new THREE.MeshBasicMaterial({ color: new THREE.Color(0x58f6ff).multiplyScalar(2.4), toneMapped: false }));
+      packLight.position.set(0, 1.3, -0.445);
+      group.add(packLight);
+      for (const sx of [-1, 1]) {
+        const strap = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.55, 0.03), this.metalMat);
+        strap.position.set(sx * 0.2, 1.18, 0.13);
+        strap.rotation.z = sx * 0.12;
+        group.add(strap);
+      }
+    }
     const arms = [];
     for (const sx of [-1, 1]) {
       const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.55, 6), coatMat);
@@ -4300,10 +4464,17 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     const ribs = new THREE.LineSegments(ribGeo, new THREE.LineBasicMaterial({ color: new THREE.Color(trimCol).multiplyScalar(0.9), transparent: true, opacity: 0.72 }));
     umbrella.add(ribs);
     umbrella.position.set(0.12, 2.04, 0);
+    if (style === 'courier' || style === 'vendor' || style === 'droid') umbrella.visible = false;
+    if (style === 'elder') umbrella.scale.setScalar(0.82);
+    if (style === 'punk') {
+      canopyMat.opacity = 0.42;
+      canopyMat.color = new THREE.Color(0x8ff6ff).multiplyScalar(0.35);
+      rim.material.color = new THREE.Color(0x7df6ff).multiplyScalar(2.4);
+    }
     group.add(umbrella);
 
     this.addContactShadow(group, 1.15, 0.72, 0.5, 0.008);
-    group.userData = { legs, knees, arms, hem, tail, tailBase, umbrella, phase: rnd() * TAU, speed: 0.45 + rnd() * 0.6, dir: rnd() > 0.5 ? 1 : -1 };
+    group.userData = { style, legs, knees, arms, hem, tail, tailBase, umbrella, phase: rnd() * TAU, speed: 0.45 + rnd() * 0.6, dir: rnd() > 0.5 ? 1 : -1 };
     return group;
   };
 
@@ -4414,7 +4585,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.scene.add(p);
     }
     // A pair of foreground silhouettes anchoring the composition.
-    const heroA = this._makeCitizen(101);
+    const heroA = this._makeCitizen(101, 'commuter');
     heroA.position.set(-4.2, 0.03, 18.5);
     heroA.rotation.y = 0.24;
     heroA.scale.setScalar(1.12);
@@ -4423,7 +4594,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     this.heroA = heroA;
     this.scene.add(heroA);
     this.pedestrians.push(heroA);
-    const heroB = this._makeCitizen(102);
+    const heroB = this._makeCitizen(102, 'courier');
     heroB.position.set(3.9, 0.03, 27.0);
     heroB.rotation.y = -0.3;
     heroB.scale.setScalar(1.04);
@@ -4432,6 +4603,25 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     this.heroB = heroB;
     this.scene.add(heroB);
     this.pedestrians.push(heroB);
+
+    // A handful of readable archetypes in the near field so the modular
+    // character set is visible without hunting the background crowd.
+    const extras = [
+      { style: 'vendor', x: -7.6, z: 22.5, ry: 0.75, sc: 0.98 },
+      { style: 'droid', x: 7.4, z: 20.0, ry: -0.55, sc: 1.02 },
+      { style: 'punk', x: 5.9, z: 16.4, ry: -0.22, sc: 0.96 },
+      { style: 'elder', x: -5.6, z: 12.8, ry: 0.18, sc: 0.94 }
+    ];
+    extras.forEach((e, i) => {
+      const p = this._makeCitizen(220 + i, e.style);
+      p.position.set(e.x, 0.17, e.z);
+      p.rotation.y = e.ry;
+      p.scale.setScalar(e.sc);
+      p.userData.speed = 0.12 + i * 0.035;
+      p.userData.dir = i % 2 ? 1 : -1;
+      this.scene.add(p);
+      this.pedestrians.push(p);
+    });
   };
 
   /* ---------------------------------------------------------------------

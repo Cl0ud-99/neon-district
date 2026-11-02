@@ -4,7 +4,7 @@
 
 **DSH-PTC**
 
-**1 scene · 100% procedural · 0 assets · single-file build 0.87 MB**
+**1 scene · 100% procedural · 0 assets · single-file build 0.88 MB**
 
 [**Live preview**](https://cl0ud-99.github.io/neon-district/) — runs in the browser, nothing to install.
 
@@ -27,11 +27,11 @@ A single-scene WebGL2 application. The deployable site is plain HTML plus classi
 
 | File | Role |
 | --- | --- |
-| `src/tex.js` | Canvas 2D texture atelier: facades, windows, billboards, shopfronts, smoke, koi, reflection environment |
+| `src/tex.js` | Canvas 2D texture atelier: facade atlases and bump fields, windows, billboards, shopfronts, smoke, koi, reflection environment |
 | `src/post.js` | TAA, HDR target, five-level bloom, depth AO/DOF, FXAA, ACES grade, grain, lens droplets, super-sampling |
 | `src/world.js` | City generator, baked static shadow map sampled by wet ground, parallax hero windows, water, sky, planar mirror, lighting |
 | `src/props.js` | Storefronts, hero window bays/fire escapes, blade signs, cables, lanterns, volumetric shafts, steam, fog, hoverbike, gantry |
-| `src/actors.js` | Rain, fountain, citizens with skeletal walk cycle and coat cloth, flying traffic, holographic koi, ripples |
+| `src/actors.js` | Rain, fountain, six citizen archetypes with shared rigs and coat cloth, flying traffic, holographic koi, ripples |
 | `src/audio.js` | Procedural WebAudio rain, hum, synth pad and thunder |
 | `src/app.js` | Camera, state machine, title/cinematic UI, input, adaptive quality |
 
@@ -74,7 +74,8 @@ Details worth reading:
 - **Five independent bloom mips.** A soft-threshold prefilter at half resolution feeds a Gaussian chain; all mips plus a horizontal anamorphic streak are composited before tonemapping.
 - **Every procedural texture is drawn in 2D at boot.** No `.png`, `.jpg`, `.glb` or audio file is loaded. The repository contains only code and documentation images.
 - **Screens use a shader, not a video.** Slow scanlines, RGB split, flicker and occasional UV glitches are applied in GLSL to canvas-generated billboard artwork.
-- **Characters have a real walk cycle.** Hips, knees, shoulders and elbows are separate pivots; a small vertex-animated coat tail and umbrella rib cage add cloth motion without a skinning rig.
+- **Six citizen archetypes share one rig.** Commuter, courier, vendor, elder, punk and droid are assembled from a common skeleton plus swappable coats, headgear, bags, canes and umbrella types. Hips, knees, shoulders and elbows are separate pivots; a small vertex-animated coat tail and umbrella rib cage add cloth motion without a skinning rig.
+- **Mid-ground windows have depth cues.** Per-window shader seeds vary lit/dark cells independently of the base atlas; a matched height map drives bump relief on the frame grid, and instanced floor sills/mullions break the single-plane silhouette.
 - **The cinematic is cut, not one dolly.** Six deliberate shots — aerial descent, street-level dolly, storefront profile, plaza reveal, tower low-angle, crane-out — are hard-cut in the timeline and paired with per-shot focus distances.
 
 ## Audio
@@ -96,7 +97,7 @@ npm run dev
 # open http://127.0.0.1:5273/
 ```
 
-Or simply double-click `site/standalone.html` — it is a fully inlined 0.87 MB single file.
+Or simply double-click `site/standalone.html` — it is a fully inlined 0.88 MB single file.
 
 Rebuild the single-file version after editing `site/src/`:
 
