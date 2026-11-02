@@ -623,6 +623,20 @@
     return c;
   };
 
+  /* Soft contact shadow blob for characters and street props. */
+  T.shadowBlob = function (size) {
+    size = size || 128;
+    const c = makeCanvas(size, size);
+    const x = c.getContext('2d');
+    const g = x.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    g.addColorStop(0, 'rgba(0,0,0,.72)');
+    g.addColorStop(0.35, 'rgba(0,0,0,.5)');
+    g.addColorStop(0.72, 'rgba(0,0,0,.18)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = g; x.beginPath(); x.arc(size / 2, size / 2, size / 2, 0, TAU); x.fill();
+    return c;
+  };
+
   /* Soft smoke puff for steam vents and low fog. */
   T.smoke = function (size, seed) {
     size = size || 128;
@@ -696,6 +710,74 @@
       x.fillStyle = g; x.fillRect(0, 0, W, H);
     }
     noiseLayer(x, W, H, 773, 10, true);
+    return c;
+  };
+
+  T.shutter = function (seed) {
+    const W = 512, H = 512;
+    const c = makeCanvas(W, H);
+    const x = c.getContext('2d');
+    const rnd = mulberry32(seed || 1);
+    const g = x.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#1c1a1e'); g.addColorStop(0.5, '#111015'); g.addColorStop(1, '#07070b');
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    for (let y = 0; y < H; y += 12) {
+      x.fillStyle = y % 24 === 0 ? 'rgba(255,255,255,.045)' : 'rgba(0,0,0,.28)';
+      x.fillRect(0, y, W, 3);
+    }
+    x.strokeStyle = 'rgba(255,255,255,.09)'; x.lineWidth = 3; x.strokeRect(9, 9, W - 18, H - 18);
+    // tags and rust blooms
+    const colors = ['rgba(255,52,145,.38)', 'rgba(53,221,255,.32)', 'rgba(255,177,70,.32)'];
+    for (let i = 0; i < 5; i++) {
+      const px = rnd() * W, py = 70 + rnd() * H * 0.8;
+      x.strokeStyle = colors[i % colors.length]; x.lineWidth = 6 + rnd() * 8; x.lineCap = 'round';
+      x.beginPath(); x.moveTo(px, py); x.bezierCurveTo(px + 30, py - 20, px + 48, py + 28, px + 95, py + 10); x.stroke();
+    }
+    x.fillStyle = 'rgba(7,4,8,.72)'; x.fillRect(30, 210, 190, 60);
+    x.font = '400 25px "Bahnschrift",sans-serif'; x.fillStyle = 'rgba(255,93,142,.75)'; x.fillText('CLOSED', 52, 248);
+    for (let i = 0; i < 12; i++) { x.fillStyle = 'rgba(0,0,0,.25)'; x.fillRect(0, H - 10 - i * 2, W, 3); }
+    noiseLayer(x, W, H, seed + 33, 16, true);
+    return c;
+  };
+
+  T.interior = function (seed, warm) {
+    const W = 256, H = 256;
+    const c = makeCanvas(W, H);
+    const x = c.getContext('2d');
+    const rnd = mulberry32(seed || 3);
+    const g = x.createLinearGradient(0, 0, 0, H);
+    if (warm) {
+      g.addColorStop(0, '#ffbf7a'); g.addColorStop(0.4, '#ae633d'); g.addColorStop(1, '#28151a');
+    } else {
+      g.addColorStop(0, '#7be9ff'); g.addColorStop(0.4, '#236679'); g.addColorStop(1, '#07131d');
+    }
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    // back wall / shelves
+    x.fillStyle = 'rgba(2,4,8,.35)'; x.fillRect(0, H * 0.65, W, H * 0.35);
+    x.fillStyle = 'rgba(20,12,12,.7)'; x.fillRect(18, H * 0.62, W - 36, 7);
+    for (let i = 0; i < 8; i++) {
+      x.fillStyle = 'rgba(' + (80 + rnd() * 100 | 0) + ',' + (50 + rnd() * 80 | 0) + ',' + (35 + rnd() * 50 | 0) + ',.5)';
+      x.fillRect(24 + i * 26, H * 0.62 - 18 - rnd() * 28, 8 + rnd() * 9, 18 + rnd() * 28);
+    }
+    // dark interior silhouette
+    x.fillStyle = 'rgba(3,4,8,.62)';
+    x.beginPath(); x.arc(W * (0.2 + rnd() * 0.6), H * 0.62, 26, 0, TAU); x.fill();
+    x.fillRect(W * (0.2 + rnd() * 0.6) - 20, H * 0.62, 40, 70);
+    // curtains
+    x.fillStyle = 'rgba(6,8,15,.42)';
+    x.beginPath(); x.moveTo(0, 0); x.lineTo(W * 0.19, 0); x.quadraticCurveTo(W * 0.26, H * 0.38, W * 0.12, H); x.lineTo(0, H); x.fill();
+    x.beginPath(); x.moveTo(W, 0); x.lineTo(W * 0.81, 0); x.quadraticCurveTo(W * 0.74, H * 0.38, W * 0.88, H); x.lineTo(W, H); x.fill();
+    // window mullions
+    x.strokeStyle = 'rgba(12,14,20,.75)'; x.lineWidth = 7;
+    x.beginPath(); x.moveTo(W / 2, 0); x.lineTo(W / 2, H); x.stroke();
+    x.beginPath(); x.moveTo(0, H * 0.45); x.lineTo(W, H * 0.45); x.stroke();
+    x.strokeStyle = 'rgba(255,255,255,.12)'; x.lineWidth = 2;
+    x.beginPath(); x.moveTo(W / 2 - 3, 0); x.lineTo(W / 2 - 3, H); x.stroke();
+    // glass sheen
+    const sheen = x.createLinearGradient(0, 0, W, H);
+    sheen.addColorStop(0, 'rgba(255,255,255,.02)'); sheen.addColorStop(0.45, 'rgba(255,255,255,.16)'); sheen.addColorStop(0.55, 'rgba(255,255,255,.04)'); sheen.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = sheen; x.fillRect(0, 0, W, H);
+    noiseLayer(x, W, H, seed + 9, 10, true);
     return c;
   };
 

@@ -152,6 +152,12 @@
       float sparkle = pow(max(0.0, vnoise(p * 44.0 + uTime * 1.4) - 0.88), 8.0) * 1.1;
       col += vec3(0.42, 0.63, 0.85) * sparkle * (0.10 + 0.90 * puddle) * 0.55;
 
+      // baked, world-space occlusion at the building line and plaza end
+      float wallAO = smoothstep(8.4, 12.7, abs(p.x));
+      float endAO = 1.0 - smoothstep(-78.0, -57.0, p.y);
+      float curbAO = smoothstep(0.45, 0.0, abs(abs(p.x) - 9.72));
+      col *= 1.0 - clamp(wallAO * 0.22 + endAO * 0.15 + curbAO * 0.08, 0.0, 0.34);
+
       float depth = length(cameraPosition - vWorld);
       float fogAmt = 1.0 - exp(-uFogDensity * uFogDensity * depth * depth * 1.35);
       col = mix(col, uFogColor, clamp(fogAmt, 0.0, 1.0));
@@ -427,6 +433,7 @@
       this.buildGround();
       this.buildWater();
       this.buildStreetDetails();
+      this.applyStaticShadows();
       this.buildAtmosphere();
       this.buildRain();
       this.buildCharacters();
@@ -456,6 +463,10 @@
       for (let i = 0; i < 7; i++) {
         this.facadeCanvases.push(ND.Tex.facade(1201 + i * 97, palettes[i % palettes.length]));
       }
+      this.heroWindowMats = [0,1,2,3].map(i => {
+        const tex = ND.Tex.canvasToTexture(ND.Tex.interior(31 + i * 17, i % 2 === 0));
+        return new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(0.68, 0.66, 0.70), toneMapped: false });
+      });
       this.bodyMat = new THREE.MeshStandardMaterial({ color: 0x14131b, roughness: 0.82, metalness: 0.12 });
       this.roofMat = new THREE.MeshStandardMaterial({ color: 0x0b0c12, roughness: 0.72, metalness: 0.25 });
       this.metalMat = new THREE.MeshStandardMaterial({ color: 0x11131a, roughness: 0.38, metalness: 0.72 });
@@ -497,10 +508,22 @@
     }
 
     buildLights() {
-      this.scene.add(new THREE.HemisphereLight(0x5b6fa8, 0x2b0a22, 1.05));
-      const dir = new THREE.DirectionalLight(0x8999ff, 0.95);
-      dir.position.set(30, 80, 20);
-      this.scene.add(dir);
+      this.scene.add(new THREE.HemisphereLight(0x5b6fa8, 0x2b0a22, 1.22));
+      this.keyLight = new THREE.DirectionalLight(0x9aabff, 0.9);
+      this.keyLight.position.set(44, 92, 64);
+      this.keyLight.target.position.set(0, 0, -28);
+      this.keyLight.castShadow = true;
+      this.keyLight.shadow.mapSize.set(this.quality.shadowSize || 4096, this.quality.shadowSize || 4096);
+      this.keyLight.shadow.camera.left = -70;
+      this.keyLight.shadow.camera.right = 70;
+      this.keyLight.shadow.camera.top = 92;
+      this.keyLight.shadow.camera.bottom = -92;
+      this.keyLight.shadow.camera.near = 1;
+      this.keyLight.shadow.camera.far = 260;
+      this.keyLight.shadow.bias = -0.00012;
+      this.keyLight.shadow.normalBias = 0.035;
+      this.scene.add(this.keyLight);
+      this.scene.add(this.keyLight.target);
       const points = [
         { pos: [-11, 10, 16], color: 0xff2d8f, intensity: 190, distance: 45 },
         { pos: [11, 12, 0], color: 0x2adfff, intensity: 220, distance: 48 },
@@ -518,6 +541,20 @@
       }
     }
 
+    applyStaticShadows() {
+      // The city is static, so pay for the shadow map exactly once. Characters
+      // and flying traffic are deliberately excluded and use contact decals.
+      this.scene.traverse(o => {
+        if (!o.isMesh || !o.material) return;
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        if (mats.some(m => m && m.isMeshStandardMaterial)) {
+          o.castShadow = true;
+          o.receiveShadow = true;
+        }
+      });
+      this.renderer.shadowMap.needsUpdate = true;
+    }
+
     // Build one row of tenement blocks along the street.
     buildSide(side) {
       const rnd = this.random;
@@ -532,7 +569,7 @@
         let h = 18 + Math.pow(rnd(), 1.7) * 68;
         if (cursor < 18 && cursor > -60) h = Math.max(h, 24 + rnd() * 26);
         const z = cursor - len / 2;
-        const b = { side, z, len, depth, h, facadeX };
+        const b = { side, z, len, depth, h, facadeX, hero: z > 14 && z < 46 };
         this.addBuilding(b, rnd, buildings.length);
         buildings.push(b);
         cursor -= len + gap;
@@ -712,6 +749,7 @@
         this.pipeMatrices.push(dummy.matrix.clone());
       }
 
+      if (b.hero) this.addHeroFacade(b, group, rnd);
       this.scene.add(group);
     }
 

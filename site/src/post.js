@@ -202,6 +202,7 @@
       this.finalMat = new THREE.ShaderMaterial({
         uniforms: {
           tScene: { value: null },
+          tDepth: { value: null },
           tBloom0: { value: null }, tBloom1: { value: null }, tBloom2: { value: null },
           tBloom3: { value: null }, tBloom4: { value: null },
           tStreak: { value: null },
@@ -211,16 +212,29 @@
           uBloomStrength: { value: this.opts.bloomStrength },
           uFlash: { value: 0 },
           uFade: { value: 1 },
-          uLetterbox: { value: 0 }
+          uLetterbox: { value: 0 },
+          uNear: { value: 0.08 },
+          uFar: { value: 500 },
+          uFocus: { value: 22 },
+          uDof: { value: 0 },
+          uAO: { value: 0.12 }
         },
         vertexShader: VS,
         fragmentShader: COMMON + `
           uniform sampler2D tScene;
+          uniform sampler2D tDepth;
           uniform sampler2D tBloom0, tBloom1, tBloom2, tBloom3, tBloom4;
           uniform sampler2D tStreak;
           uniform vec2 uResolution;
           uniform float uTime, uExposure, uBloomStrength, uFlash, uFade;
+          uniform float uNear, uFar, uFocus, uDof, uAO;
           varying vec2 vUv;
+
+          float linearDepth(vec2 uv) {
+            float d = texture2D(tDepth, uv).x;
+            float z = d * 2.0 - 1.0;
+            return (2.0 * uNear * uFar) / (uFar + uNear - z * (uFar - uNear));
+          }
 
           vec3 aces(vec3 x) {
             const float a = 2.51, b = 0.03, c = 2.43, d = 0.59, e = 0.14;
@@ -252,6 +266,38 @@
             vec2 dropOff = normalize(df + 0.0001) * dropMask * 0.0018;
             vec3 dropCol = texture2D(tScene, uv + dropOff).rgb;
             scene = mix(scene, dropCol, dropMask * 0.22);
+
+            // Cheap depth-edge AO for contact seams and silhouettes.
+            if (uAO > 0.0) {
+              float d0 = linearDepth(uv);
+              float occ = 0.0;
+              vec2 p = 1.0 / uResolution;
+              for (int i = 0; i < 8; i++) {
+                float a = float(i) * 0.7853982;
+                vec2 ofs = vec2(cos(a), sin(a)) * p * 2.4;
+                float di = linearDepth(uv + ofs);
+                occ += smoothstep(0.055, 0.42, (d0 - di) / max(d0, 1.0));
+              }
+              scene *= 1.0 - clamp(occ / 8.0, 0.0, 1.0) * uAO;
+            }
+
+            // Cinematic depth of field. Focus is in world units.
+            if (uDof > 0.0) {
+              float d = linearDepth(uv);
+              float coc = smoothstep(0.06, 0.55, abs(d - uFocus) / max(uFocus, 1.0));
+              vec3 blurred = scene * 0.24;
+              vec2 p = 1.0 / uResolution;
+              float rad = 2.0 + uDof * 4.0;
+              blurred += texture2D(tScene, uv + vec2( 1.0, 0.0) * p * rad).rgb * 0.095;
+              blurred += texture2D(tScene, uv + vec2(-1.0, 0.0) * p * rad).rgb * 0.095;
+              blurred += texture2D(tScene, uv + vec2( 0.0, 1.0) * p * rad).rgb * 0.095;
+              blurred += texture2D(tScene, uv + vec2( 0.0,-1.0) * p * rad).rgb * 0.095;
+              blurred += texture2D(tScene, uv + vec2( 0.7, 0.7) * p * rad).rgb * 0.085;
+              blurred += texture2D(tScene, uv + vec2(-0.7, 0.7) * p * rad).rgb * 0.085;
+              blurred += texture2D(tScene, uv + vec2( 0.7,-0.7) * p * rad).rgb * 0.085;
+              blurred += texture2D(tScene, uv + vec2(-0.7,-0.7) * p * rad).rgb * 0.085;
+              scene = mix(scene, blurred, coc * uDof * 0.72);
+            }
 
             vec3 bloom = texture2D(tBloom0, uv).rgb * 1.00;
             bloom += texture2D(tBloom1, uv).rgb * 0.78;
@@ -290,6 +336,49 @@
         `,
         depthTest: false, depthWrite: false
       });
+
+    this.fxaaMat = new THREE.ShaderMaterial({
+      uniforms: {
+        tDiffuse: { value: null },
+        uResolution: { value: new THREE.Vector2(1, 1) }
+      },
+      vertexShader: VS,
+      fragmentShader: COMMON + `
+        uniform sampler2D tDiffuse;
+        uniform vec2 uResolution;
+        varying vec2 vUv;
+        float luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+        void main() {
+          vec2 inv = 1.0 / uResolution;
+          vec3 m = texture2D(tDiffuse, vUv).rgb;
+          vec3 nw = texture2D(tDiffuse, vUv + vec2(-1.0, -1.0) * inv).rgb;
+          vec3 ne = texture2D(tDiffuse, vUv + vec2( 1.0, -1.0) * inv).rgb;
+          vec3 sw = texture2D(tDiffuse, vUv + vec2(-1.0,  1.0) * inv).rgb;
+          vec3 se = texture2D(tDiffuse, vUv + vec2( 1.0,  1.0) * inv).rgb;
+          float lm = luma(m), lnw = luma(nw), lne = luma(ne), lsw = luma(sw), lse = luma(se);
+          float lmin = min(lm, min(lnw, min(lne, min(lsw, lse))));
+          float lmax = max(lm, max(lnw, max(lne, max(lsw, lse))));
+          float range = lmax - lmin;
+          if (range < max(0.028, lmax * 0.10)) { gl_FragColor = vec4(m, 1.0); return; }
+          vec2 dir = vec2(-((lnw + lne) - (lsw + lse)), ((lnw + lsw) - (lne + lse)));
+          float reduce = max((lnw + lne + lsw + lse) * 0.25 * 0.125, 1.0 / 160.0);
+          float rcp = 1.0 / (min(abs(dir.x), abs(dir.y)) + reduce);
+          dir = clamp(dir * rcp, vec2(-8.0), vec2(8.0)) * inv;
+          vec3 a = 0.5 * (
+            texture2D(tDiffuse, vUv + dir * (1.0 / 3.0 - 0.5)).rgb +
+            texture2D(tDiffuse, vUv + dir * (2.0 / 3.0 - 0.5)).rgb
+          );
+          vec3 b = a * 0.5 + 0.25 * (
+            texture2D(tDiffuse, vUv - dir * 0.5).rgb +
+            texture2D(tDiffuse, vUv + dir * 0.5).rgb
+          );
+          float lb = luma(b);
+          vec3 outc = (lb < lmin || lb > lmax) ? a : b;
+          gl_FragColor = vec4(outc, 1.0);
+        }
+      `,
+      depthTest: false, depthWrite: false
+    });
     }
 
     setSize(w, h, pixelRatio) {
@@ -306,6 +395,11 @@
         depth: true,
         samples: this.opts.msaa || 0
       });
+      this.sceneDepth = new THREE.DepthTexture(sw, sh, THREE.UnsignedIntType);
+      this.sceneDepth.minFilter = THREE.NearestFilter;
+      this.sceneDepth.magFilter = THREE.NearestFilter;
+      this.sceneRT.depthTexture = this.sceneDepth;
+      this.finalMat.uniforms.tDepth.value = this.sceneDepth;
       let lw = Math.max(1, Math.floor(sw * 0.5));
       let lh = Math.max(1, Math.floor(sh * 0.5));
       this.bloomA = []; this.bloomB = [];
@@ -316,6 +410,8 @@
         lh = Math.max(1, Math.floor(lh * 0.5));
       }
       this.streakRT = this.createRT(Math.max(1, Math.floor(sw * 0.25)), Math.max(1, Math.floor(sh * 0.25)));
+      this.compositeRT = this.createRT(width, height, { type: THREE.UnsignedByteType });
+      this.fxaaMat.uniforms.uResolution.value.set(width, height);
       this.finalMat.uniforms.uResolution.value.set(width, height);
     }
 
@@ -324,6 +420,9 @@
       this.bloomA.forEach(t => t.dispose());
       this.bloomB.forEach(t => t.dispose());
       if (this.streakRT) this.streakRT.dispose();
+      if (this.compositeRT) this.compositeRT.dispose();
+      if (this.sceneDepth) this.sceneDepth.dispose();
+      this.sceneDepth = null;
       this.bloomA = []; this.bloomB = [];
     }
 
@@ -370,6 +469,9 @@
       // 6. grade to screen
       const U = this.finalMat.uniforms;
       U.tScene.value = this.sceneRT.texture;
+      U.tDepth.value = this.sceneDepth;
+      U.uNear.value = camera.near;
+      U.uFar.value = camera.far;
       U.tBloom0.value = this.bloomA[0].texture;
       U.tBloom1.value = this.bloomA[1] ? this.bloomA[1].texture : this.bloomA[0].texture;
       U.tBloom2.value = this.bloomA[2] ? this.bloomA[2].texture : this.bloomA[0].texture;
@@ -378,7 +480,9 @@
       U.tStreak.value = this.streakRT.texture;
       U.uTime.value = time;
       U.uFlash.value = flash || 0;
-      this.quad.draw(this.finalMat, null);
+      this.quad.draw(this.finalMat, this.compositeRT);
+      this.fxaaMat.uniforms.tDiffuse.value = this.compositeRT.texture;
+      this.quad.draw(this.fxaaMat, null);
     }
   }
 

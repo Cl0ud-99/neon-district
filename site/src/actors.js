@@ -223,6 +223,7 @@
     umbrella.position.set(0.12, 2.04, 0);
     group.add(umbrella);
 
+    this.addContactShadow(group, 1.15, 0.72, 0.5, 0.008);
     group.userData = { legs, umbrella, phase: rnd() * TAU, speed: 0.45 + rnd() * 0.6, dir: rnd() > 0.5 ? 1 : -1 };
     return group;
   };

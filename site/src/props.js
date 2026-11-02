@@ -9,6 +9,28 @@
 
   function rndRange(rnd, a, b) { return a + rnd() * (b - a); }
 
+  World.prototype.addContactShadow = function (parent, width, depth, opacity, localY) {
+    if (!this._contactShadowTex) {
+      this._contactShadowTex = ND.Tex.canvasToTexture(ND.Tex.shadowBlob(128), false);
+      this._contactShadowGeo = new THREE.PlaneGeometry(1, 1);
+    }
+    const mat = new THREE.MeshBasicMaterial({
+      map: this._contactShadowTex,
+      transparent: true,
+      opacity: opacity == null ? 0.5 : opacity,
+      color: 0x000000,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    });
+    const mesh = new THREE.Mesh(this._contactShadowGeo, mat);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.scale.set(width, depth, 1);
+    mesh.position.y = localY == null ? 0.012 : localY;
+    mesh.renderOrder = 2;
+    parent.add(mesh);
+    return mesh;
+  };
+
   World.prototype.buildStreetDetails = function () {
     const rnd = ND.util.mulberry32(44031);
     const g = new THREE.Group();
@@ -129,6 +151,8 @@
       face.position.set(x - Math.sign(x) * 0.395, 1.17, z);
       face.rotation.y = Math.sign(x) > 0 ? -Math.PI / 2 : Math.PI / 2;
       g.add(face);
+      const contact = this.addContactShadow(g, 1.65, 1.1, 0.38, 0.012);
+      contact.position.x = x; contact.position.z = z;
       const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: this._glowTex, color: i % 2 ? 0xff53ac : 0x55e9ff, transparent: true, opacity: 0.14, blending: THREE.AdditiveBlending, depthWrite: false }));
       glow.position.set(x - Math.sign(x) * 0.55, 1.2, z);
       glow.scale.set(3.8, 3.1, 1);
@@ -157,19 +181,25 @@
     // a tiny ramen stall tucked against the west wall
     const stall = new THREE.Group();
     const stallBody = new THREE.Mesh(new THREE.BoxGeometry(3.6, 2.5, 4.2), new THREE.MeshStandardMaterial({ color: 0x1a1112, roughness: 0.62, metalness: 0.2 }));
-    stallBody.position.set(-11.1, 1.35, -3.5);
+    stallBody.position.set(-11.1, 1.35, 18.0);
     stall.add(stallBody);
     const norenMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xb61728).multiplyScalar(1.7), toneMapped: false, side: THREE.DoubleSide });
     const noren = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.0), norenMat);
-    noren.position.set(-9.26, 2.15, -3.5);
+    noren.position.set(-9.26, 2.15, 18.0);
     noren.rotation.y = Math.PI / 2;
     stall.add(noren);
     const stallLight = new THREE.Sprite(new THREE.SpriteMaterial({ map: this._glowTex, color: 0xffa64f, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }));
-    stallLight.position.set(-9.1, 2.1, -3.5);
+    stallLight.position.set(-9.1, 2.1, 18.0);
     stallLight.scale.set(6.5, 4.5, 1);
     stall.add(stallLight);
     this.stall = stall;
     g.add(stall);
+    const stallShadow = this.addContactShadow(g, 4.6, 3.6, 0.38, 0.012);
+    stallShadow.position.x = -11.1;
+    stallShadow.position.z = 18.0;
+    const stallGlow = new THREE.PointLight(0xff8a3a, 38, 10, 2);
+    stallGlow.position.set(-10.2, 2.1, 18.0);
+    this.scene.add(stallGlow);
 
     // floating holographic wayfinding near the plaza
     const arrowTex = this._wayfindingTexture();
@@ -224,6 +254,7 @@
     under.position.set(0, 0.36, 0); under.scale.set(4.4, 1.5, 1); root.add(under);
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.1, 4), this.metalMat);
     pole.position.set(-0.2, 0.3, 0.34); pole.rotation.z = 0.15; root.add(pole);
+    this.addContactShadow(root, 2.2, 1.2, 0.5, 0.02);
     g.add(root);
     this.hoverbike = root;
   };
@@ -298,9 +329,77 @@
     return ND.Tex.canvasToTexture(c);
   };
 
+  World.prototype.addHeroFacade = function (b, group, rnd) {
+    const side = b.side;
+    const levels = [5.8, 10.2];
+    const zOffsets = [-b.len * 0.22, b.len * 0.18];
+    for (let row = 0; row < levels.length; row++) {
+      for (let col = 0; col < zOffsets.length; col++) {
+        const wy = levels[row] + (rnd() - 0.5) * 0.55;
+        const wz = b.z + zOffsets[col] + (rnd() - 0.5) * 0.8;
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(0.36, 2.45, 2.08), this.metalMat);
+        frame.position.set(side * 13.62, wy, wz);
+        group.add(frame);
+        const glass = new THREE.Mesh(new THREE.PlaneGeometry(1.82, 2.12), this.heroWindowMats[(row + col + Math.floor(b.z)) % this.heroWindowMats.length]);
+        glass.position.set(side * 13.42, wy, wz);
+        glass.rotation.y = -side * Math.PI / 2;
+        group.add(glass);
+        const sill = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.13, 2.34), this.metalMat);
+        sill.position.set(side * 13.52, wy - 1.28, wz);
+        group.add(sill);
+      }
+    }
+
+    // One real fire escape per side gives the closest buildings a readable silhouette.
+    this._heroFireEscapes = this._heroFireEscapes || {};
+    if (!this._heroFireEscapes[side] && b.z > 28) {
+      this._heroFireEscapes[side] = true;
+      const fz = b.z - b.len * 0.09;
+      const fe = new THREE.Group();
+      for (let i = 0; i < 3; i++) {
+        const py = 7.8 + i * 3.15;
+        const platform = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.11, 2.75), this.metalMat);
+        platform.position.set(side * 12.95, py, fz);
+        fe.add(platform);
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.055, 2.75), this.metalMat);
+        rail.position.set(side * 12.08, py + 0.9, fz);
+        fe.add(rail);
+        const endRail = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.055, 0.055), this.metalMat);
+        endRail.position.set(side * 12.95, py + 0.9, fz + 1.36);
+        fe.add(endRail);
+        const ladder = new THREE.Mesh(new THREE.BoxGeometry(0.075, 3.4, 0.075), this.rustMat);
+        ladder.position.set(side * 12.16, py + 1.55, fz + 1.22);
+        ladder.rotation.x = 0.42;
+        fe.add(ladder);
+        if (i === 0) {
+          const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.055, 6, 5), new THREE.MeshBasicMaterial({ color: 0xffbb73, toneMapped: false }));
+          bulb.position.set(side * 12.02, py + 1.78, fz - 0.8);
+          fe.add(bulb);
+        }
+      }
+      group.add(fe);
+    }
+
+    // Rooftop water tank on the closest block, visible in upward crane shots.
+    if (b.z > 34 && !this._heroTank) {
+      this._heroTank = true;
+      const tank = new THREE.Mesh(new THREE.CylinderGeometry(2.1, 2.35, 3.3, 10), this.rustMat);
+      tank.position.set(side * (13.8 + b.depth * 0.4), b.h + 2.0, b.z);
+      group.add(tank);
+      const lid = new THREE.Mesh(new THREE.CylinderGeometry(2.15, 2.15, 0.18, 10), this.roofMat);
+      lid.position.set(tank.position.x, b.h + 3.7, b.z);
+      group.add(lid);
+    }
+  };
+
   World.prototype._addStorefronts = function (g) {
     const textures = [];
+    const shutters = [];
     for (let i = 0; i < 6; i++) textures.push(this._storefrontTexture(i));
+    for (let i = 0; i < 3; i++) shutters.push(ND.Tex.canvasToTexture(ND.Tex.shutter(91 + i * 37)));
+    const shutterMats = shutters.map((tex, i) => new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, color: new THREE.Color(0.55, 0.52, 0.56), side: THREE.FrontSide }));
+    const awningColors = [0x2b1119, 0x10222a, 0x241b10, 0x1c1224, 0x0e241e];
+    const awningMats = awningColors.map(c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.38, metalness: 0.5 }));
     const rnd = ND.util.mulberry32(314159);
     for (const side of [-1, 1]) {
       let z = 50 - rnd() * 2;
@@ -308,22 +407,28 @@
         const width = 3.4 + rnd() * 2.4;
         const variant = Math.floor(rnd() * 6);
         const sh = 2.35 + rnd() * 0.85;
-        const open = rnd() > 0.17;
-        const tex = textures[variant];
-        const brightness = open ? 0.84 + rnd() * 0.48 : 0.15;
-        const mat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, color: new THREE.Color(brightness, brightness, brightness), side: THREE.FrontSide });
+        const open = rnd() > 0.26;
+        const tex = open ? textures[variant] : shutters[variant % 3];
+        const brightness = open ? 0.72 + rnd() * 0.42 : 0.74;
+        const mat = open
+          ? new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, color: new THREE.Color(brightness, brightness, brightness), side: THREE.FrontSide })
+          : shutterMats[variant % 3];
         const sf = new THREE.Mesh(new THREE.PlaneGeometry(width, sh), mat);
         sf.position.set(side * 13.55, 0.12 + sh / 2, z - width / 2);
         sf.rotation.y = -side * Math.PI / 2;
         g.add(sf);
-        // awning
-        const awn = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.14, width + 0.15), new THREE.MeshStandardMaterial({ color: 0x101018, roughness: 0.45, metalness: 0.55 }));
+        // awning with a little more material variety
+        const awn = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.14, width + 0.15), awningMats[variant % awningMats.length]);
         awn.position.set(side * 13.05, 0.11 + sh + 0.07, z - width / 2);
         g.add(awn);
         if (open) {
           const strip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.035, width * 0.86), new THREE.MeshBasicMaterial({ color: new THREE.Color(variant % 2 ? 0x62ecff : 0xff63b2).multiplyScalar(1.55), toneMapped: false }));
           strip.position.set(side * 12.6, 0.1 + sh, z - width / 2);
           g.add(strip);
+        } else {
+          const closedLight = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, width * 0.35), new THREE.MeshBasicMaterial({ color: new THREE.Color(0xff4a68).multiplyScalar(1.2), toneMapped: false }));
+          closedLight.position.set(side * 12.6, 0.1 + sh * 0.58, z - width / 2);
+          g.add(closedLight);
         }
         // door frame / divider
         for (const dz of [0, width]) {
@@ -332,12 +437,15 @@
           g.add(post);
         }
         // occasional doorway spill glow
-        if (open && rnd() > 0.62) {
+        if (open && rnd() > 0.58) {
           const col = variant % 2 ? 0x44e4ff : 0xff5aa9;
-          const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: this._glowTex, color: col, transparent: true, opacity: 0.08, blending: THREE.AdditiveBlending, depthWrite: false }));
+          const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: this._glowTex, color: col, transparent: true, opacity: 0.10, blending: THREE.AdditiveBlending, depthWrite: false }));
           glow.position.set(side * 12.8, 0.11 + sh * 0.55, z - width / 2);
           glow.scale.set(3.4, 2.6, 1);
           g.add(glow);
+          const contact = this.addContactShadow(g, 3.0, 1.1, 0.22, 0.012);
+          contact.position.x = side * 12.8;
+          contact.position.z = z - width / 2;
         }
         z -= width + 0.35 + rnd() * 0.6;
       }
@@ -588,33 +696,57 @@
       uniform vec3 uColor;
       uniform float uOpacity;
       uniform float uTime;
+      uniform float uSeed;
       uniform float uFogDensity;
       uniform vec3 uFogColor;
       varying vec2 vUv;
       varying float vDepth;
+      float hash(vec2 p) {
+        p = fract(p * vec2(123.34, 345.45));
+        p += dot(p, p + 34.345);
+        return fract(p.x * p.y);
+      }
+      float beamNoise(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
+                   mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+      }
       void main() {
-        float edge = smoothstep(0.0, 0.18, vUv.x) * smoothstep(1.0, 0.82, vUv.x);
-        float fade = pow(1.0 - vUv.y, 1.5) * smoothstep(0.0, 0.14, vUv.y);
-        float flicker = 0.86 + 0.14 * sin(uTime * 3.4 + vUv.y * 11.0);
-        float a = edge * fade * uOpacity * flicker;
-        vec3 col = uColor * (0.7 + 0.3 * (1.0 - vUv.y));
+        float edge = smoothstep(0.0, 0.28, vUv.x) * smoothstep(1.0, 0.72, vUv.x);
+        float vertical = smoothstep(0.0, 0.12, vUv.y) * (1.0 - smoothstep(0.68, 1.0, vUv.y));
+        float mist = 0.72 + 0.28 * beamNoise(vec2(vUv.x * 7.0 + uSeed, vUv.y * 4.0 - uTime * 0.14));
+        float flicker = 0.88 + 0.12 * sin(uTime * 2.6 + uSeed * 4.0);
+        float a = edge * vertical * mist * uOpacity * flicker;
+        vec3 col = uColor * (0.66 + 0.34 * (1.0 - vUv.y));
         float fogAmt = 1.0 - exp(-uFogDensity * uFogDensity * vDepth * vDepth);
         col = mix(col, uFogColor, fogAmt * 0.8);
         gl_FragColor = vec4(col, a);
       }
     `;
     const beams = [
-      { x: -8.0, z: 17, y: 11.8, h: 18, r: 3.2, color: 0xff2d91, opacity: 0.032, rz: 0.12 },
-      { x: 7.9, z: 5, y: 13.5, h: 20, r: 3.6, color: 0x2bdcff, opacity: 0.028, rz: -0.16 },
-      { x: -4.5, z: -33, y: 13, h: 17, r: 3.0, color: 0xb060ff, opacity: 0.022, rz: 0.08 }
+      { x: -8.0, z: 17, y: 11.8, h: 18, r: 5.2, color: 0xff2d91, opacity: 0.115, rz: 0.10 },
+      { x: 7.9, z: 5, y: 13.5, h: 20, r: 5.8, color: 0x2bdcff, opacity: 0.10, rz: -0.13 },
+      { x: -4.5, z: -33, y: 13, h: 17, r: 4.2, color: 0xb060ff, opacity: 0.055, rz: 0.06 }
     ];
     this.beams = [];
     for (const b of beams) {
+      const geo = new THREE.BufferGeometry();
+      const wTop = b.r * 0.15;
+      const wBottom = b.r;
+      const verts = new Float32Array([
+        -wTop, b.h / 2, 0,   wTop, b.h / 2, 0,   -wBottom, -b.h / 2, 0,   wBottom, -b.h / 2, 0
+      ]);
+      geo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute([0, 1, 1, 1, 0, 0, 1, 0], 2));
+      geo.setIndex([0, 2, 1, 1, 2, 3]);
+      geo.computeVertexNormals();
       const mat = new THREE.ShaderMaterial({
         uniforms: {
-          uColor: { value: new THREE.Color(b.color).multiplyScalar(1.2) },
+          uColor: { value: new THREE.Color(b.color).multiplyScalar(1.1) },
           uOpacity: { value: b.opacity },
           uTime: { value: 0 },
+          uSeed: { value: b.x * 0.13 + b.z * 0.07 },
           uFogDensity: { value: this.fogDensity },
           uFogColor: { value: this.fogColor }
         },
@@ -625,10 +757,11 @@
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide
       });
-      const cone = new THREE.Mesh(new THREE.ConeGeometry(b.r, b.h, 36, 1, true), mat);
-      cone.position.set(b.x, b.y - b.h / 2, b.z);
-      cone.rotation.z = b.rz;
-      this.scene.add(cone);
+      const shaft = new THREE.Group();
+      const p1 = new THREE.Mesh(geo, mat); p1.position.set(b.x, b.y - b.h / 2, b.z); p1.rotation.z = b.rz;
+      const p2 = new THREE.Mesh(geo, mat); p2.position.copy(p1.position); p2.rotation.y = Math.PI / 2; p2.rotation.z = b.rz;
+      shaft.add(p1, p2);
+      this.scene.add(shaft);
       this.beams.push(mat);
     }
 

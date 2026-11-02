@@ -2,7 +2,9 @@
 node_modules/
 .pnpm-store/
 .npm-cache/
-.chrome-profile/
+.chrome-profile*/
+.chrome*/
+.edge*/
 
 # build artifacts
 dist/

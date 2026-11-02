@@ -13,9 +13,9 @@
   function tick() { return new Promise(r => requestAnimationFrame(() => setTimeout(r, 0))); }
 
   const QUALITY = {
-    high: { name: '高 / HIGH', dpr: 1.35, msaa: 0, sceneScale: 1.25, bloomLevels: 5, reflectionScale: 0.55, rainCount: 10000 },
-    medium: { name: '中 / MEDIUM', dpr: 1.05, msaa: 0, sceneScale: 1.0, bloomLevels: 5, reflectionScale: 0.4, rainCount: 7000 },
-    low: { name: '低 / LOW', dpr: 0.85, msaa: 0, sceneScale: 0.8, bloomLevels: 4, reflectionScale: 0.3, rainCount: 4500 }
+    high: { name: '高 / HIGH', dpr: 1.35, msaa: 0, sceneScale: 1.25, bloomLevels: 5, reflectionScale: 0.55, rainCount: 10000, shadowSize: 2048 },
+    medium: { name: '中 / MEDIUM', dpr: 1.05, msaa: 0, sceneScale: 1.0, bloomLevels: 5, reflectionScale: 0.4, rainCount: 7000, shadowSize: 1024 },
+    low: { name: '低 / LOW', dpr: 0.85, msaa: 0, sceneScale: 0.8, bloomLevels: 4, reflectionScale: 0.3, rainCount: 4500, shadowSize: 1024 }
   };
 
   class App {
@@ -51,42 +51,49 @@
 
       this.cineShots = [
         {
-          t0: 0, t1: 10,
-          p0: [-8.5, 31, 56], p1: [-1.0, 2.15, 27.5],
-          l0: [0, 13, -32], l1: [0, 12, -78],
-          f0: 59, f1: 51
+          t0: 0, t1: 7,
+          p0: [-10, 34, 58], p1: [-2, 3.2, 35],
+          l0: [0, 18, -45], l1: [0, 12, -72],
+          f0: 58, f1: 51, focus: 38, dof: 0.32
         },
         {
-          t0: 10, t1: 22,
-          p0: [-1.0, 2.15, 27.5], p1: [2.4, 1.92, -7.5],
-          l0: [0, 12, -78], l1: [-0.5, 13, -84],
-          f0: 51, f1: 48
+          t0: 7, t1: 14,
+          p0: [0.8, 1.65, 30], p1: [-1.2, 1.72, 12],
+          l0: [0, 8.5, -40], l1: [-1, 10, -70],
+          f0: 50, f1: 49, focus: 22, dof: 0.46
         },
         {
-          t0: 22, t1: 34,
-          p0: [2.4, 1.92, -7.5], p1: [-2.5, 2.35, -42],
-          l0: [-0.5, 13, -84], l1: [0, 6.2, -61.5],
-          f0: 48, f1: 46
+          t0: 14, t1: 21,
+          p0: [7.8, 2.1, 8], p1: [5.5, 2.3, -4],
+          l0: [-10, 6, 2], l1: [-6, 10, -24],
+          f0: 52, f1: 50, focus: 18, dof: 0.58
         },
         {
-          t0: 34, t1: 46,
-          p0: [-2.5, 2.35, -42], p1: [8.9, 2.0, -57],
-          l0: [0, 6.2, -61.5], l1: [0, 12, -83],
-          f0: 46, f1: 49
+          t0: 21, t1: 30,
+          p0: [6.8, 2.1, -33], p1: [0.6, 2.2, -49],
+          l0: [0, 9, -72], l1: [0, 9, -80],
+          f0: 54, f1: 50, focus: 30, dof: 0.50
         },
         {
-          t0: 46, t1: 60,
-          p0: [8.9, 2.0, -57], p1: [0, 16, -28],
-          l0: [0, 12, -83], l1: [0, 10, -80],
-          f0: 49, f1: 53
+          t0: 30, t1: 37,
+          p0: [0.5, 2.4, -55], p1: [0, 4.5, -50],
+          l0: [0, 18, -83], l1: [0, 22, -84],
+          f0: 58, f1: 50, focus: 34, dof: 0.55
+        },
+        {
+          t0: 37, t1: 46,
+          p0: [0, 4.0, -38], p1: [0, 24, -18],
+          l0: [0, 10, -75], l1: [0, 8, -82],
+          f0: 56, f1: 54, focus: 48, dof: 0.20
         }
       ];
       this.captions = [
         { t: 1.0, zh: '新九州 · 第七区', en: 'NEO-KYUSHU · SECTOR 07' },
-        { t: 11.0, zh: '雨水从不睡觉。', en: 'THE RAIN NEVER SLEEPS.' },
-        { t: 23.0, zh: '霓虹，是这座城的第二层皮肤。', en: 'NEON IS THE CITY\'S SECOND SKIN.' },
-        { t: 35.0, zh: '欢迎来到霓虹街区。', en: 'WELCOME TO NEON DISTRICT.' },
-        { t: 47.0, zh: '今夜，整座城都是湿的。', en: 'TONIGHT, THE WHOLE CITY IS WET.' }
+        { t: 8.0, zh: '雨水从不睡觉。', en: 'THE RAIN NEVER SLEEPS.' },
+        { t: 15.0, zh: '霓虹，是这座城的第二层皮肤。', en: 'NEON IS THE CITY\'S SECOND SKIN.' },
+        { t: 22.0, zh: '欢迎来到霓虹街区。', en: 'WELCOME TO NEON DISTRICT.' },
+        { t: 31.0, zh: '麒麟广场 · 第七区', en: 'KIRIN PLAZA · SECTOR 07' },
+        { t: 39.0, zh: '今夜的雨，不会停。', en: 'TONIGHT, THE RAIN WILL NOT STOP.' }
       ];
       this.currentCaption = -1;
       this._bindUI();
@@ -110,6 +117,10 @@
       this.renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
       this.renderer.toneMapping = THREE.NoToneMapping;
       this.renderer.autoClear = true;
+      this.renderer.shadowMap.enabled = true;
+      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      this.renderer.shadowMap.autoUpdate = false;
+      this.renderer.shadowMap.needsUpdate = true;
       this.renderer.setClearColor(0x05030b, 1);
       this.renderer.setPixelRatio(1);
       this.renderer.setSize(window.innerWidth, window.innerHeight, false);
@@ -135,8 +146,8 @@
         msaa: this.quality.msaa,
         sceneScale: this.quality.sceneScale,
         reflectionScale: this.quality.reflectionScale,
-        exposure: 1.20,
-        bloomStrength: 1.08
+        exposure: 1.38,
+        bloomStrength: 1.12
       });
       this.applySizes();
       this.bootStep('SEEDING RAIN // 落雨', 74);
@@ -447,6 +458,8 @@
       this.camera.fov = shot.f0 + (shot.f1 - shot.f0) * k;
       this.camera.updateProjectionMatrix();
       this.camera.lookAt(l[0], l[1], l[2]);
+      this.cineFocus = shot.focus || 24;
+      this.cineDof = shot.dof || 0.35;
       this.updateCinemaText(elapsed);
     }
 
@@ -467,7 +480,7 @@
       }
       // location card at the beginning, small title at end
       $('cine-location').classList.toggle('visible', elapsed > 0.8 && elapsed < 7.5);
-      $('cine-title').classList.toggle('visible', elapsed > 52.0);
+      $('cine-title').classList.toggle('visible', elapsed > 42.0);
     }
 
     updatePlayer(dt) {
@@ -525,7 +538,7 @@
       this.world.update(dt, this.time);
       if (this.world.rain) this.world.rain.position.set(this.camera.position.x, 0, this.camera.position.z);
       if (this.state === 'menu') this.updateMenuCamera(dt, this.time);
-      else if (this.state === 'cinematic') { this.updateCinematic(dt); if (this.stateTime > 61) { this.stateTime = 0; this.currentCaption = -1; } }
+      else if (this.state === 'cinematic') { this.updateCinematic(dt); if (this.stateTime > 46.2) { this.stateTime = 0; this.currentCaption = -1; } }
       else if (this.state === 'play') {
         this.updatePlayer(dt);
         if (!this.zoneReached && this.player.pos.z < -44) {
@@ -534,6 +547,14 @@
           this.showToast('已抵达麒麟广场 // KIRIN PLAZA REACHED');
           setTimeout(() => this.showToast(''), 3800);
         }
+      }
+      const look = this.post.finalMat.uniforms;
+      if (this.state === 'cinematic') {
+        look.uFocus.value = this.cineFocus || 28;
+        look.uDof.value = this.cineDof || 0.45;
+      } else {
+        look.uFocus.value = this.state === 'menu' ? 24 : 20;
+        look.uDof.value = this.state === 'shot' ? 0.0 : 0.12;
       }
       this.audio.update(dt);
       // FPS instrumentation

@@ -4,7 +4,7 @@
 
 **DSH-PTC**
 
-**1 scene · 100% procedural · 0 assets · single-file build 0.84 MB**
+**1 scene · 100% procedural · 0 assets · single-file build 0.86 MB**
 
 [**Live preview**](https://cl0ud-99.github.io/neon-district/) — runs in the browser, nothing to install.
 
@@ -18,7 +18,7 @@ A real-time cyberpunk rain street built entirely in code: wet asphalt, mirrored 
 |---|---|
 | ![rain market](docs/shots/hero.jpg) | ![water](docs/shots/water.jpg) |
 | ![kirin plaza](docs/shots/plaza.jpg) | ![cinematic](docs/shots/cinema.jpg) |
-| ![title](docs/shots/title.jpg) | ![hud](docs/shots/hud.jpg) |
+| ![title](docs/shots/title.jpg) | ![detail](docs/shots/detail.jpg) |
 
 ## What it is
 
@@ -27,9 +27,9 @@ A single-scene WebGL2 application. The deployable site is plain HTML plus classi
 | File | Role |
 | --- | --- |
 | `src/tex.js` | Canvas 2D texture atelier: facades, windows, billboards, shopfronts, smoke, koi, reflection environment |
-| `src/post.js` | HDR target, five-level bloom, anamorphic streak, ACES grade, grain, lens droplets, super-sampling |
-| `src/world.js` | City generator, wet ground, water, sky, planar mirror, billboard framework, lighting |
-| `src/props.js` | Storefronts, blade signs, cables, lanterns, steam, fog, hoverbike, gantry |
+| `src/post.js` | HDR target, five-level bloom, depth AO/DOF, FXAA, ACES grade, grain, lens droplets, super-sampling |
+| `src/world.js` | City generator, baked static shadow map, hero building detail, wet ground, water, sky, planar mirror, lighting |
+| `src/props.js` | Storefronts, hero window bays/fire escapes, blade signs, cables, lanterns, volumetric shafts, steam, fog, hoverbike, gantry |
 | `src/actors.js` | Rain, fountain, citizens, flying traffic, holographic koi, ripples |
 | `src/audio.js` | Procedural WebAudio rain, hum, synth pad and thunder |
 | `src/app.js` | Camera, state machine, title/cinematic UI, input, adaptive quality |
@@ -44,11 +44,15 @@ city / signs / rain (Three.js scene)
         ├──> planar reflection camera ──> wet street + pool reflections
         │                                  (vertical streak blur + ripples)
         │
+        ├──> static shadow map (baked once)
+        │
         └──> HDR scene target (1.25× super-sample)
                   │
              bright pass at ½ resolution
                   │
         five-mip Gaussian bloom chain ──> anamorphic streak
+                  │
+        depth-edge AO + cinematic DOF + FXAA
                   │
         ACES tonemap + teal/magenta grade + vignette
         + chromatic aberration + lens drops + film grain
@@ -60,10 +64,12 @@ Details worth reading:
 
 - **Planar reflections are real geometry passes.** Every frame the whole city is rendered from a mirrored camera at a reduced resolution, then sampled by the wet ground and water shaders. Reflected image is blurred along screen-space Y to stretch window and neon highlights into wet-asphalt streaks.
 - **Water is its own material.** The plaza uses Fresnel-weighted mirror reflections, three ripple layers, sparse rain-drop rings, edge foam, a cold underwater light and a particle fountain. It is not a tinted copy of the street.
-- **No MSAA.** The scene is rendered at 1.25× into an HDR target and resolved by the composite pass. Multisampled float targets caused a driver artifact on one test GPU, and super-sampling produced cleaner thin neon lines without the extra resolve.
+- **Static shadows are baked once.** The city never moves, so a 2048² PCF-soft directional shadow map is rendered once, then reused for the whole session. Dynamic characters and props use contact-shadow decals instead of stale baked silhouettes. A depth-edge AO pass tightens seams where geometry meets the ground.
+- **No MSAA; FXAA + super-sampling.** The scene is rendered at 1.25× into an HDR target, then a separate FXAA pass cleans the final LDR image. Multisampled float targets caused a driver artifact on one test GPU, and this path is cheaper while keeping thin neon lines stable.
 - **Five independent bloom mips.** A soft-threshold prefilter at half resolution feeds a Gaussian chain; all mips plus a horizontal anamorphic streak are composited before tonemapping.
 - **Every procedural texture is drawn in 2D at boot.** No `.png`, `.jpg`, `.glb` or audio file is loaded. The repository contains only code and documentation images.
 - **Screens use a shader, not a video.** Slow scanlines, RGB split, flicker and occasional UV glitches are applied in GLSL to canvas-generated billboard artwork.
+- **The cinematic is cut, not one dolly.** Six deliberate shots — aerial descent, street-level dolly, storefront profile, plaza reveal, tower low-angle, crane-out — are hard-cut in the timeline and paired with per-shot focus distances.
 
 ## Audio
 
@@ -84,7 +90,7 @@ npm run dev
 # open http://127.0.0.1:5273/
 ```
 
-Or simply double-click `site/standalone.html` — it is a fully inlined 0.84 MB single file.
+Or simply double-click `site/standalone.html` — it is a fully inlined 0.86 MB single file.
 
 Rebuild the single-file version after editing `site/src/`:
 
@@ -132,13 +138,13 @@ All asset paths are relative (`./src/...`), so the site works both at a domain r
 
 ## Screenshots
 
-`docs/shots/` holds the views shown above, captured at 1920×1080 with `?shot=1&quality=high`. The root `/shots/` directory is git-ignored: it is reserved for temporary parameter-sweep captures while tuning the renderer.
+`docs/shots/` holds the views shown above, captured at 1600×900 with `?shot=1&quality=high`. The root `/shots/` directory is git-ignored: it is reserved for temporary parameter-sweep captures while tuning the renderer.
 
 ## Notes on the look
 
 The palette is built around two opposing light sources: hot magenta signs and cold cyan storefront glass. The grade keeps shadows inky teal, pushes highlights slightly magenta, and adds a soft halation around the brightest neon. The rain, fog and low camera height are there to make distance read as depth rather than darkness.
 
-The camera is intentionally low and wide. At street level the signs tower; at the plaza the pool reflects the screen tower; the cinematic mode starts above the roofline and descends into the rain so the space reads in three dimensions before the first cut.
+The camera is intentionally low and wide. At street level the signs tower; at the plaza the pool reflects the screen tower; cinematic mode starts above the roofline, descends into rain, then cuts between street-level, storefront and plaza compositions. The baked shadow map and contact decals are there to make the neon feel like it lands on physical surfaces.
 
 ## Credits
 
