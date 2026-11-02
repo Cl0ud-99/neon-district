@@ -9,22 +9,32 @@
   const M4 = THREE.Matrix4;
 
   const GROUND_VERT = `
+    #include <common>
+    #include <shadowmap_pars_vertex>
     uniform mat4 uTextureMatrix;
     varying vec3 vWorld;
     varying vec3 vView;
     varying vec4 vReflect;
     varying vec2 vGroundUv;
     void main() {
-      vec4 world = modelMatrix * vec4(position, 1.0);
+      vec3 transformedNormal = normalMatrix * normal;
+      vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+      vec4 world = worldPosition;
       vWorld = world.xyz;
       vReflect = uTextureMatrix * world;
       vView = normalize(cameraPosition - world.xyz);
       vGroundUv = uv;
       gl_Position = projectionMatrix * viewMatrix * world;
+      #include <shadowmap_vertex>
     }
   `;
 
   const GROUND_FRAG = `
+    #include <common>
+    #include <packing>
+    uniform bool receiveShadow;
+    #include <shadowmap_pars_fragment>
+    #include <shadowmask_pars_fragment>
     uniform sampler2D tReflection;
     uniform float uTime;
     uniform float uFogDensity;
@@ -157,6 +167,10 @@
       float endAO = 1.0 - smoothstep(-78.0, -57.0, p.y);
       float curbAO = smoothstep(0.45, 0.0, abs(abs(p.x) - 9.72));
       col *= 1.0 - clamp(wallAO * 0.22 + endAO * 0.15 + curbAO * 0.08, 0.0, 0.34);
+      #ifdef USE_SHADOWMAP
+        float shadowMask = getShadowMask();
+        col *= mix(0.62, 1.0, shadowMask);
+      #endif
 
       float depth = length(cameraPosition - vWorld);
       float fogAmt = 1.0 - exp(-uFogDensity * uFogDensity * depth * depth * 1.35);
@@ -463,9 +477,38 @@
       for (let i = 0; i < 7; i++) {
         this.facadeCanvases.push(ND.Tex.facade(1201 + i * 97, palettes[i % palettes.length]));
       }
+      const windowVert = `
+        varying vec2 vUv;
+        varying vec3 vViewDir;
+        void main() {
+          vec4 world = modelMatrix * vec4(position, 1.0);
+          vUv = uv;
+          vViewDir = normalize(cameraPosition - world.xyz);
+          gl_Position = projectionMatrix * viewMatrix * world;
+        }
+      `;
+      const windowFrag = `
+        uniform sampler2D uMap;
+        uniform vec3 uTint;
+        varying vec2 vUv;
+        varying vec3 vViewDir;
+        void main() {
+          // small parallax offset: the interior shifts against the frame as the camera moves
+          vec2 uv = vUv + vec2(vViewDir.x, vViewDir.y) * 0.055;
+          uv = clamp(uv, 0.002, 0.998);
+          vec3 col = texture2D(uMap, uv).rgb * uTint;
+          float edge = smoothstep(0.0, 0.035, min(min(vUv.x, 1.0 - vUv.x), min(vUv.y, 1.0 - vUv.y)));
+          col *= 0.58 + 0.42 * edge;
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `;
       this.heroWindowMats = [0,1,2,3].map(i => {
         const tex = ND.Tex.canvasToTexture(ND.Tex.interior(31 + i * 17, i % 2 === 0));
-        return new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(0.68, 0.66, 0.70), toneMapped: false });
+        return new THREE.ShaderMaterial({
+          uniforms: { uMap: { value: tex }, uTint: { value: new THREE.Color(0.68, 0.66, 0.70) } },
+          vertexShader: windowVert,
+          fragmentShader: windowFrag
+        });
       });
       this.bodyMat = new THREE.MeshStandardMaterial({ color: 0x14131b, roughness: 0.82, metalness: 0.12 });
       this.roofMat = new THREE.MeshStandardMaterial({ color: 0x0b0c12, roughness: 0.72, metalness: 0.25 });
@@ -1089,14 +1132,18 @@
         uLightColor: { value: this.groundLights.map(l => l.c) },
         uKind: { value: 0 }
       };
+      Object.assign(uniforms, THREE.UniformsUtils.clone(THREE.UniformsLib.lights));
       this.groundUniforms = uniforms;
       const mat = new THREE.ShaderMaterial({
         uniforms,
         vertexShader: GROUND_VERT,
         fragmentShader: GROUND_FRAG,
-        depthWrite: true
+        depthWrite: true,
+        lights: true
       });
+      mat.receiveShadow = true;
       this.ground = new THREE.Mesh(new THREE.PlaneGeometry(46, 200, 1, 1), mat);
+      this.ground.receiveShadow = true;
       this.ground.rotation.x = -Math.PI / 2;
       this.ground.position.set(0, 0.015, -22);
       this.scene.add(this.ground);
@@ -1112,12 +1159,15 @@
         uLightColor: uniforms.uLightColor,
         uKind: { value: 1 }
       };
+      Object.assign(su, THREE.UniformsUtils.clone(THREE.UniformsLib.lights));
       const smat = new THREE.ShaderMaterial({
         uniforms: su,
         vertexShader: GROUND_VERT,
         fragmentShader: GROUND_FRAG,
-        depthWrite: true
+        depthWrite: true,
+        lights: true
       });
+      smat.receiveShadow = true;
       this.sidewalkMat = smat;
       const swGeo = new THREE.PlaneGeometry(4.2, 150);
       const swL = new THREE.Mesh(swGeo, smat);
@@ -1128,6 +1178,8 @@
       swR.rotation.x = -Math.PI / 2;
       swR.position.set(11.6, 0.17, -17);
       this.scene.add(swR);
+      swL.receiveShadow = true;
+      swR.receiveShadow = true;
       this.sidewalks = [swL, swR];
       this.reflectionHidden.push(swL, swR);
     }

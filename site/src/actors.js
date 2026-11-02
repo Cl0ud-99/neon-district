@@ -212,15 +212,36 @@
     }
 
     const legs = [];
+    const knees = [];
     for (const sx of [-0.12, 0.12]) {
       const hip = new THREE.Group();
       hip.position.set(sx, 0.5, 0);
-      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 0.12), bootMat);
-      leg.position.y = -0.25;
-      hip.add(leg);
+      const thigh = new THREE.Mesh(new THREE.BoxGeometry(0.105, 0.3, 0.12), bootMat);
+      thigh.position.y = -0.15;
+      hip.add(thigh);
+      const knee = new THREE.Group();
+      knee.position.y = -0.3;
+      const shin = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.25, 0.105), bootMat);
+      shin.position.y = -0.125;
+      knee.add(shin);
+      const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.105, 0.06, 0.17), bootMat);
+      shoe.position.set(0, -0.27, 0.045);
+      knee.add(shoe);
+      hip.add(knee);
       group.add(hip);
       legs.push(hip);
+      knees.push(knee);
     }
+    // a light cloth tail behind the coat; vertices are animated in updateActors
+    const tailGeo = new THREE.PlaneGeometry(0.72, 0.72, 4, 4);
+    const tail = new THREE.Mesh(tailGeo, new THREE.MeshStandardMaterial({
+      color: coatCol, roughness: 0.8, metalness: 0.12,
+      side: THREE.DoubleSide, transparent: true, opacity: 0.78
+    }));
+    tail.position.set(0, 0.82, -0.235);
+    tail.rotation.x = -0.12;
+    group.add(tail);
+    const tailBase = Float32Array.from(tailGeo.attributes.position.array);
     const trim = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.65, 0.03), trimMat);
     trim.position.set(0.24, 1.1, -0.05);
     group.add(trim);
@@ -255,7 +276,7 @@
     group.add(umbrella);
 
     this.addContactShadow(group, 1.15, 0.72, 0.5, 0.008);
-    group.userData = { legs, arms, hem, umbrella, phase: rnd() * TAU, speed: 0.45 + rnd() * 0.6, dir: rnd() > 0.5 ? 1 : -1 };
+    group.userData = { legs, knees, arms, hem, tail, tailBase, umbrella, phase: rnd() * TAU, speed: 0.45 + rnd() * 0.6, dir: rnd() > 0.5 ? 1 : -1 };
     return group;
   };
 
@@ -606,13 +627,25 @@
       if (p.position.z < -78) { p.position.z = 48; }
       p.position.y = (Math.abs(p.position.x) > 9.5 ? 0.17 : 0.03) + Math.sin(time * 1.9 + u.phase) * 0.012;
       p.rotation.y = u.dir > 0 ? 0.1 : Math.PI - 0.1;
-      u.legs[0].rotation.x = Math.sin(time * 5.2 + u.phase) * 0.38 * Math.min(1, u.speed);
-      u.legs[1].rotation.x = -Math.sin(time * 5.2 + u.phase) * 0.38 * Math.min(1, u.speed);
+      const gait = Math.sin(time * 5.2 + u.phase);
+      u.legs[0].rotation.x = gait * 0.38 * Math.min(1, u.speed);
+      u.legs[1].rotation.x = -gait * 0.38 * Math.min(1, u.speed);
+      u.knees[0].rotation.x = Math.max(0, -gait) * 0.42;
+      u.knees[1].rotation.x = Math.max(0, gait) * 0.42;
       u.umbrella.rotation.z = Math.sin(time * 1.3 + u.phase) * 0.075;
       u.umbrella.rotation.x = Math.sin(time * 0.9 + u.phase) * 0.045;
-      u.arms[0].rotation.x = Math.sin(time * 5.2 + u.phase) * 0.26;
-      u.arms[1].rotation.x = -Math.sin(time * 5.2 + u.phase) * 0.26;
+      u.arms[0].rotation.x = gait * 0.26;
+      u.arms[1].rotation.x = -gait * 0.26;
       u.hem.rotation.z = Math.sin(time * 1.7 + u.phase) * 0.018;
+      if (u.tail) {
+        const arr = u.tail.geometry.attributes.position.array;
+        for (let i = 0; i < arr.length; i += 3) {
+          const by = u.tailBase[i + 1];
+          const sway = Math.sin(time * 3.4 + u.phase + by * 5.0) * 0.035 * (0.4 - by);
+          arr[i + 2] = u.tailBase[i + 2] + sway;
+        }
+        u.tail.geometry.attributes.position.needsUpdate = true;
+      }
     }
     // traffic
     for (const f of this.flyers) {
