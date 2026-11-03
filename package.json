@@ -1,7 +1,7 @@
 {
   "name": "neon-district",
   "private": true,
-  "version": "0.1.4",
+  "version": "0.2.0",
   "type": "module",
   "description": "A real-time cyberpunk rain street — Three.js progressive demo, 100% procedural.",
   "scripts": {

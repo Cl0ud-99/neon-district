@@ -13,9 +13,9 @@
   function tick() { return new Promise(r => requestAnimationFrame(() => setTimeout(r, 0))); }
 
   const QUALITY = {
-    high: { name: '高 / HIGH', dpr: 1.0, msaa: 0, sceneScale: 1.0, bloomLevels: 4, reflectionScale: 0.26, rainCount: 16000, rainNearCount: 1400, shadowSize: 2048 },
-    medium: { name: '中 / MEDIUM', dpr: 0.95, msaa: 0, sceneScale: 0.9, bloomLevels: 4, reflectionScale: 0.24, rainCount: 12000, rainNearCount: 1100, shadowSize: 1024 },
-    low: { name: '低 / LOW', dpr: 0.8, msaa: 0, sceneScale: 0.78, bloomLevels: 4, reflectionScale: 0.18, rainCount: 8000, rainNearCount: 800, shadowSize: 1024 }
+    high: { name: '高 / HIGH', msaa: 0, sceneScale: 1.0, bloomLevels: 4, reflectionScale: 0.26, rainCount: 16000, rainNearCount: 1400, shadowSize: 2048 },
+    medium: { name: '中 / MEDIUM', msaa: 0, sceneScale: 0.9, bloomLevels: 4, reflectionScale: 0.24, rainCount: 12000, rainNearCount: 1100, shadowSize: 1024 },
+    low: { name: '低 / LOW', msaa: 0, sceneScale: 0.78, bloomLevels: 4, reflectionScale: 0.18, rainCount: 8000, rainNearCount: 800, shadowSize: 1024 }
   };
 
   class App {
@@ -65,6 +65,12 @@
       const qualityParam = this.params.get('quality');
       this.qualityKey = QUALITY[qualityParam] ? qualityParam : (matchMedia('(pointer: coarse)').matches ? 'medium' : 'high');
       this.quality = QUALITY[this.qualityKey];
+      const resParam = this.params.get('res');
+      let savedRes = null;
+      try { savedRes = localStorage.getItem('nd-resolution'); } catch (e) {}
+      this.resolutionMode = (resParam === '2k' || resParam === '1440')
+        ? '2k'
+        : (resParam === '1080' ? '1080' : (savedRes === '2k' ? '2k' : '1080'));
 
       this.player = {
         pos: new V3(0, 0, 29),
@@ -287,6 +293,8 @@
       $('btn-cinema').addEventListener('click', e => { e.stopPropagation(); this.startCinematic(); });
       $('btn-mute').addEventListener('click', () => this.toggleMute());
       $('btn-quality').addEventListener('click', () => this.cycleQuality());
+      $('btn-res').addEventListener('click', () => this.cycleResolution());
+      this.updateResolutionLabel();
       $('btn-resume').addEventListener('click', () => this.resumePlay());
       $('btn-pause-menu').addEventListener('click', () => this.returnToMenu());
       $('btn-cine-exit').addEventListener('click', () => this.returnToMenu());
@@ -459,7 +467,6 @@
 
       // Record at 1:1 720p with TAA disabled: this keeps the trailer crisp
       // and avoids temporal ghosting on the slow orbit shots.
-      this.quality.dpr = 1.0;
       this.quality.sceneScale = 1.0;
       this.renderScale = 1.0;
       this.applySizes();
@@ -812,9 +819,7 @@
     captureAt(w, h) {
       const post = this.post;
       if (!post) return;
-      const prevW = window.innerWidth, prevH = window.innerHeight;
       const prev = {
-        dpr: this.dpr,
         aspect: this.camera.aspect,
         sceneScale: post.opts.sceneScale,
         msaa: post.opts.msaa,
@@ -844,10 +849,8 @@
         post.opts.msaa = prev.msaa;
         post.opts.taa = prev.taa;
         post.opts.ssr = prev.ssr;
-        this.renderer.setPixelRatio(prev.dpr);
-        this.renderer.setSize(prevW, prevH, false);
-        post.setSize(prevW, prevH, prev.dpr);
-        this.world.setSize(prevW, prevH, prev.dpr);
+        this.renderer.setPixelRatio(1);
+        this.applySizes();
         this.camera.aspect = prev.aspect;
         this.camera.updateProjectionMatrix();
         post.resetTAA();
@@ -861,6 +864,30 @@
       $('btn-mute').querySelector('.label').textContent = muted ? '静音' : '声音';
       this.showToast(muted ? '声音关闭 // AUDIO OFF' : '声音开启 // AUDIO ON');
       setTimeout(() => this.showToast(''), 2200);
+    }
+
+
+    minRenderScale() {
+      return this.resolutionMode === '2k' ? 0.75 : 0.62;
+    }
+
+    updateResolutionLabel() {
+      const el = $('res-label');
+      if (el) el.textContent = this.resolutionMode === '2k' ? '2K' : '1080P';
+    }
+
+    cycleResolution() {
+      this.resolutionMode = this.resolutionMode === '2k' ? '1080' : '2k';
+      try { localStorage.setItem('nd-resolution', this.resolutionMode); } catch (e) {}
+      this.renderScale = 1.0;
+      this.autoScaleTimer = 0;
+      this.autoScaleCooldown = 0;
+      this.applySizes();
+      if (this.post) this.post.resetTAA();
+      this.updateResolutionLabel();
+      const label = this.resolutionMode === '2k' ? '2K 2560×1440' : '1080P 1920×1080';
+      this.showToast('输出分辨率：' + label);
+      setTimeout(() => this.showToast(''), 2600);
     }
 
     cycleQuality() {
@@ -913,15 +940,15 @@
 
     applySizes() {
       if (!this.renderer) return;
-      const area = window.innerWidth * window.innerHeight;
-      // Cap DPR more aggressively on 4K panels; the HDR chain is expensive.
-      const cap = area > 3800 * 2100 ? Math.min(this.quality.dpr, 1.05) : this.quality.dpr;
-      const dpr = Math.max(0.55, Math.min(2.0, Math.min(window.devicePixelRatio || 1, cap) * this.renderScale));
-      this.dpr = dpr;
-      this.renderer.setPixelRatio(dpr);
-      this.renderer.setSize(window.innerWidth, window.innerHeight, false);
-      if (this.post) this.post.setSize(window.innerWidth, window.innerHeight, dpr);
-      if (this.world) this.world.setSize(window.innerWidth, window.innerHeight, dpr);
+      const targetH = this.resolutionMode === '2k' ? 1440 : 1080;
+      const aspect = window.innerWidth / Math.max(1, window.innerHeight);
+      const targetW = Math.round(targetH * aspect);
+      const w = Math.max(1, Math.round(targetW * this.renderScale));
+      const h = Math.max(1, Math.round(targetH * this.renderScale));
+      this.renderer.setPixelRatio(1);
+      this.renderer.setSize(w, h, false);
+      if (this.post) this.post.setSize(w, h, 1);
+      if (this.world) this.world.setSize(w, h, 1);
     }
 
     setCameraPreset(name) {
@@ -1119,11 +1146,11 @@
         this.updateHUD();
         if ((this.state === 'play' || this.state === 'cinematic') && !this.benchMode) {
           this.perfTimer += dt;
-          if (this.fps < 47 && this.renderScale > 0.62) {
+          if (this.fps < 47 && this.renderScale > this.minRenderScale()) {
             this.autoScaleCooldown += 0.6;
             if (this.autoScaleCooldown > 2.4) {
               this.autoScaleCooldown = 0;
-              this.renderScale = Math.max(0.62, this.renderScale - 0.08);
+              this.renderScale = Math.max(this.minRenderScale(), this.renderScale - 0.08);
               this.applySizes();
               this.showToast('分辨率自适应 // DYNAMIC RESOLUTION');
               setTimeout(() => this.showToast(''), 2200);
@@ -1139,7 +1166,7 @@
             this.autoScaleCooldown = 0;
             this.autoScaleTimer = 0;
           }
-          if (this.perfTimer > 8 && this.fps < 24 && this.renderScale <= 0.66 && this.qualityKey !== 'low') {
+          if (this.perfTimer > 8 && this.fps < 24 && this.renderScale <= this.minRenderScale() + 0.04 && this.qualityKey !== 'low') {
             this.perfTimer = 0;
             this.cycleQuality();
             this.showToast('自动降低画质 // AUTO QUALITY');

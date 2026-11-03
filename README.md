@@ -4,7 +4,7 @@
 
 **DSH-PTC**
 
-**v0.1.4 · 1 scene · 100% procedural · 0 assets · single-file build 1.03 MB**
+**v0.2.0 · 1 scene · 100% procedural · 0 assets · single-file build 1.03 MB**
 
 [**Live preview**](https://cl0ud-99.github.io/neon-district/) — runs in the browser, nothing to install.
 
@@ -74,7 +74,7 @@ Details worth reading:
 - **Static shadows are baked once.** The city never moves, so a 2048² PCF-soft directional shadow map is rendered once, then reused for the whole session. The custom wet-asphalt and sidewalk shaders sample that same map through Three's shadow chunks, so building silhouettes land on the ground as well as on the facades. Dynamic characters and props use contact-shadow decals instead of stale baked silhouettes. A depth-edge AO pass tightens seams where geometry meets the ground.
 - **Hero windows have interior parallax.** The close-up window bays use a small view-dependent UV offset against a drawn interior, so the room behind the glass shifts against the frame as the camera moves.
 - **TAA + FXAA + super-sampling.** The HDR frame is rendered with a Halton sub-pixel jitter, then resolved against the previous frame using depth reprojection and a neighbourhood clamp. FXAA cleans the final LDR image. Multisampled float targets caused a driver artifact on one test GPU, so this path is cheaper and keeps thin neon lines stable while reducing shimmer in motion.
-- **Adaptive quality and resolution.** In play/cinematic mode the renderer first lowers its internal resolution scale when frames get expensive, then steps down one quality tier if it still cannot recover. DPR is capped more aggressively on 4K panels. The HUD’s quality control resets the dynamic scale at any time.
+- **Adaptive quality and resolution.** The HUD exposes separate 1080P and 2K output modes. In play/cinematic mode the renderer lowers its internal resolution scale when frames get expensive, then steps down one quality tier if it still cannot recover; the 2K mode never drops below 1080p internally. The HUD’s quality control resets the dynamic scale at any time.
 - **Static batching for 60 fps.** After generation, opaque static meshes sharing a material signature are merged, static character and vehicle parts are batched per rig, and 180+ glow halos collapse into one instanced billboard draw. The planar-reflection pass is layer-filtered and the high preset targets a steady 60 fps at 1080p while keeping the full street, rear district, shops, traffic, rain and plaza intact.
 - **Vertical-wall SSR.** A half-resolution screen-space pass reconstructs world normals from depth, limits the effect to vertical surfaces, and ray-marches the depth buffer for neon reflections on wet facades. It is disabled on the low quality preset.
 - **Front and rear are different cities.** The frontage uses wider, taller corporate slabs with glass fins, clean crowns and sparse AC clutter. The rear is narrow-lot Kowloon stacking: overhanging floors, steel service towers, laundry rails, dense balconies and rooftop shacks.
@@ -137,6 +137,7 @@ The local preview server does not need any npm packages; `npm install` is only f
 | M | Mute / restore ambience |
 | P | Photo Mode (free camera, save PNG) |
 | H | Toggle controls panel |
+| HUD 分辨率 | Toggle 1080P / 2K output resolution |
 | ESC | Pause / back |
 
 ## Performance diagnostics
