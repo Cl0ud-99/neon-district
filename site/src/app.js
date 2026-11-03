@@ -270,7 +270,7 @@
           return;
         }
         if (this.state === 'photo') {
-          if (e.code === 'KeyF') { e.preventDefault(); this.capturePhoto(); return; }
+          if (e.code === 'KeyF') { e.preventDefault(); this.capturePhoto(e.shiftKey); return; }
           if (e.code === 'KeyR') { this.photo.fov = 55; this.photo.focus = 20; this.updatePhotoHud(); return; }
           if (e.code === 'BracketLeft') { this.photo.focus = Math.max(2, this.photo.focus - 2); this.updatePhotoHud(); return; }
           if (e.code === 'BracketRight') { this.photo.focus = Math.min(80, this.photo.focus + 2); this.updatePhotoHud(); return; }
@@ -460,9 +460,18 @@
       if (stats) stats.textContent = 'FOV ' + Math.round(p.fov) + ' · FOCUS ' + Math.round(p.focus) + 'M';
     }
 
-    capturePhoto() {
+    capturePhoto(fourK) {
       if (!this.post || !this.post.compositeRT) return;
+      if (fourK) {
+        this.captureAt(3840, 2160);
+      } else {
+        this.readComposite();
+      }
+    }
+
+    readComposite(label) {
       const rt = this.post.compositeRT;
+      if (!rt) return;
       const w = rt.width, h = rt.height;
       try {
         const buf = new Uint8Array(w * h * 4);
@@ -481,15 +490,60 @@
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = 'neon-district-' + Date.now() + '.png';
+          a.download = 'neon-district-' + w + 'x' + h + '-' + Date.now() + '.png';
           a.click();
           setTimeout(() => URL.revokeObjectURL(url), 2000);
           const saved = $('photo-saved');
-          if (saved) saved.textContent = 'SAVED ' + w + '×' + h;
+          if (saved) saved.textContent = label || ('SAVED ' + w + '×' + h);
         }, 'image/png');
       } catch (e) {
         const saved = $('photo-saved');
         if (saved) saved.textContent = 'CAPTURE FAILED';
+      }
+    }
+
+    captureAt(w, h) {
+      const post = this.post;
+      if (!post) return;
+      const prevW = window.innerWidth, prevH = window.innerHeight;
+      const prev = {
+        dpr: this.dpr,
+        aspect: this.camera.aspect,
+        sceneScale: post.opts.sceneScale,
+        msaa: post.opts.msaa,
+        taa: post.opts.taa,
+        ssr: post.opts.ssr
+      };
+      try {
+        // A 4K still is rendered as a one-off full-resolution frame. TAA is
+        // bypassed so we only need one 4K scene target.
+        post.opts.sceneScale = 1.0;
+        post.opts.msaa = 0;
+        post.opts.taa = false;
+        post.opts.ssr = false;
+        this.renderer.setPixelRatio(1);
+        this.renderer.setSize(w, h, false);
+        post.setSize(w, h, 1);
+        this.world.setSize(w, h, 1);
+        this.camera.aspect = w / h;
+        this.camera.updateProjectionMatrix();
+        post.render(this.scene, this.camera, this.world, this.time, 0);
+        this.readComposite('SAVED ' + w + '×' + h);
+      } catch (e) {
+        const saved = $('photo-saved');
+        if (saved) saved.textContent = '4K CAPTURE FAILED';
+      } finally {
+        post.opts.sceneScale = prev.sceneScale;
+        post.opts.msaa = prev.msaa;
+        post.opts.taa = prev.taa;
+        post.opts.ssr = prev.ssr;
+        this.renderer.setPixelRatio(prev.dpr);
+        this.renderer.setSize(prevW, prevH, false);
+        post.setSize(prevW, prevH, prev.dpr);
+        this.world.setSize(prevW, prevH, prev.dpr);
+        this.camera.aspect = prev.aspect;
+        this.camera.updateProjectionMatrix();
+        post.resetTAA();
       }
     }
 

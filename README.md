@@ -139,9 +139,9 @@ The local preview server does not need any npm packages; `npm install` is only f
 
 ## Photo Mode
 
-Press **P** from the menu, play or pause screen to enter Photo Mode. The scene freezes, HUD disappears and the camera becomes free: WASD moves, Q/E raises/lowers, mouse looks, the wheel changes FOV, **[** / **]** adjusts focus, **F** saves the current frame as a PNG, and **R** resets FOV/focus. P or Esc returns to the previous state.
+Press **P** from the menu, play or pause screen to enter Photo Mode. The scene freezes, HUD disappears and the camera becomes free: WASD moves, Q/E raises/lowers, mouse looks, the wheel changes FOV, **[** / **]** adjusts focus, **F** saves the current frame as a PNG, **Shift+F** renders a one-off 4K frame, and **R** resets FOV/focus. P or Esc returns to the previous state.
 
-The frame is read directly from the HDR composite render target, so it contains the full live render without DOM UI. It is also available at boot with `?photo=1`.
+The frame is read directly from the composite render target, so it contains the live render without DOM UI. The 4K path temporarily rebuilds the post chain at 3840×2160, renders one frozen frame, reads it back, and restores the interactive targets. It is also available at boot with `?photo=1`.
 
 ## URL parameters
 
