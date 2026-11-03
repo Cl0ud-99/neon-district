@@ -1599,6 +1599,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
           uExposure: { value: this.opts.exposure },
           uBloomStrength: { value: this.opts.bloomStrength },
           uFlash: { value: 0 },
+          uContrast: { value: 1.04 },
           uFade: { value: 1 },
           uLetterbox: { value: 0 },
           uNear: { value: 0.08 },
@@ -1614,7 +1615,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
           uniform sampler2D tBloom0, tBloom1, tBloom2, tBloom3, tBloom4;
           uniform sampler2D tStreak;
           uniform vec2 uResolution;
-          uniform float uTime, uExposure, uBloomStrength, uFlash, uFade;
+          uniform float uTime, uExposure, uBloomStrength, uFlash, uContrast, uFade;
           uniform float uNear, uFar, uFocus, uDof, uAO;
           varying vec2 vUv;
 
@@ -1717,6 +1718,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
             c = mix(c, c + shadowTint * (1.0 - smoothstep(0.0, 0.32, l)), 0.55);
             c *= mix(vec3(1.0), highTint, smoothstep(0.3, 1.0, l));
             c = mix(vec3(l), c, 1.12);
+            c = (c - 0.5) * uContrast + 0.5;
             c = pow(clamp(c, 0.0, 1.0), vec3(0.96, 1.0, 1.025));
 
             // vignette + gate weave
@@ -6505,6 +6507,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.perfPanel = false;
       this.perfUpdateTimer = 0;
       this.rawDt = 0;
+      this.contrast = (() => {
+        const v = parseFloat(this.params.get('contrast'));
+        return Number.isFinite(v) ? Math.max(0.6, Math.min(1.6, v)) : 1.04;
+      })();
       this.recordMode = this.params.get('record') === '1';
       this.recordDuration = Math.max(2, parseFloat(this.params.get('recordsec')) || 67.7);
       this.recording = false;
@@ -6653,6 +6659,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         bloomStrength: 1.08,
         ssr: this.qualityKey !== 'low'
       });
+      this.post.finalMat.uniforms.uContrast.value = this.contrast;
       this.applySizes();
       this.bootStep('SEEDING RAIN // 落雨', 74);
       await tick();

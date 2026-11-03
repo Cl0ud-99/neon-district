@@ -51,6 +51,10 @@
       this.perfPanel = false;
       this.perfUpdateTimer = 0;
       this.rawDt = 0;
+      this.contrast = (() => {
+        const v = parseFloat(this.params.get('contrast'));
+        return Number.isFinite(v) ? Math.max(0.6, Math.min(1.6, v)) : 1.04;
+      })();
       this.recordMode = this.params.get('record') === '1';
       this.recordDuration = Math.max(2, parseFloat(this.params.get('recordsec')) || 67.7);
       this.recording = false;
@@ -199,6 +203,7 @@
         bloomStrength: 1.08,
         ssr: this.qualityKey !== 'low'
       });
+      this.post.finalMat.uniforms.uContrast.value = this.contrast;
       this.applySizes();
       this.bootStep('SEEDING RAIN // 落雨', 74);
       await tick();

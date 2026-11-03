@@ -229,6 +229,7 @@
           uExposure: { value: this.opts.exposure },
           uBloomStrength: { value: this.opts.bloomStrength },
           uFlash: { value: 0 },
+          uContrast: { value: 1.04 },
           uFade: { value: 1 },
           uLetterbox: { value: 0 },
           uNear: { value: 0.08 },
@@ -244,7 +245,7 @@
           uniform sampler2D tBloom0, tBloom1, tBloom2, tBloom3, tBloom4;
           uniform sampler2D tStreak;
           uniform vec2 uResolution;
-          uniform float uTime, uExposure, uBloomStrength, uFlash, uFade;
+          uniform float uTime, uExposure, uBloomStrength, uFlash, uContrast, uFade;
           uniform float uNear, uFar, uFocus, uDof, uAO;
           varying vec2 vUv;
 
@@ -347,6 +348,7 @@
             c = mix(c, c + shadowTint * (1.0 - smoothstep(0.0, 0.32, l)), 0.55);
             c *= mix(vec3(1.0), highTint, smoothstep(0.3, 1.0, l));
             c = mix(vec3(l), c, 1.12);
+            c = (c - 0.5) * uContrast + 0.5;
             c = pow(clamp(c, 0.0, 1.0), vec3(0.96, 1.0, 1.025));
 
             // vignette + gate weave
