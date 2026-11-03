@@ -1,15 +1,11 @@
 /* =========================================================================
-   NEON DISTRICT — small life: rain impacts, awning drips, sign stutter,
-   metro pulses, flyer strobes and the cat that owns the cyber pawn shop.
+   NEON DISTRICT — small life: awning drips, sign stutter, metro pulses,
+   flyer strobes and the cat that owns the cyber pawn shop.
    ========================================================================= */
 (function () {
   'use strict';
   const ND = window.ND;
   const World = ND.World;
-  const TAU = Math.PI * 2;
-
-  const _dummy = new THREE.Object3D();
-  const _color = new THREE.Color();
 
   World.prototype.emitLife = function (type, data) {
     if (!this.onLifeEvent) return;
@@ -20,36 +16,7 @@
 
   World.prototype.buildLife = function () {
     this._lifeRnd = ND.util.mulberry32(20250308);
-    this._splashCursor = 0;
-    this._splashAccum = 0;
     this._dripAccum = 0;
-
-    // ---- expanding rain-impact rings -------------------------------------
-    const splashCount = 120;
-    const sgeo = new THREE.RingGeometry(0.55, 0.9, 12, 1);
-    sgeo.rotateX(-Math.PI / 2);
-    const smat = new THREE.MeshBasicMaterial({
-      color: 0xffffff, transparent: true, opacity: 1.0,
-      blending: THREE.AdditiveBlending, depthWrite: false,
-      side: THREE.DoubleSide, toneMapped: false
-    });
-    const smesh = new THREE.InstancedMesh(sgeo, smat, splashCount);
-    smesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    smesh.frustumCulled = false;
-    smesh.renderOrder = 3;
-    this._splashes = [];
-    for (let i = 0; i < splashCount; i++) {
-      this._splashes.push({ active: false, life: 0, max: 1, x: 0, y: -100, z: 0, size: 0.1, r: 1, g: 1, b: 1 });
-      _dummy.position.set(0, -100, 0);
-      _dummy.scale.setScalar(0.001);
-      _dummy.updateMatrix();
-      smesh.setMatrixAt(i, _dummy.matrix);
-      smesh.setColorAt(i, _color.setRGB(0, 0, 0));
-    }
-    smesh.instanceMatrix.needsUpdate = true;
-    if (smesh.instanceColor) smesh.instanceColor.needsUpdate = true;
-    this.splashMesh = smesh;
-    this.scene.add(smesh);
 
     // ---- slow drips from awnings and sign brackets ------------------------
     const dripCount = 72;
@@ -178,68 +145,6 @@
     this.cat = g;
   };
 
-  World.prototype.spawnSplash = function (x, y, z, size, max, color) {
-    if (!this._splashes) return;
-    const s = this._splashes[this._splashCursor++ % this._splashes.length];
-    s.active = true;
-    s.life = 0;
-    s.max = max || 0.6;
-    s.x = x; s.y = y; s.z = z;
-    s.size = size || 0.1;
-    const c = color || [0.58, 0.78, 0.92];
-    s.r = c[0]; s.g = c[1]; s.b = c[2];
-  };
-
-  World.prototype.updateSplashes = function (dt) {
-    const mesh = this.splashMesh;
-    if (!mesh) return;
-    let dirty = false;
-    for (let i = 0; i < this._splashes.length; i++) {
-      const s = this._splashes[i];
-      if (!s.active) continue;
-      s.life += dt;
-      const t = s.life / s.max;
-      if (t >= 1) {
-        s.active = false;
-        _dummy.position.set(0, -100, 0);
-        _dummy.scale.setScalar(0.001);
-        _dummy.updateMatrix();
-        mesh.setMatrixAt(i, _dummy.matrix);
-        mesh.setColorAt(i, _color.setRGB(0, 0, 0));
-        dirty = true;
-        continue;
-      }
-      const sc = s.size * (0.4 + t * 2.7);
-      _dummy.position.set(s.x, s.y + 0.012, s.z);
-      _dummy.scale.set(sc, 1, sc);
-      _dummy.updateMatrix();
-      mesh.setMatrixAt(i, _dummy.matrix);
-      const fade = (1 - t) * (0.55 + 0.45 * (1 - t));
-      mesh.setColorAt(i, _color.setRGB(s.r * fade, s.g * fade, s.b * fade));
-      dirty = true;
-    }
-    if (dirty) {
-      mesh.instanceMatrix.needsUpdate = true;
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    }
-  };
-
-  World.prototype._spawnRainSplashes = function (dt, camera) {
-    if (!camera) return;
-    this._splashAccum += dt * 48;
-    let guard = 0;
-    while (this._splashAccum >= 1 && guard++ < 4) {
-      this._splashAccum -= 1;
-      const a = this._lifeRnd() * TAU;
-      const r = 1.8 + this._lifeRnd() * 14.5;
-      const x = camera.position.x + Math.cos(a) * r;
-      const z = camera.position.z + Math.sin(a) * r;
-      if (Math.abs(x) > 13.2 || z > 188.5 || z < -79.5) continue;
-      const y = Math.abs(x) > 9.5 ? 0.177 : 0.012;
-      this.spawnSplash(x, y, z, 0.075 + this._lifeRnd() * 0.16, 0.42 + this._lifeRnd() * 0.42, [0.72, 0.9, 1.0]);
-    }
-  };
-
   World.prototype._spawnDrip = function (x, y, z) {
     if (!this._drips) return;
     const d = this._drips[this._dripCursor++ % this._drips.length];
@@ -281,9 +186,6 @@
       d.vy -= 2.0 * dt;
       const ground = Math.abs(d.x) > 9.5 ? 0.177 : 0.012;
       if (d.y <= ground + 0.02) {
-        if (camera && Math.abs(d.z - camera.position.z) < 30) {
-          this.spawnSplash(d.x, ground, d.z, 0.045 + this._lifeRnd() * 0.055, 0.35 + this._lifeRnd() * 0.25, [0.45, 0.68, 0.86]);
-        }
         d.active = false;
         alpha[i] = 0;
         pos[i * 3 + 1] = -100;
@@ -302,9 +204,7 @@
 
   World.prototype.updateLife = function (dt, time) {
     const camera = this.activeCamera;
-    this._spawnRainSplashes(dt, camera);
     this._updateDrips(dt, camera);
-    this.updateSplashes(dt);
 
     // irregular practical-sign stutter, never a global sine loop
     for (const s of this.lifeSigns || []) {

@@ -1962,7 +1962,7 @@
       for (const list of [this.pedestrians, this.flyers, this.waterRings, this.dynamicGlow]) {
         for (const o of list || []) animated.add(o);
       }
-      for (const o of [this.cat, this.whaleGroup, this.wayfinding, this.water, this.ground, this.sky, this.splashMesh, this.dripPoints]) {
+      for (const o of [this.cat, this.whaleGroup, this.wayfinding, this.water, this.ground, this.sky, this.dripPoints]) {
         if (o) animated.add(o);
       }
       for (const s of this.lifeSways || []) animated.add(s.obj);

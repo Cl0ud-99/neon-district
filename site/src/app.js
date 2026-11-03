@@ -1056,10 +1056,6 @@
         if (this.player.stepTimer <= 0) {
           this.player.stepTimer = speed > 4 ? 0.27 : 0.43;
           this.audio.step();
-          if (this.world.spawnSplash) {
-            const sy = Math.abs(this.player.pos.x) > 9.5 ? 0.18 : 0.02;
-            this.world.spawnSplash(this.player.pos.x + (Math.random() - 0.5) * 0.16, sy, this.player.pos.z + (Math.random() - 0.5) * 0.16, 0.055 + Math.random() * 0.025, 0.32, [0.55, 0.72, 0.88]);
-          }
         }
       } else {
         this.player.bob *= Math.max(0, 1 - dt * 6);

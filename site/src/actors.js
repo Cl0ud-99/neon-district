@@ -523,7 +523,7 @@
 
     this.addContactShadow(group, 1.15, 0.72, 0.5, 0.008);
     this.addCollider({ type: 'circle', obj: group, r: 0.34 });
-    group.userData = { style, head, legs, knees, arms, hem, tail, tailBase, umbrella, phase: rnd() * TAU, speed: 0.45 + rnd() * 0.6, dir: rnd() > 0.5 ? 1 : -1, splashClock: rnd() * 0.4 };
+    group.userData = { style, head, legs, knees, arms, hem, tail, tailBase, umbrella, phase: rnd() * TAU, speed: 0.45 + rnd() * 0.6, dir: rnd() > 0.5 ? 1 : -1 };
     return group;
   };
 
@@ -958,15 +958,6 @@
       u.hem.rotation.z = Math.sin(time * 1.7 + u.phase) * 0.018;
       u.head.rotation.y = Math.sin(time * 0.43 + u.phase) * 0.28;
       u.head.rotation.x = Math.sin(time * 0.27 + u.phase * 2.1) * 0.06;
-      u.splashClock -= dt;
-      if (u.splashClock <= 0 && this.activeCamera) {
-        u.splashClock = 0.34 + Math.random() * 0.22;
-        const dx = p.position.x - this.activeCamera.position.x;
-        const dz = p.position.z - this.activeCamera.position.z;
-        if (dx * dx + dz * dz < 18 * 18) {
-          this.spawnSplash(p.position.x + (Math.random() - 0.5) * 0.18, p.position.y - 0.03, p.position.z + (Math.random() - 0.5) * 0.18, 0.035 + Math.random() * 0.03, 0.28 + Math.random() * 0.16, [0.4, 0.62, 0.8]);
-        }
-      }
       if (u.tail) {
         const arr = u.tail.geometry.attributes.position.array;
         for (let i = 0; i < arr.length; i += 3) {
