@@ -3894,6 +3894,30 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   const TAU = Math.PI * 2;
 
   function rndRange(rnd, a, b) { return a + rnd() * (b - a); }
+  const PHYSICAL_SHOPS = [
+    { side: -1, z: 0.0, title: '拉麺 24H', sub: 'RAMEN / OPEN ALL NIGHT', color: 0xffb34d, hero: true },
+    { side: 1, z: -8.0, title: '電脳質屋', sub: 'CYBER PAWN / TRADE', color: 0x53efff, hero: true },
+    { side: -1, z: -36.0, title: '龍城茶樓', sub: 'DRAGON CITY TEA', color: 0xff4da4, hero: true },
+    { side: -1, z: -68.0, title: '回春藥房', sub: 'PHARMACY / 24H', color: 0x8dff9c },
+    { side: 1, z: -64.0, title: '九龍電器', sub: 'ELECTRONICS / REPAIR', color: 0x5d9cff },
+    { side: -1, z: -50.0, title: '夜雨酒吧', sub: 'BAR / NO VACANCY', color: 0xff7a3b },
+    { side: 1, z: -40.0, title: '24H 便利店', sub: 'CONVENIENCE', color: 0xffd35a },
+    { side: -1, z: -28.0, title: '洗衣街', sub: 'LAUNDRY / 24H', color: 0x7fe7ff },
+    { side: 1, z: -26.0, title: '義體診所', sub: 'AUGMENT CLINIC', color: 0xb46cff },
+    { side: -1, z: -14.0, title: '唱片店', sub: 'RECORDS / VINYL', color: 0xff5aa9 },
+    { side: 1, z: 2.0, title: '香火', sub: 'INCENSE / SHRINE', color: 0xff4a4a },
+    { side: -1, z: 12.0, title: '茶餐廳', sub: 'CAFE / ALL DAY', color: 0xffb04d },
+    { side: 1, z: 20.0, title: '九龍電器', sub: 'ELECTRONICS', color: 0x5d9cff },
+    { side: -1, z: 30.0, title: '回春藥房', sub: 'PHARMACY', color: 0x8dff9c },
+    { side: 1, z: 44.0, title: '夜雨酒吧', sub: 'BAR', color: 0xff7a3b },
+    { side: -1, z: 54.0, title: '24H 便利店', sub: 'CONVENIENCE', color: 0xffd35a },
+    { side: 1, z: 68.0, title: '洗衣街', sub: 'LAUNDRY', color: 0x7fe7ff },
+    { side: -1, z: 78.0, title: '義體診所', sub: 'AUGMENT', color: 0xb46cff },
+    { side: 1, z: 96.0, title: '唱片店', sub: 'RECORDS', color: 0xff5aa9 },
+    { side: -1, z: 94.0, title: '香火', sub: 'SHRINE', color: 0xff4a4a },
+    { side: 1, z: 154.0, title: '茶餐廳', sub: 'CAFE', color: 0xffb04d },
+    { side: -1, z: 146.0, title: '夜雨酒吧', sub: 'BAR', color: 0xff7a3b }
+  ];
 
   World.prototype.addContactShadow = function (parent, width, depth, opacity, localY) {
     if (!this._contactShadowTex) {
@@ -3943,6 +3967,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     this.lampLights = [];
     for (let i = 0; i < lampPositions.length; i++) {
       const [x, z] = lampPositions[i];
+      const shopSide = x < 0 ? -1 : 1;
+      if (PHYSICAL_SHOPS.some(s => s.side === shopSide && Math.abs(s.z - z) < 4.8)) continue;
       const grp = new THREE.Group();
       const mat = new THREE.MeshStandardMaterial({ color: 0x20242c, roughness: 0.38, metalness: 0.8 });
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.13, 6.6, 7), mat);
@@ -4762,11 +4788,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   };
 
   World.prototype._addHeroShops = function (g) {
-    const defs = [
-      { side: -1, z: 0.0, title: '拉麺 24H', sub: 'RAMEN / OPEN ALL NIGHT', color: 0xffb34d },
-      { side: 1, z: -8.0, title: '電脳質屋', sub: 'CYBER PAWN / TRADE', color: 0x53efff },
-      { side: -1, z: -36.0, title: '龍城茶樓', sub: 'DRAGON CITY TEA', color: 0xff4da4 }
-    ];
+    const defs = PHYSICAL_SHOPS.filter(d => d.hero);
     const glowTex = this._glowTex || (this._glowTex = ND.Tex.canvasToTexture(ND.Tex.glow(128)));
     for (const d of defs) {
       const width = 3.5;
@@ -4853,6 +4875,93 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     }
   };
 
+  World.prototype._simpleShopTexture = function (d) {
+    this._simpleShopTextureCache = this._simpleShopTextureCache || {};
+    if (this._simpleShopTextureCache[d.color]) return this._simpleShopTextureCache[d.color];
+    const c = ND.util.makeCanvas(512, 512);
+    const x = c.getContext('2d');
+    const g = x.createLinearGradient(0, 0, 0, 512);
+    g.addColorStop(0, 'rgba(28,18,17,1)');
+    g.addColorStop(0.62, 'rgba(12,9,13,1)');
+    g.addColorStop(1, 'rgba(5,5,8,1)');
+    x.fillStyle = g; x.fillRect(0, 0, 512, 512);
+    const col = '#' + d.color.toString(16).padStart(6, '0');
+    x.fillStyle = col; x.globalAlpha = 0.11; x.fillRect(0, 0, 512, 230); x.globalAlpha = 1;
+    const palettes = ['#ffb34d', '#53efff', '#ff4da4', '#9cff8d', '#b46cff', '#ffd35a'];
+    for (let row = 0; row < 3; row++) {
+      const y = 145 + row * 74;
+      x.fillStyle = 'rgba(15,13,18,.95)'; x.fillRect(56, y, 400, 7);
+      for (let i = 0; i < 6; i++) {
+        x.fillStyle = palettes[(row + i) % palettes.length];
+        x.globalAlpha = 0.68;
+        x.fillRect(72 + i * 60, y - 24 - (i % 2) * 5, 32, 24 + (i % 3) * 5);
+      }
+    }
+    x.globalAlpha = 1;
+    x.fillStyle = 'rgba(5,4,8,.9)'; x.fillRect(44, 365, 424, 65);
+    x.fillStyle = 'rgba(255,196,126,.16)'; x.fillRect(54, 357, 404, 5);
+    // shopkeeper silhouette painted into the display
+    x.fillStyle = '#07060a'; x.beginPath(); x.arc(256, 320, 24, 0, Math.PI * 2); x.fill();
+    x.fillRect(226, 342, 60, 74);
+    x.fillStyle = col; x.globalAlpha = 0.82; x.fillRect(236, 313, 40, 7); x.globalAlpha = 1;
+    ND.util.noiseLayer(x, 512, 512, 31 + (d.color & 255), 5, true);
+    const tex = ND.Tex.canvasToTexture(c, true);
+    this._simpleShopTextureCache[d.color] = tex;
+    return tex;
+  };
+
+  World.prototype._simpleShopSignTexture = function (d) {
+    const c = ND.util.makeCanvas(512, 160);
+    const x = c.getContext('2d');
+    x.fillStyle = 'rgba(7,5,10,.97)'; x.fillRect(0, 0, 512, 160);
+    x.strokeStyle = '#' + d.color.toString(16).padStart(6, '0'); x.lineWidth = 5; x.strokeRect(8, 8, 496, 144);
+    x.font = '700 52px "Microsoft YaHei", "Yu Gothic", sans-serif'; x.fillStyle = '#fff3f8'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(d.title, 256, 66);
+    x.font = '400 17px "Bahnschrift", "Arial Narrow", sans-serif'; x.fillStyle = '#' + d.color.toString(16).padStart(6, '0'); x.fillText(d.sub, 256, 116);
+    return ND.Tex.canvasToTexture(c);
+  };
+
+  World.prototype._addSimpleShops = function (g) {
+    const defs = PHYSICAL_SHOPS.filter(d => !d.hero);
+    const glowTex = this._glowTex || (this._glowTex = ND.Tex.canvasToTexture(ND.Tex.glow(128)));
+    for (const d of defs) {
+      const width = 3.5;
+      const depth = 0.55;
+      const side = d.side;
+      const xMid = side * 13.445;
+      const root = new THREE.Group();
+      root.position.set(0, 0, d.z);
+      g.add(root);
+      const wallMat = new THREE.MeshStandardMaterial({ color: 0x171219, roughness: 0.66, metalness: 0.24 });
+      const floor = new THREE.Mesh(new THREE.BoxGeometry(depth, 0.1, width), wallMat);
+      floor.position.set(xMid, 0.21, 0); root.add(floor);
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(depth + 0.2, 0.16, width + 0.3), wallMat);
+      roof.position.set(xMid, 3.08, 0); root.add(roof);
+      for (const sz of [-1, 1]) {
+        const sideWall = new THREE.Mesh(new THREE.BoxGeometry(depth, 2.86, 0.14), wallMat);
+        sideWall.position.set(xMid, 1.66, sz * (width / 2)); root.add(sideWall);
+      }
+      const back = new THREE.Mesh(new THREE.PlaneGeometry(width - 0.12, 2.78), new THREE.MeshBasicMaterial({ map: this._simpleShopTexture(d), toneMapped: false, color: new THREE.Color(0.86, 0.86, 0.86) }));
+      back.position.set(side * 13.70, 1.68, 0); back.rotation.y = -side * Math.PI / 2; root.add(back);
+      const counter = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.9, width * 0.66), this.metalMat);
+      counter.position.set(side * 13.18, 0.66, 0); root.add(counter);
+      const counterTop = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.08, width * 0.7), new THREE.MeshStandardMaterial({ color: 0x2d2119, roughness: 0.42, metalness: 0.45 }));
+      counterTop.position.set(side * 13.16, 1.15, 0); root.add(counterTop);
+      for (const sz of [-1, 1]) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.11, 3.0, 0.11), this.metalMat);
+        post.position.set(side * 13.15, 1.58, sz * (width / 2 - 0.05)); root.add(post);
+      }
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(width * 0.94, 0.52), new THREE.MeshBasicMaterial({ map: this._simpleShopSignTexture(d), toneMapped: false, color: new THREE.Color(1.0, 1.0, 1.0) }));
+      sign.position.set(side * 13.0, 3.42, 0); sign.rotation.y = -side * Math.PI / 2; root.add(sign);
+      const signGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: d.color, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false }));
+      signGlow.position.set(side * 12.88, 3.42, 0); signGlow.scale.set(4.2, 1.5, 1); root.add(signGlow);
+      for (const sz of [-0.6, 0.6]) {
+        const signPost = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.62, 0.065), this.metalMat);
+        signPost.position.set(side * 13.12, 3.17, sz); root.add(signPost);
+      }
+      this.addNeonSpill('ground', side * 10.3, 0.04, d.z, 4.6, 5.4, new THREE.Color(d.color), 0.3);
+    }
+  };
+
   World.prototype._addStorefronts = function (g) {
     const textures = [];
     const shutters = [];
@@ -4862,11 +4971,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     const awningColors = [0x2b1119, 0x10222a, 0x241b10, 0x1c1224, 0x0e241e];
     const awningMats = awningColors.map(c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.38, metalness: 0.5 }));
     const rnd = ND.util.mulberry32(314159);
-    const heroZones = [
-      { side: -1, z: 0.0, w: 4.0 },
-      { side: 1, z: -8.0, w: 4.0 },
-      { side: -1, z: -36.0, w: 4.0 }
-    ];
+    const heroZones = PHYSICAL_SHOPS.map(d => ({ side: d.side, z: d.z, w: 4.0 }));
     for (const side of [-1, 1]) {
       let z = 186 - rnd() * 2;
       while (z > -78) {
@@ -4929,6 +5034,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       }
     }
     this._addHeroShops(g);
+    this._addSimpleShops(g);
   };
 
   World.prototype._bladeTexture = function (text, sub, color, index) {
