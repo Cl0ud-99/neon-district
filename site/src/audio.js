@@ -132,34 +132,62 @@
 
     update(dt) {
       if (!this.ready) return;
-      this.nextThunder -= dt;
-      if (this.nextThunder <= 0) {
-        this.nextThunder = 18 + Math.random() * 26;
-        this.thunder();
-      }
       if (this.padFilter) {
         this.padFilter.frequency.value = 620 + Math.sin(this.ctx.currentTime * 0.05) * 220;
       }
     }
 
-    thunder() {
-      if (!this.ctx) return;
+    thunder(opts) {
+      if (!this.ctx || !this.master) return;
+      opts = opts || {};
       const ctx = this.ctx;
+      const distance = opts.distance || 1400;
+      const intensity = Math.max(0.15, Math.min(1, opts.intensity || 0.6));
+      const pan = Math.max(-1, Math.min(1, opts.pan || 0));
+      const t = ctx.currentTime;
+      const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+      let out = this.master;
+      if (panner) { panner.pan.value = pan; panner.connect(this.master); out = panner; }
+      const vol = 0.045 + intensity * 0.17;
       const src = ctx.createBufferSource();
       src.buffer = this.noiseBuf;
-      const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 190; f.Q.value = 0.6;
+      src.loop = true;
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.setValueAtTime(Math.max(85, 180 - distance * 0.035), t);
+      f.frequency.exponentialRampToValueAtTime(70, t + 4.5);
+      f.Q.value = 0.65;
       const g = ctx.createGain();
-      const t = ctx.currentTime;
-      g.gain.setValueAtTime(0.001, t);
-      g.gain.exponentialRampToValueAtTime(0.32, t + 0.08);
-      g.gain.exponentialRampToValueAtTime(0.045, t + 1.4);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 4.0);
-      src.connect(f).connect(g).connect(this.master);
-      src.start(t); src.stop(t + 4.2);
-      // sub rumble
-      const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(52, t); o.frequency.exponentialRampToValueAtTime(28, t + 2.5);
-      const og = ctx.createGain(); og.gain.setValueAtTime(0.12, t); og.gain.exponentialRampToValueAtTime(0.001, t + 2.8);
-      o.connect(og).connect(this.master); o.start(t); o.stop(t + 2.8);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(vol, t + 0.32);
+      g.gain.exponentialRampToValueAtTime(vol * 0.48, t + 1.7);
+      g.gain.exponentialRampToValueAtTime(vol * 0.2, t + 3.4);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 6.2);
+      src.connect(f).connect(g).connect(out);
+      if (this.verb) {
+        const send = ctx.createGain(); send.gain.value = 0.18;
+        g.connect(send).connect(this.verb);
+      }
+      src.start(t);
+      src.stop(t + 6.4);
+      // second rolling body, slightly later
+      const src2 = ctx.createBufferSource();
+      src2.buffer = this.noiseBuf; src2.loop = true;
+      const f2 = ctx.createBiquadFilter(); f2.type = 'lowpass'; f2.frequency.value = 92; f2.Q.value = 0.7;
+      const g2 = ctx.createGain();
+      g2.gain.setValueAtTime(0.0001, t + 0.55);
+      g2.gain.linearRampToValueAtTime(vol * 0.45, t + 1.25);
+      g2.gain.exponentialRampToValueAtTime(vol * 0.28, t + 3.0);
+      g2.gain.exponentialRampToValueAtTime(0.0001, t + 6.0);
+      src2.connect(f2).connect(g2).connect(out);
+      src2.start(t + 0.55); src2.stop(t + 6.2);
+      // sub-bass pressure
+      const o = ctx.createOscillator(); o.type = 'sine';
+      o.frequency.setValueAtTime(44, t); o.frequency.exponentialRampToValueAtTime(27, t + 3.4);
+      const og = ctx.createGain();
+      og.gain.setValueAtTime(0.0001, t); og.gain.linearRampToValueAtTime(0.07 + intensity * 0.055, t + 0.4);
+      og.gain.exponentialRampToValueAtTime(0.0001, t + 4.0);
+      o.connect(og).connect(out); o.start(t); o.stop(t + 4.1);
     }
 
     enterCue() {

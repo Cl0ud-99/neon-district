@@ -1705,7 +1705,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 
             vec3 c = scene + bloom * uBloomStrength;
             c *= uExposure;
-            c += uFlash * vec3(0.55, 0.72, 1.0) * 0.55;
+            c += uFlash * vec3(0.55, 0.72, 1.0) * 0.16;
             c = aces(c);
 
             // color grade: inky teal shadows, hot magenta highlights
@@ -2543,6 +2543,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.scene.fog = new THREE.FogExp2(this.fogColor, this.fogDensity);
       this.buildMaterials();
       this.buildSky();
+      this.buildLightning();
       this.buildEnvironment();
       this.buildLights();
       this.buildCity();
@@ -2645,6 +2646,72 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.sky.frustumCulled = false;
       this.sky.renderOrder = -100;
       this.scene.add(this.sky);
+    }
+
+    buildLightning() {
+      const rnd = ND.util.mulberry32(77113);
+      const c = ND.util.makeCanvas(512, 1024);
+      const x = c.getContext('2d');
+      x.clearRect(0, 0, 512, 1024);
+      const drawBolt = (fromX, fromY, toX, toY, width, alpha) => {
+        x.save();
+        x.strokeStyle = 'rgba(210,240,255,' + alpha + ')';
+        x.lineWidth = width;
+        x.shadowColor = 'rgba(120,210,255,.95)';
+        x.shadowBlur = width * 4.2;
+        x.beginPath();
+        x.moveTo(fromX, fromY);
+        const steps = 11;
+        let px = fromX, py = fromY;
+        for (let i = 1; i <= steps; i++) {
+          const k = i / steps;
+          px = fromX + (toX - fromX) * k + (rnd() - 0.5) * 34 * Math.sin(k * Math.PI);
+          py = fromY + (toY - fromY) * k;
+          x.lineTo(px, py);
+        }
+        x.stroke();
+        x.restore();
+      };
+      // main channel and branches
+      drawBolt(260, 20, 235, 990, 12, 0.95);
+      drawBolt(260, 20, 235, 990, 4, 1.0);
+      const branch = (bx, by, ex, ey) => {
+        x.save();
+        x.strokeStyle = 'rgba(180,230,255,.8)';
+        x.lineWidth = 3;
+        x.shadowColor = 'rgba(110,200,255,.9)';
+        x.shadowBlur = 16;
+        x.beginPath(); x.moveTo(bx, by);
+        let px = bx, py = by;
+        for (let i = 1; i <= 5; i++) {
+          const k = i / 5;
+          px = bx + (ex - bx) * k + (rnd() - 0.5) * 22;
+          py = by + (ey - by) * k;
+          x.lineTo(px, py);
+        }
+        x.stroke();
+        x.restore();
+      };
+      branch(252, 210, 120, 420);
+      branch(244, 430, 382, 610);
+      branch(238, 660, 105, 820);
+      const tex = ND.Tex.canvasToTexture(c, true);
+      const glowTex = ND.Tex.canvasToTexture(ND.Tex.glow(128), true);
+      this.lightningGroup = new THREE.Group();
+      this.lightningGroup.visible = false;
+      this.lightningCore = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: tex, color: 0xffffff, transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+        depthTest: true, toneMapped: false, fog: false
+      }));
+      this.lightningGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: glowTex, color: 0x7fb8ff, transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+        depthTest: true, toneMapped: false, fog: false
+      }));
+      this.lightningGroup.add(this.lightningGlow);
+      this.lightningGroup.add(this.lightningCore);
+      this.scene.add(this.lightningGroup);
     }
 
     buildEnvironment() {
@@ -3580,16 +3647,55 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.updateLightning(dt, time);
     }
 
+    triggerLightning() {
+      const yaw = this.cameraYaw || 0;
+      const side = this.random() > 0.5 ? 1 : -1;
+      const az = yaw + side * (0.18 + this.random() * 0.5);
+      const dist = 150 + this.random() * 100;
+      const cp = this.lightningCameraPos;
+      const x = cp.x - Math.sin(az) * dist;
+      const z = cp.z - Math.cos(az) * dist;
+      const y = 70 + this.random() * 50;
+      this.lightningGroup.position.set(x, y, z);
+      const sx = 42 + this.random() * 28;
+      const sy = 130 + this.random() * 70;
+      this.lightningCore.scale.set(sx, sy, 1);
+      this.lightningGlow.scale.set(sx * 2.8, sy * 1.35, 1);
+      this.lightningCore.material.rotation = (this.random() - 0.5) * 0.12;
+      this.lightningActive = true;
+      this.lightningElapsed = 0;
+      this.lightningGroup.visible = true;
+      const distance = 900 + this.random() * 1900;
+      const delay = 1.8 + (distance / 1000) * 1.1 + this.random() * 0.35;
+      const pan = Math.max(-0.7, Math.min(0.7, (x - cp.x) / Math.max(1, dist)));
+      const intensity = 0.45 + this.random() * 0.45;
+      if (this.onLightning) this.onLightning({ distance, delay, intensity, pan });
+    }
+
     updateLightning(dt, time) {
       this.nextLightning -= dt;
-      if (this.nextLightning <= 0) {
-        this.lightningDecay = 1;
-        this.nextLightning = 14 + this.random() * 18;
+      if (this.nextLightning <= 0 && !this.lightningActive) {
+        this.triggerLightning();
+        this.nextLightning = 22 + this.random() * 24;
       }
-      if (this.lightningDecay > 0) {
-        const flick = Math.max(0, Math.sin(time * 37) * 0.4 + 0.6);
-        this.flash = this.lightningDecay * flick * 0.48;
-        this.lightningDecay = Math.max(0, this.lightningDecay - dt * 2.2);
+      if (this.lightningActive) {
+        this.lightningElapsed += dt;
+        const t = this.lightningElapsed;
+        let pulse = 0;
+        if (t < 0.045) pulse = 1;
+        else if (t < 0.08) pulse = 0.2;
+        else if (t < 0.13) pulse = 0.95;
+        else if (t < 0.19) pulse = 0.35;
+        else if (t < 0.24) pulse = 0.8;
+        else if (t < 0.34) pulse = 0.25;
+        this.lightningCore.material.opacity = pulse * 0.95;
+        this.lightningGlow.material.opacity = pulse * 0.2;
+        this.flash = pulse * 0.13;
+        if (t > 0.5) {
+          this.lightningActive = false;
+          this.lightningGroup.visible = false;
+          this.flash = 0;
+        }
       } else {
         this.flash *= Math.max(0, 1 - dt * 7);
       }
@@ -6231,34 +6337,62 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 
     update(dt) {
       if (!this.ready) return;
-      this.nextThunder -= dt;
-      if (this.nextThunder <= 0) {
-        this.nextThunder = 18 + Math.random() * 26;
-        this.thunder();
-      }
       if (this.padFilter) {
         this.padFilter.frequency.value = 620 + Math.sin(this.ctx.currentTime * 0.05) * 220;
       }
     }
 
-    thunder() {
-      if (!this.ctx) return;
+    thunder(opts) {
+      if (!this.ctx || !this.master) return;
+      opts = opts || {};
       const ctx = this.ctx;
+      const distance = opts.distance || 1400;
+      const intensity = Math.max(0.15, Math.min(1, opts.intensity || 0.6));
+      const pan = Math.max(-1, Math.min(1, opts.pan || 0));
+      const t = ctx.currentTime;
+      const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+      let out = this.master;
+      if (panner) { panner.pan.value = pan; panner.connect(this.master); out = panner; }
+      const vol = 0.045 + intensity * 0.17;
       const src = ctx.createBufferSource();
       src.buffer = this.noiseBuf;
-      const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 190; f.Q.value = 0.6;
+      src.loop = true;
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.setValueAtTime(Math.max(85, 180 - distance * 0.035), t);
+      f.frequency.exponentialRampToValueAtTime(70, t + 4.5);
+      f.Q.value = 0.65;
       const g = ctx.createGain();
-      const t = ctx.currentTime;
-      g.gain.setValueAtTime(0.001, t);
-      g.gain.exponentialRampToValueAtTime(0.32, t + 0.08);
-      g.gain.exponentialRampToValueAtTime(0.045, t + 1.4);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 4.0);
-      src.connect(f).connect(g).connect(this.master);
-      src.start(t); src.stop(t + 4.2);
-      // sub rumble
-      const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(52, t); o.frequency.exponentialRampToValueAtTime(28, t + 2.5);
-      const og = ctx.createGain(); og.gain.setValueAtTime(0.12, t); og.gain.exponentialRampToValueAtTime(0.001, t + 2.8);
-      o.connect(og).connect(this.master); o.start(t); o.stop(t + 2.8);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(vol, t + 0.32);
+      g.gain.exponentialRampToValueAtTime(vol * 0.48, t + 1.7);
+      g.gain.exponentialRampToValueAtTime(vol * 0.2, t + 3.4);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 6.2);
+      src.connect(f).connect(g).connect(out);
+      if (this.verb) {
+        const send = ctx.createGain(); send.gain.value = 0.18;
+        g.connect(send).connect(this.verb);
+      }
+      src.start(t);
+      src.stop(t + 6.4);
+      // second rolling body, slightly later
+      const src2 = ctx.createBufferSource();
+      src2.buffer = this.noiseBuf; src2.loop = true;
+      const f2 = ctx.createBiquadFilter(); f2.type = 'lowpass'; f2.frequency.value = 92; f2.Q.value = 0.7;
+      const g2 = ctx.createGain();
+      g2.gain.setValueAtTime(0.0001, t + 0.55);
+      g2.gain.linearRampToValueAtTime(vol * 0.45, t + 1.25);
+      g2.gain.exponentialRampToValueAtTime(vol * 0.28, t + 3.0);
+      g2.gain.exponentialRampToValueAtTime(0.0001, t + 6.0);
+      src2.connect(f2).connect(g2).connect(out);
+      src2.start(t + 0.55); src2.stop(t + 6.2);
+      // sub-bass pressure
+      const o = ctx.createOscillator(); o.type = 'sine';
+      o.frequency.setValueAtTime(44, t); o.frequency.exponentialRampToValueAtTime(27, t + 3.4);
+      const og = ctx.createGain();
+      og.gain.setValueAtTime(0.0001, t); og.gain.linearRampToValueAtTime(0.07 + intensity * 0.055, t + 0.4);
+      og.gain.exponentialRampToValueAtTime(0.0001, t + 4.0);
+      o.connect(og).connect(out); o.start(t); o.stop(t + 4.1);
     }
 
     enterCue() {
@@ -6459,6 +6593,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.bootStep('POURING CONCRETE // 浇筑楼体', 18);
       await tick();
       this.world = new ND.World(this.scene, this.renderer, { quality: this.quality });
+      this.world.onLightning = (ev) => {
+        const delayMs = Math.max(0, ev.delay) * 1000;
+        setTimeout(() => { if (this.audio) this.audio.thunder(ev); }, delayMs);
+      };
       this.bootStep('LIGHTING SIGNS // 点亮招牌', 52);
       await tick();
       this.post = new ND.PostFX(this.renderer, {
@@ -6536,6 +6674,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       }
       if (this.benchMode && this.state !== 'shot') this.startBenchmark();
       else if (this.params.get('photo') === '1' && this.state !== 'shot') this.enterPhoto();
+      if (this.params.get('lightning') === '1') this.world.nextLightning = 0.01;
       window.__NEON_READY = true;
     }
 
@@ -7170,6 +7309,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       if (!this.ready) return;
       if (!this.freeze) this.time += dt;
       this.stateTime += dt;
+      if (this.world) {
+        this.world.cameraYaw = this.camera.rotation.y;
+        this.world.lightningCameraPos.copy(this.camera.position);
+      }
       const worldDt = this.state === 'photo' ? 0 : dt;
       this.world.update(worldDt, this.time);
       if (this.world.rain) this.world.rain.position.set(this.camera.position.x, 0, this.camera.position.z);

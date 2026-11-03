@@ -89,7 +89,7 @@ Details worth reading:
 ## Visual pass V1–V7
 
 - **V1 final grade** — local contrast, halation-tinted bloom, slightly reduced exposure/glow, satin shadows and controlled grain.
-- **V2 rain and air** — wind gusts, lightning response on rain alpha/colour, neon-tinted foreground ribbons and lamp-local mist.
+- **V2 rain and air** — distant procedural lightning bolts first, then delayed stereo thunder; wind gusts, rain-lightning response and lamp-local mist.
 - **V3 wet reflections** — stronger puddle/stone reflection mix, tuned vertical-wall SSR and thin rain streaks running down selected facades.
 - **V4 character close-ups** — courier visors, vendor breathing masks, existing coat cloth and umbrella articulation.
 - **V5 hero storefronts** — metal lintels and door sills give the shop line a recessed frame instead of a flat cut-out; rear facades add overhanging floors, steel service towers and hanging laundry.
@@ -160,6 +160,7 @@ The look is tunable without a rebuild:
 ?quality=high|medium|low
 ?photo=1             open Photo Mode on boot
 ?bench=20            run a fixed-view 20s performance benchmark
+?lightning=1         trigger a lightning strike shortly after boot
 ```
 
 For example:

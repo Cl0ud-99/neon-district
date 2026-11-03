@@ -468,6 +468,7 @@
       this.scene.fog = new THREE.FogExp2(this.fogColor, this.fogDensity);
       this.buildMaterials();
       this.buildSky();
+      this.buildLightning();
       this.buildEnvironment();
       this.buildLights();
       this.buildCity();
@@ -570,6 +571,72 @@
       this.sky.frustumCulled = false;
       this.sky.renderOrder = -100;
       this.scene.add(this.sky);
+    }
+
+    buildLightning() {
+      const rnd = ND.util.mulberry32(77113);
+      const c = ND.util.makeCanvas(512, 1024);
+      const x = c.getContext('2d');
+      x.clearRect(0, 0, 512, 1024);
+      const drawBolt = (fromX, fromY, toX, toY, width, alpha) => {
+        x.save();
+        x.strokeStyle = 'rgba(210,240,255,' + alpha + ')';
+        x.lineWidth = width;
+        x.shadowColor = 'rgba(120,210,255,.95)';
+        x.shadowBlur = width * 4.2;
+        x.beginPath();
+        x.moveTo(fromX, fromY);
+        const steps = 11;
+        let px = fromX, py = fromY;
+        for (let i = 1; i <= steps; i++) {
+          const k = i / steps;
+          px = fromX + (toX - fromX) * k + (rnd() - 0.5) * 34 * Math.sin(k * Math.PI);
+          py = fromY + (toY - fromY) * k;
+          x.lineTo(px, py);
+        }
+        x.stroke();
+        x.restore();
+      };
+      // main channel and branches
+      drawBolt(260, 20, 235, 990, 12, 0.95);
+      drawBolt(260, 20, 235, 990, 4, 1.0);
+      const branch = (bx, by, ex, ey) => {
+        x.save();
+        x.strokeStyle = 'rgba(180,230,255,.8)';
+        x.lineWidth = 3;
+        x.shadowColor = 'rgba(110,200,255,.9)';
+        x.shadowBlur = 16;
+        x.beginPath(); x.moveTo(bx, by);
+        let px = bx, py = by;
+        for (let i = 1; i <= 5; i++) {
+          const k = i / 5;
+          px = bx + (ex - bx) * k + (rnd() - 0.5) * 22;
+          py = by + (ey - by) * k;
+          x.lineTo(px, py);
+        }
+        x.stroke();
+        x.restore();
+      };
+      branch(252, 210, 120, 420);
+      branch(244, 430, 382, 610);
+      branch(238, 660, 105, 820);
+      const tex = ND.Tex.canvasToTexture(c, true);
+      const glowTex = ND.Tex.canvasToTexture(ND.Tex.glow(128), true);
+      this.lightningGroup = new THREE.Group();
+      this.lightningGroup.visible = false;
+      this.lightningCore = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: tex, color: 0xffffff, transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+        depthTest: true, toneMapped: false, fog: false
+      }));
+      this.lightningGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: glowTex, color: 0x7fb8ff, transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+        depthTest: true, toneMapped: false, fog: false
+      }));
+      this.lightningGroup.add(this.lightningGlow);
+      this.lightningGroup.add(this.lightningCore);
+      this.scene.add(this.lightningGroup);
     }
 
     buildEnvironment() {
@@ -1505,16 +1572,55 @@
       this.updateLightning(dt, time);
     }
 
+    triggerLightning() {
+      const yaw = this.cameraYaw || 0;
+      const side = this.random() > 0.5 ? 1 : -1;
+      const az = yaw + side * (0.18 + this.random() * 0.5);
+      const dist = 150 + this.random() * 100;
+      const cp = this.lightningCameraPos;
+      const x = cp.x - Math.sin(az) * dist;
+      const z = cp.z - Math.cos(az) * dist;
+      const y = 70 + this.random() * 50;
+      this.lightningGroup.position.set(x, y, z);
+      const sx = 42 + this.random() * 28;
+      const sy = 130 + this.random() * 70;
+      this.lightningCore.scale.set(sx, sy, 1);
+      this.lightningGlow.scale.set(sx * 2.8, sy * 1.35, 1);
+      this.lightningCore.material.rotation = (this.random() - 0.5) * 0.12;
+      this.lightningActive = true;
+      this.lightningElapsed = 0;
+      this.lightningGroup.visible = true;
+      const distance = 900 + this.random() * 1900;
+      const delay = 1.8 + (distance / 1000) * 1.1 + this.random() * 0.35;
+      const pan = Math.max(-0.7, Math.min(0.7, (x - cp.x) / Math.max(1, dist)));
+      const intensity = 0.45 + this.random() * 0.45;
+      if (this.onLightning) this.onLightning({ distance, delay, intensity, pan });
+    }
+
     updateLightning(dt, time) {
       this.nextLightning -= dt;
-      if (this.nextLightning <= 0) {
-        this.lightningDecay = 1;
-        this.nextLightning = 14 + this.random() * 18;
+      if (this.nextLightning <= 0 && !this.lightningActive) {
+        this.triggerLightning();
+        this.nextLightning = 22 + this.random() * 24;
       }
-      if (this.lightningDecay > 0) {
-        const flick = Math.max(0, Math.sin(time * 37) * 0.4 + 0.6);
-        this.flash = this.lightningDecay * flick * 0.48;
-        this.lightningDecay = Math.max(0, this.lightningDecay - dt * 2.2);
+      if (this.lightningActive) {
+        this.lightningElapsed += dt;
+        const t = this.lightningElapsed;
+        let pulse = 0;
+        if (t < 0.045) pulse = 1;
+        else if (t < 0.08) pulse = 0.2;
+        else if (t < 0.13) pulse = 0.95;
+        else if (t < 0.19) pulse = 0.35;
+        else if (t < 0.24) pulse = 0.8;
+        else if (t < 0.34) pulse = 0.25;
+        this.lightningCore.material.opacity = pulse * 0.95;
+        this.lightningGlow.material.opacity = pulse * 0.2;
+        this.flash = pulse * 0.13;
+        if (t > 0.5) {
+          this.lightningActive = false;
+          this.lightningGroup.visible = false;
+          this.flash = 0;
+        }
       } else {
         this.flash *= Math.max(0, 1 - dt * 7);
       }

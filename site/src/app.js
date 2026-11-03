@@ -156,6 +156,10 @@
       this.bootStep('POURING CONCRETE // 浇筑楼体', 18);
       await tick();
       this.world = new ND.World(this.scene, this.renderer, { quality: this.quality });
+      this.world.onLightning = (ev) => {
+        const delayMs = Math.max(0, ev.delay) * 1000;
+        setTimeout(() => { if (this.audio) this.audio.thunder(ev); }, delayMs);
+      };
       this.bootStep('LIGHTING SIGNS // 点亮招牌', 52);
       await tick();
       this.post = new ND.PostFX(this.renderer, {
@@ -233,6 +237,7 @@
       }
       if (this.benchMode && this.state !== 'shot') this.startBenchmark();
       else if (this.params.get('photo') === '1' && this.state !== 'shot') this.enterPhoto();
+      if (this.params.get('lightning') === '1') this.world.nextLightning = 0.01;
       window.__NEON_READY = true;
     }
 
@@ -867,6 +872,10 @@
       if (!this.ready) return;
       if (!this.freeze) this.time += dt;
       this.stateTime += dt;
+      if (this.world) {
+        this.world.cameraYaw = this.camera.rotation.y;
+        this.world.lightningCameraPos.copy(this.camera.position);
+      }
       const worldDt = this.state === 'photo' ? 0 : dt;
       this.world.update(worldDt, this.time);
       if (this.world.rain) this.world.rain.position.set(this.camera.position.x, 0, this.camera.position.z);

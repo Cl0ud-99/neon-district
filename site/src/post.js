@@ -337,7 +337,7 @@
 
             vec3 c = scene + bloom * uBloomStrength;
             c *= uExposure;
-            c += uFlash * vec3(0.55, 0.72, 1.0) * 0.55;
+            c += uFlash * vec3(0.55, 0.72, 1.0) * 0.16;
             c = aces(c);
 
             // color grade: inky teal shadows, hot magenta highlights
