@@ -875,6 +875,94 @@
     }
   };
 
+  World.prototype._addHeroShops = function (g) {
+    const defs = [
+      { side: -1, z: 0.0, title: '拉麺 24H', sub: 'RAMEN / OPEN ALL NIGHT', color: 0xffb34d },
+      { side: 1, z: -8.0, title: '電脳質屋', sub: 'CYBER PAWN / TRADE', color: 0x53efff },
+      { side: -1, z: -36.0, title: '龍城茶樓', sub: 'DRAGON CITY TEA', color: 0xff4da4 }
+    ];
+    const glowTex = this._glowTex || (this._glowTex = ND.Tex.canvasToTexture(ND.Tex.glow(128)));
+    for (const d of defs) {
+      const width = 3.5;
+      const depth = 2.1;
+      const side = d.side;
+      const xMid = side * 12.45;
+      const root = new THREE.Group();
+      root.position.set(0, 0, d.z);
+      g.add(root);
+      const interiorMat = new THREE.MeshStandardMaterial({ color: 0x2a1711, roughness: 0.72, metalness: 0.18 });
+      const wallMat = new THREE.MeshStandardMaterial({ color: 0x171219, roughness: 0.65, metalness: 0.25 });
+      const neon = new THREE.MeshBasicMaterial({ color: new THREE.Color(d.color).multiplyScalar(1.7), toneMapped: false });
+      // floor / roof / back / side walls, open to the street
+      const floor = new THREE.Mesh(new THREE.BoxGeometry(depth, 0.1, width), interiorMat);
+      floor.position.set(xMid, 0.21, 0); root.add(floor);
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(depth + 0.2, 0.16, width + 0.3), wallMat);
+      roof.position.set(xMid, 3.08, 0); root.add(roof);
+      const back = new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.9, width), interiorMat);
+      back.position.set(side * 13.43, 1.68, 0); root.add(back);
+      for (const sz of [-1, 1]) {
+        const sideWall = new THREE.Mesh(new THREE.BoxGeometry(depth, 2.9, 0.14), wallMat);
+        sideWall.position.set(xMid, 1.68, sz * (width / 2)); root.add(sideWall);
+      }
+      // counter + front frame
+      const counter = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.92, width * 0.68), this.metalMat);
+      counter.position.set(side * 11.92, 0.68, 0); root.add(counter);
+      const counterTop = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, width * 0.72), new THREE.MeshStandardMaterial({ color: 0x2d2119, roughness: 0.42, metalness: 0.45 }));
+      counterTop.position.set(side * 11.9, 1.17, 0); root.add(counterTop);
+      for (const sz of [-1, 1]) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, 3.02, 0.12), this.metalMat);
+        post.position.set(side * 11.35, 1.6, sz * (width / 2 - 0.05)); root.add(post);
+      }
+      const header = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.28, width + 0.1), this.metalMat);
+      header.position.set(side * 11.35, 3.02, 0); root.add(header);
+      const headerNeon = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.045, width * 0.82), neon);
+      headerNeon.position.set(side * 11.24, 3.02, 0); root.add(headerNeon);
+      // shelves and glowing goods on the back wall
+      for (let sy = 0; sy < 3; sy++) {
+        const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.06, width * 0.76), this.metalMat);
+        shelf.position.set(side * 13.24, 1.1 + sy * 0.56, 0); root.add(shelf);
+        for (let gi = 0; gi < 4; gi++) {
+          const goods = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.22), new THREE.MeshBasicMaterial({ color: new THREE.Color([0xffa34d, 0x53efff, 0xff4da4, 0x9cff8d][(gi + sy) % 4]).multiplyScalar(0.68), toneMapped: false }));
+          goods.position.set(side * 13.08, 1.23 + sy * 0.56, -width * 0.28 + gi * 0.36);
+          root.add(goods);
+        }
+      }
+      // a simple shopkeeper silhouette behind the counter
+      const keeperMat = new THREE.MeshBasicMaterial({ color: 0x07060a });
+      const keeper = new THREE.Mesh(new THREE.BoxGeometry(0.42, 1.15, 0.3), keeperMat);
+      keeper.position.set(side * 12.95, 0.83, 0.42); root.add(keeper);
+      const shoulders = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.26, 0.36), keeperMat);
+      shoulders.position.set(side * 12.95, 1.32, 0.42); root.add(shoulders);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), keeperMat);
+      head.position.set(side * 12.95, 1.57, 0.42); root.add(head);
+      const visor = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.045, 0.04), new THREE.MeshBasicMaterial({ color: new THREE.Color(d.color).multiplyScalar(1.9), toneMapped: false }));
+      visor.position.set(side * 12.77, 1.58, 0.42); visor.rotation.y = -side * Math.PI / 2; root.add(visor);
+      // warm practical lamp and hanging bulb
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.06, 0.45), new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffd39b).multiplyScalar(1.05), toneMapped: false }));
+      lamp.position.set(side * 12.9, 2.72, 0); root.add(lamp);
+      const lampGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffb15b, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false }));
+      lampGlow.position.set(side * 12.8, 2.55, 0); lampGlow.scale.set(2.4, 1.8, 1); root.add(lampGlow);
+      const steam = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffd6aa, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false }));
+      steam.position.set(side * 12.0, 1.55, 0.75); steam.scale.set(2.0, 2.0, 1); root.add(steam);
+      // horizontal shop sign
+      const c = ND.util.makeCanvas(512, 160);
+      const cx = c.getContext('2d');
+      cx.fillStyle = 'rgba(7,5,10,.96)'; cx.fillRect(0, 0, 512, 160);
+      cx.strokeStyle = '#' + d.color.toString(16).padStart(6, '0'); cx.lineWidth = 5; cx.strokeRect(8, 8, 496, 144);
+      cx.font = '700 54px "Microsoft YaHei", "Yu Gothic", sans-serif'; cx.fillStyle = '#fff3f8'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(d.title, 256, 66);
+      cx.font = '400 18px "Bahnschrift", "Arial Narrow", sans-serif'; cx.fillStyle = '#' + d.color.toString(16).padStart(6, '0'); cx.fillText(d.sub, 256, 118);
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(width * 0.94, 0.52), new THREE.MeshBasicMaterial({ map: ND.Tex.canvasToTexture(c), toneMapped: false, color: new THREE.Color(1.0, 1.0, 1.0) }));
+      sign.position.set(side * 11.22, 3.03, 0); sign.rotation.y = -side * Math.PI / 2; root.add(sign);
+      // street wash and local warm light
+      this.addNeonSpill('ground', side * 10.3, 0.04, d.z, 4.6, 5.4, new THREE.Color(d.color), 0.38);
+      const light = new THREE.PointLight(d.color, 20, 7, 2);
+      light.position.set(side * 12.35, 2.05, d.z);
+      this.scene.add(light);
+      this.addCollider({ type: 'box', x: side * 12.35, z: d.z, hx: 0.22, hz: 1.1 });
+      this.addCollider({ type: 'box', x: side * 11.92, z: d.z, hx: 0.34, hz: 1.16 });
+    }
+  };
+
   World.prototype._addStorefronts = function (g) {
     const textures = [];
     const shutters = [];
@@ -940,6 +1028,7 @@
         z -= width + 0.35 + rnd() * 0.6;
       }
     }
+    this._addHeroShops(g);
   };
 
   World.prototype._bladeTexture = function (text, sub, color, index) {
