@@ -887,24 +887,25 @@
     this.whaleRing = ring;
     this.whaleRingMat = ringMat;
 
-    // four corner emitters make the flat projection read as a ground installation
+    // emitters sit on the same circle as the ring, so the projection footprint
+    // reads as one circular installation rather than a square plus a ring.
     const emitterMat = new THREE.MeshStandardMaterial({ color: 0x10151d, roughness: 0.32, metalness: 0.8 });
     const lensMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x59e8ff).multiplyScalar(2.4), toneMapped: false });
     const beamMat = new THREE.MeshBasicMaterial({ color: 0x42dfff, transparent: true, opacity: 0.035, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
     const emitters = [];
-    for (const ex of [-7.7, 7.7]) {
-      for (const ez of [-4.0, 4.0]) {
-        const e = new THREE.Group();
-        e.position.set(ex, 0.36, ez);
-        const base = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.18, 0.32), emitterMat);
-        e.add(base);
-        const lens = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), lensMat);
-        lens.position.y = 0.16; e.add(lens);
-        const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.1, 7, 1, true), beamMat);
-        beam.position.y = 0.62; e.add(beam);
-        group.add(e);
-        emitters.push(e);
-      }
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * TAU;
+      const e = new THREE.Group();
+      e.position.set(Math.cos(a) * 8.25, 0.36, Math.sin(a) * 8.25);
+      e.rotation.y = -a;
+      const base = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.18, 0.32), emitterMat);
+      e.add(base);
+      const lens = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), lensMat);
+      lens.position.y = 0.16; e.add(lens);
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.1, 7, 1, true), beamMat);
+      beam.position.y = 0.62; e.add(beam);
+      group.add(e);
+      emitters.push(e);
     }
     this.whaleEmitters = emitters;
     // a faint cone volume tying the emitters to the projection surface
