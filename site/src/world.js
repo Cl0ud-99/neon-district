@@ -1292,7 +1292,6 @@
       if (this.waterMat) this.waterMat.uniforms.uTime.value = time;
       if (this.rainMat) this.rainMat.uniforms.uTime.value = time;
       if (this.rainNearMat) this.rainNearMat.uniforms.uTime.value = time;
-      if (this.rainSplashMat) this.rainSplashMat.uniforms.uTime.value = time;
       if (this.rainMistMat) this.rainMistMat.uniforms.uTime.value = time;
       this.screens.forEach((s, i) => {
         s.mat.uniforms.uTime.value = time;
