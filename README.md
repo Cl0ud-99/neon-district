@@ -84,7 +84,7 @@ Details worth reading:
 - **Screens use a shader, not a video.** Slow scanlines, RGB split, flicker and occasional UV glitches are applied in GLSL to canvas-generated billboard artwork.
 - **Six citizen archetypes share one rig.** Commuter, courier, vendor, elder, punk and droid are assembled from a common skeleton plus swappable coats, headgear, bags, canes and umbrella types. Hips, knees, shoulders and elbows are separate pivots; a small vertex-animated coat tail and umbrella rib cage add cloth motion without a skinning rig.
 - **Mid-ground windows have depth cues.** Per-window shader seeds vary lit/dark cells independently of the base atlas; a matched height map drives bump relief on the frame grid, and instanced floor sills/mullions break the single-plane silhouette.
-- **The cinematic is cut, not one dolly.** Six deliberate shots — aerial descent, street-level dolly, storefront profile, plaza reveal, tower low-angle, crane-out — are hard-cut in the timeline and paired with per-shot focus distances.
+- **The cinematic is cut, not one dolly.** Nine deliberate shots — aerial descent, street-level dolly, storefront profile, plaza reveal, tower low-angle, crane-out, then a rear-district run through the gate, night market and hotel — are hard-cut in the timeline and paired with per-shot focus distances.
 
 ## Visual pass V1–V7
 
