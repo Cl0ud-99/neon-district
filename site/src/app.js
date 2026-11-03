@@ -68,9 +68,11 @@
       const resParam = this.params.get('res');
       let savedRes = null;
       try { savedRes = localStorage.getItem('nd-resolution'); } catch (e) {}
-      this.resolutionMode = (resParam === '2k' || resParam === '1440')
-        ? '2k'
-        : (resParam === '1080' ? '1080' : (savedRes === '2k' ? '2k' : '1080'));
+      this.resolutionMode = (resParam === '4k' || resParam === '2160')
+        ? '4k'
+        : ((resParam === '2k' || resParam === '1440')
+          ? '2k'
+          : (resParam === '1080' ? '1080' : (savedRes === '2k' ? '2k' : '1080')));
 
       this.player = {
         pos: new V3(0, 0, 29),
@@ -285,6 +287,12 @@
       else if (this.benchMode && this.state !== 'shot') this.startBenchmark();
       else if (this.params.get('photo') === '1' && this.state !== 'shot') this.enterPhoto();
       if (this.params.get('lightning') === '1') this.world.nextLightning = 0.01;
+      if (this.params.get('capture') === '4k') {
+        this.resolutionMode = '4k';
+        this.applySizes();
+        this.updateResolutionLabel();
+        setTimeout(() => this.captureAt(3840, 2160), 4000);
+      }
       window.__NEON_READY = true;
     }
 
@@ -340,6 +348,11 @@
         if (e.code === 'KeyP' && (this.state === 'play' || this.state === 'pause' || this.state === 'menu' || this.state === 'photo')) {
           e.preventDefault();
           this.togglePhoto();
+          return;
+        }
+        if (this.shotMode && e.code === 'KeyF') {
+          e.preventDefault();
+          this.captureAt(3840, 2160);
           return;
         }
         if (this.state === 'photo') {
@@ -868,16 +881,17 @@
 
 
     minRenderScale() {
+      if (this.resolutionMode === '4k') return 0.5;
       return this.resolutionMode === '2k' ? 0.75 : 0.62;
     }
 
     updateResolutionLabel() {
       const el = $('res-label');
-      if (el) el.textContent = this.resolutionMode === '2k' ? '2K' : '1080P';
+      if (el) el.textContent = this.resolutionMode === '4k' ? '4K' : (this.resolutionMode === '2k' ? '2K' : '1080P');
     }
 
     cycleResolution() {
-      this.resolutionMode = this.resolutionMode === '2k' ? '1080' : '2k';
+      this.resolutionMode = this.resolutionMode === '2k' ? '1080' : (this.resolutionMode === '4k' ? '1080' : '2k');
       try { localStorage.setItem('nd-resolution', this.resolutionMode); } catch (e) {}
       this.renderScale = 1.0;
       this.autoScaleTimer = 0;
@@ -940,7 +954,7 @@
 
     applySizes() {
       if (!this.renderer) return;
-      const targetH = this.resolutionMode === '2k' ? 1440 : 1080;
+      const targetH = this.resolutionMode === '4k' ? 2160 : (this.resolutionMode === '2k' ? 1440 : 1080);
       const aspect = window.innerWidth / Math.max(1, window.innerHeight);
       const targetW = Math.round(targetH * aspect);
       const w = Math.max(1, Math.round(targetW * this.renderScale));

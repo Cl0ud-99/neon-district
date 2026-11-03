@@ -4,7 +4,7 @@
 
 **DSH-PTC**
 
-**v0.2.0 · 1 scene · 100% procedural · 0 assets · single-file build 1.03 MB**
+**v0.3.0 · 1 scene · 100% procedural · 0 assets · single-file build 1.03 MB**
 
 [**Live preview**](https://cl0ud-99.github.io/neon-district/) — runs in the browser, nothing to install.
 
@@ -149,6 +149,18 @@ Press **F3** in play to toggle a live panel with average FPS, 1% low, backing re
 Press **P** from the menu, play or pause screen to enter Photo Mode. The scene freezes, HUD disappears and the camera becomes free: WASD moves, Q/E raises/lowers, mouse looks, the wheel changes FOV, **[** / **]** adjusts focus, **F** saves the current frame as a PNG, **Shift+F** renders a one-off 4K frame, and **R** resets FOV/focus. P or Esc returns to the previous state.
 
 The frame is read directly from the composite render target, so it contains the live render without DOM UI. The 4K path temporarily rebuilds the post chain at 3840×2160, renders one frozen frame, reads it back, and restores the interactive targets. It is also available at boot with `?photo=1`.
+
+## 4K still backdoor
+
+For clean 4K stills, open:
+
+```
+?shot=1&cam=shops&res=4k
+```
+
+The page renders at **3840×2160**, hides the HUD and freezes the scene. Press **F** to save a 4K PNG. Add `&capture=1` to auto-save after the scene settles, or use `res=4k` together with Photo Mode and **Shift+F**.
+
+Useful cameras: `hero`, `shops`, `whale`, `water`, `plaza`, `back`.
 
 ## Trailer recording
 
