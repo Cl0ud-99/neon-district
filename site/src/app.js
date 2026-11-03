@@ -33,6 +33,9 @@
       this.lastHUD = 0;
       this.perfTimer = 0;
       this.renderScale = 1.0;
+      this.photo = null;
+      this.photoReturn = 'play';
+      this.photoPrevFreeze = false;
       this.autoScaleTimer = 0;
       this.autoScaleCooldown = 0;
       this.mouseDown = false;
@@ -216,6 +219,7 @@
         this.showMenu(true);
         $('menu').classList.add('visible');
       }
+      if (this.params.get('photo') === '1' && this.state !== 'shot') this.enterPhoto();
       window.__NEON_READY = true;
     }
 
@@ -236,11 +240,13 @@
         }
       });
       document.addEventListener('mousemove', e => {
-        if (this.state === 'play') {
+        if (this.state === 'play' || this.state === 'photo') {
+          const look = this.state === 'photo' ? this.photo : this.player;
+          if (!look) return;
           if (document.pointerLockElement === this.renderer.domElement || this.mouseDown) {
-            this.player.yaw -= e.movementX * 0.0018;
-            this.player.pitch -= e.movementY * 0.00145;
-            this.player.pitch = Math.max(-1.18, Math.min(1.05, this.player.pitch));
+            look.yaw -= e.movementX * 0.0018;
+            look.pitch -= e.movementY * 0.00145;
+            look.pitch = Math.max(-1.18, Math.min(1.05, look.pitch));
           }
         }
       });
@@ -248,9 +254,28 @@
       canvas.addEventListener('mousedown', () => { this.mouseDown = true; });
       window.addEventListener('mouseup', () => { this.mouseDown = false; });
       canvas.addEventListener('contextmenu', e => e.preventDefault());
+      canvas.addEventListener('wheel', e => {
+        if (this.state === 'photo' && this.photo) {
+          e.preventDefault();
+          this.photo.fov = Math.max(22, Math.min(80, this.photo.fov + e.deltaY * 0.025));
+          this.updatePhotoHud();
+        }
+      }, { passive: false });
       window.addEventListener('keydown', e => {
         if (['KeyW','KeyA','KeyS','KeyD','ShiftLeft','ShiftRight','Space'].includes(e.code)) e.preventDefault();
         this.keys[e.code] = true;
+        if (e.code === 'KeyP' && (this.state === 'play' || this.state === 'pause' || this.state === 'menu' || this.state === 'photo')) {
+          e.preventDefault();
+          this.togglePhoto();
+          return;
+        }
+        if (this.state === 'photo') {
+          if (e.code === 'KeyF') { e.preventDefault(); this.capturePhoto(); return; }
+          if (e.code === 'KeyR') { this.photo.fov = 55; this.photo.focus = 20; this.updatePhotoHud(); return; }
+          if (e.code === 'BracketLeft') { this.photo.focus = Math.max(2, this.photo.focus - 2); this.updatePhotoHud(); return; }
+          if (e.code === 'BracketRight') { this.photo.focus = Math.min(80, this.photo.focus + 2); this.updatePhotoHud(); return; }
+          if (e.code === 'Escape') { this.exitPhoto(); return; }
+        }
         if (e.code === 'Enter' && this.state === 'menu') this.startPlay();
         if (e.code === 'KeyC' && (this.state === 'menu' || this.state === 'play' || this.state === 'pause')) this.startCinematic();
         if (e.code === 'KeyM') this.toggleMute();
@@ -350,6 +375,122 @@
       if (document.pointerLockElement) document.exitPointerLock();
       if (this.post) this.post.resetTAA();
       this.showMenu(false);
+    }
+
+    togglePhoto() {
+      if (this.state === 'photo') this.exitPhoto();
+      else if (this.state === 'play' || this.state === 'pause' || this.state === 'menu') this.enterPhoto();
+    }
+
+    enterPhoto() {
+      if (!this.post) return;
+      this.photoReturn = this.state;
+      this.photoPrevFreeze = this.freeze;
+      this.photo = {
+        pos: this.camera.position.clone(),
+        yaw: this.camera.rotation.y,
+        pitch: this.camera.rotation.x,
+        fov: this.camera.fov,
+        focus: 20
+      };
+      this.state = 'photo';
+      this.freeze = true;
+      this.keys = {};
+      document.body.classList.add('photo-mode');
+      document.body.dataset.state = 'photo';
+      const saved = $('photo-saved'); if (saved) saved.textContent = '';
+      this.updatePhoto(0);
+      this.post.resetTAA();
+    }
+
+    exitPhoto() {
+      const ret = this.photoReturn || 'play';
+      document.body.classList.remove('photo-mode');
+      this.freeze = this.photoPrevFreeze;
+      this.state = ret;
+      this.stateTime = 0;
+      document.body.dataset.state = ret;
+      this.photo = null;
+      this.keys = {};
+      if (ret === 'play') {
+        $('hud').classList.add('visible');
+        $('reticle').classList.add('visible');
+        const c = $('scene');
+        if (c && c.requestPointerLock) { try { const p = c.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
+        this.showToast('已退出摄影模式 // PHOTO MODE OFF');
+        setTimeout(() => this.showToast(''), 2200);
+      } else if (ret === 'menu') {
+        $('menu').classList.add('visible');
+      } else if (ret === 'pause') {
+        $('pause').classList.add('visible');
+      }
+      if (this.post) this.post.resetTAA();
+    }
+
+    updatePhoto(dt) {
+      const p = this.photo;
+      if (!p) return;
+      const keys = this.keys;
+      const speed = (keys['ShiftLeft'] || keys['ShiftRight']) ? 9.0 : 3.6;
+      let f = 0, r = 0, up = 0;
+      if (keys['KeyW'] || keys['ArrowUp']) f += 1;
+      if (keys['KeyS'] || keys['ArrowDown']) f -= 1;
+      if (keys['KeyD'] || keys['ArrowRight']) r += 1;
+      if (keys['KeyA'] || keys['ArrowLeft']) r -= 1;
+      if (keys['KeyE']) up += 1;
+      if (keys['KeyQ']) up -= 1;
+      const sy = Math.sin(p.yaw), cy = Math.cos(p.yaw);
+      p.pos.x += (r * cy - f * sy) * speed * dt;
+      p.pos.z += (-r * sy - f * cy) * speed * dt;
+      p.pos.y += up * speed * dt;
+      p.pos.x = Math.max(-30, Math.min(30, p.pos.x));
+      p.pos.y = Math.max(0.45, Math.min(45, p.pos.y));
+      p.pos.z = Math.max(-100, Math.min(215, p.pos.z));
+      this.camera.position.copy(p.pos);
+      this.camera.rotation.set(p.pitch, p.yaw, 0, 'YXZ');
+      this.camera.fov = p.fov;
+      this.camera.updateProjectionMatrix();
+      this.updatePhotoHud();
+    }
+
+    updatePhotoHud() {
+      const p = this.photo;
+      if (!p) return;
+      const stats = $('photo-stats');
+      if (stats) stats.textContent = 'FOV ' + Math.round(p.fov) + ' · FOCUS ' + Math.round(p.focus) + 'M';
+    }
+
+    capturePhoto() {
+      if (!this.post || !this.post.compositeRT) return;
+      const rt = this.post.compositeRT;
+      const w = rt.width, h = rt.height;
+      try {
+        const buf = new Uint8Array(w * h * 4);
+        this.renderer.readRenderTargetPixels(rt, 0, 0, w, h, buf);
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const ctx = c.getContext('2d');
+        const img = ctx.createImageData(w, h);
+        const row = w * 4;
+        for (let y = 0; y < h; y++) {
+          img.data.set(buf.subarray((h - 1 - y) * row, (h - y) * row), y * row);
+        }
+        ctx.putImageData(img, 0, 0);
+        c.toBlob((blob) => {
+          if (!blob) return;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'neon-district-' + Date.now() + '.png';
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(url), 2000);
+          const saved = $('photo-saved');
+          if (saved) saved.textContent = 'SAVED ' + w + '×' + h;
+        }, 'image/png');
+      } catch (e) {
+        const saved = $('photo-saved');
+        if (saved) saved.textContent = 'CAPTURE FAILED';
+      }
     }
 
     toggleMute() {
@@ -565,12 +706,16 @@
       if (!this.ready) return;
       if (!this.freeze) this.time += dt;
       this.stateTime += dt;
-      this.world.update(dt, this.time);
+      const worldDt = this.state === 'photo' ? 0 : dt;
+      this.world.update(worldDt, this.time);
       if (this.world.rain) this.world.rain.position.set(this.camera.position.x, 0, this.camera.position.z);
       if (this.world.rainNear) this.world.rainNear.position.set(this.camera.position.x, 0, this.camera.position.z);
       if (this.world.airDust) this.world.airDust.position.set(this.camera.position.x, 0, this.camera.position.z);
       if (this.state === 'menu') this.updateMenuCamera(dt, this.time);
       else if (this.state === 'cinematic') { this.updateCinematic(dt); if (this.stateTime > 46.2) { this.stateTime = 0; this.currentCaption = -1; } }
+      else if (this.state === 'photo') {
+        this.updatePhoto(dt);
+      }
       else if (this.state === 'play') {
         this.updatePlayer(dt);
         if (!this.zoneReached && this.player.pos.z < -44) {
@@ -581,7 +726,10 @@
         }
       }
       const look = this.post.finalMat.uniforms;
-      if (this.state === 'cinematic') {
+      if (this.state === 'photo') {
+        look.uFocus.value = this.photo.focus;
+        look.uDof.value = 0.18;
+      } else if (this.state === 'cinematic') {
         look.uFocus.value = this.cineFocus || 28;
         look.uDof.value = this.cineDof || 0.45;
       } else {

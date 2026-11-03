@@ -166,6 +166,25 @@
   .hud-bottom-left span{color:rgba(255,46,139,.4);margin:0 4px}
 
   /* ---------------------------------------------------------------------
+     photo mode
+     --------------------------------------------------------------------- */
+  #photo-ui{position:fixed;inset:0;z-index:70;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .45s ease,visibility .45s}
+  body.photo-mode #photo-ui{opacity:1;visibility:visible}
+  body.photo-mode #hud,body.photo-mode #menu,body.photo-mode #pause,body.photo-mode #cinema-ui,body.photo-mode #help,body.photo-mode #toast,body.photo-mode .scanlines,body.photo-mode .corner{opacity:0!important;visibility:hidden!important;pointer-events:none!important}
+  .photo-top{position:absolute;left:clamp(22px,4vw,58px);right:clamp(22px,4vw,58px);top:clamp(20px,3.4vh,42px);display:flex;justify-content:space-between;font:400 8px/1 var(--mono);letter-spacing:.22em;color:rgba(255,255,255,.5)}
+  .photo-top b{font-weight:400;color:var(--pink)}
+  .photo-frame{position:absolute;inset:5.2vh 4.2vw;border:1px solid rgba(255,255,255,.12);box-shadow:inset 0 0 0 1px rgba(255,46,139,.05);}
+  .photo-frame:before,.photo-frame:after{content:"";position:absolute;width:15px;height:15px;border-color:rgba(255,255,255,.45);border-style:solid}
+  .photo-frame:before{left:-1px;top:-1px;border-width:1px 0 0 1px}
+  .photo-frame:after{right:-1px;bottom:-1px;border-width:0 1px 1px 0}
+  .photo-bottom{position:absolute;left:clamp(22px,4vw,58px);right:clamp(22px,4vw,58px);bottom:clamp(18px,3.2vh,38px);display:grid;grid-template-columns:1fr auto 1fr;align-items:end;gap:18px;font:400 8px/1.7 var(--mono);letter-spacing:.12em;color:rgba(255,255,255,.48)}
+  .photo-bottom .right{text-align:right}
+  .photo-bottom kbd{font-family:var(--mono);font-size:8px;color:rgba(255,255,255,.82);border-bottom:1px solid rgba(255,255,255,.22);padding-bottom:1px}
+  #photo-readout{color:rgba(68,231,255,.72);letter-spacing:.16em;text-align:center;white-space:nowrap}
+  #photo-saved{display:block;margin-top:5px;color:var(--pink);letter-spacing:.14em;min-height:10px}
+  .photo-mode #photo-ui{pointer-events:none}
+
+  /* ---------------------------------------------------------------------
      cinematic overlay
      --------------------------------------------------------------------- */
   #cinema-ui{position:fixed;inset:0;z-index:45;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .8s ease,visibility .8s}
@@ -313,7 +332,17 @@
     <div class="mission-top"><span>DESTINATION</span><strong>麒麟广场 / KIRIN PLAZA</strong><span>120M</span></div>
     <div class="mission-bar"><i id="mission-progress"></i></div>
   </div>
-  <div class="hud-bottom-left"><kbd>WASD</kbd> MOVE <span>·</span> <kbd>MOUSE</kbd> LOOK <span>·</span> <kbd>SHIFT</kbd> RUN <span>·</span> <kbd>C</kbd> CINEMA <span>·</span> <kbd>ESC</kbd> PAUSE</div>
+  <div class="hud-bottom-left"><kbd>WASD</kbd> MOVE <span>·</span> <kbd>MOUSE</kbd> LOOK <span>·</span> <kbd>SHIFT</kbd> RUN <span>·</span> <kbd>C</kbd> CINEMA <span>·</span> <kbd>P</kbd> PHOTO <span>·</span> <kbd>ESC</kbd> PAUSE</div>
+</div>
+
+<div id="photo-ui">
+  <div class="photo-top"><span><b>PHOTO MODE</b> / 摄影模式</span><span>ND—07 · FREE CAMERA · 35MM</span></div>
+  <div class="photo-frame"></div>
+  <div class="photo-bottom">
+    <div><kbd>WASD</kbd> MOVE · <kbd>Q/E</kbd> UP/DOWN<br><kbd>WHEEL</kbd> FOV · <kbd>[ ]</kbd> FOCUS</div>
+    <div id="photo-readout"><span id="photo-stats">FOV 55 · FOCUS 20M</span><span id="photo-saved"></span></div>
+    <div class="right"><kbd>F</kbd> SAVE PNG · <kbd>R</kbd> RESET<br><kbd>P / ESC</kbd> EXIT</div>
+  </div>
 </div>
 
 <div id="cinema-ui">
@@ -341,6 +370,8 @@
   <div class="help-row"><span>MOUSE</span><b>视角 / LOOK</b></div>
   <div class="help-row"><span>SHIFT</span><b>疾跑 / RUN</b></div>
   <div class="help-row"><span>C</span><b>电影模式 / CINEMA</b></div>
+  <div class="help-row"><span>P</span><b>摄影模式 / PHOTO MODE</b></div>
+  <div class="help-row"><span>F</span><b>拍照保存 / SAVE PNG</b></div>
   <div class="help-row"><span>M</span><b>声音 / AUDIO</b></div>
   <div class="help-row"><span>ESC</span><b>暂停 / PAUSE</b></div>
   <div class="help-note">这里是一个完全由代码生成的实时场景。所有招牌、建筑、雨水与反射均在浏览器中逐帧计算。</div>

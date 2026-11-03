@@ -4,7 +4,7 @@
 
 **DSH-PTC**
 
-**1 scene · 100% procedural · 0 assets · single-file build 0.93 MB**
+**1 scene · 100% procedural · 0 assets · single-file build 0.94 MB**
 
 [**Live preview**](https://cl0ud-99.github.io/neon-district/) — runs in the browser, nothing to install.
 
@@ -133,8 +133,15 @@ The local preview server does not need any npm packages; `npm install` is only f
 | Shift | Sprint |
 | C | Cinematic mode |
 | M | Mute / restore ambience |
+| P | Photo Mode (free camera, save PNG) |
 | H | Toggle controls panel |
 | ESC | Pause / back |
+
+## Photo Mode
+
+Press **P** from the menu, play or pause screen to enter Photo Mode. The scene freezes, HUD disappears and the camera becomes free: WASD moves, Q/E raises/lowers, mouse looks, the wheel changes FOV, **[** / **]** adjusts focus, **F** saves the current frame as a PNG, and **R** resets FOV/focus. P or Esc returns to the previous state.
+
+The frame is read directly from the HDR composite render target, so it contains the full live render without DOM UI. It is also available at boot with `?photo=1`.
 
 ## URL parameters
 
@@ -146,6 +153,7 @@ The look is tunable without a rebuild:
 ?t=24                freeze time in seconds
 ?freeze=0            let the screenshot scene animate
 ?quality=high|medium|low
+?photo=1            open Photo Mode on boot
 ```
 
 For example:
