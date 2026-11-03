@@ -4,7 +4,7 @@
 
 **DSH-PTC**
 
-**v0.1.3 · 1 scene · 100% procedural · 0 assets · single-file build 1.03 MB**
+**v0.1.4 · 1 scene · 100% procedural · 0 assets · single-file build 1.03 MB**
 
 [**Live preview**](https://cl0ud-99.github.io/neon-district/) — runs in the browser, nothing to install.
 
@@ -70,7 +70,7 @@ city / signs / rain (Three.js scene)
 Details worth reading:
 
 - **Planar reflections are real geometry passes.** Every frame the architecture, signage and large props are rendered from a mirrored camera at a reduced resolution, then sampled by the wet ground and water shaders. Tiny clutter and glow sprites are layer-filtered out of this pass; the reflected image is blurred along screen-space Y to stretch window and neon highlights into wet-asphalt streaks.
-- **Water is its own material.** The plaza uses Fresnel-weighted mirror reflections, three ripple layers, sparse rain-drop rings, edge foam, a cold underwater light and a particle fountain. It is not a tinted copy of the street.
+- **Water is its own material.** The plaza uses Fresnel-weighted mirror reflections, three broad wave layers, edge foam, a cold underwater light and a particle fountain. It has no rain-drop rings. It is not a tinted copy of the street.
 - **Static shadows are baked once.** The city never moves, so a 2048² PCF-soft directional shadow map is rendered once, then reused for the whole session. The custom wet-asphalt and sidewalk shaders sample that same map through Three's shadow chunks, so building silhouettes land on the ground as well as on the facades. Dynamic characters and props use contact-shadow decals instead of stale baked silhouettes. A depth-edge AO pass tightens seams where geometry meets the ground.
 - **Hero windows have interior parallax.** The close-up window bays use a small view-dependent UV offset against a drawn interior, so the room behind the glass shifts against the frame as the camera moves.
 - **TAA + FXAA + super-sampling.** The HDR frame is rendered with a Halton sub-pixel jitter, then resolved against the previous frame using depth reprojection and a neighbourhood clamp. FXAA cleans the final LDR image. Multisampled float targets caused a driver artifact on one test GPU, so this path is cheaper and keeps thin neon lines stable while reducing shimmer in motion.

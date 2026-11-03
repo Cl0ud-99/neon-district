@@ -100,20 +100,8 @@
       return v;
     }
     float rippleHeight(vec2 p, float t) {
-      float h = 0.0;
-      for (int l = 0; l < 3; l++) {
-        float scale = 1.0 + float(l) * 0.72;
-        vec2 q = p * scale + float(l) * 9.7;
-        vec2 id = floor(q);
-        vec2 f = fract(q) - 0.5;
-        float phase = hash21(id + float(l) * 4.3);
-        float cycle = fract(t * 0.48 + phase);
-        float radius = cycle * 0.60;
-        float ring = smoothstep(0.045, 0.0, abs(length(f) - radius)) * (1.0 - cycle);
-        h += ring * 0.52;
-      }
-      h += (vnoise(p * 17.0 + vec2(t * 2.7, -t * 1.9)) - 0.5) * 0.035;
-      return h * 0.5;
+      // Micro-normal noise only: no expanding rain rings on the pavement.
+      return (vnoise(p * 17.0 + vec2(t * 2.7, -t * 1.9)) - 0.5) * 0.0175;
     }
 
     void main() {
@@ -240,17 +228,12 @@
       return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
     }
     float waveHeight(vec2 p, float t) {
+      // Broad wind waves only; no rain-drop rings in the plaza water.
       float h = 0.0;
       h += sin(p.x * 2.7 + t * 1.45) * 0.040;
       h += sin(p.y * 3.9 - t * 1.9 + p.x * 0.7) * 0.030;
       h += sin((p.x + p.y) * 6.2 + t * 2.7) * 0.012;
-      vec2 q = p * 2.4 + t * 0.45;
-      vec2 id = floor(q), f = fract(q) - 0.5;
-      float phase = hash21(id);
-      float cycle = fract(t * 0.65 + phase);
-      float ringMask = smoothstep(0.58, 0.76, hash21(id + 17.3));
-      float ring = smoothstep(0.05, 0.0, abs(length(f) - cycle * 0.55)) * (1.0 - cycle) * ringMask;
-      return h + ring * 0.12;
+      return h;
     }
 
     void main() {
