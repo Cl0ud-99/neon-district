@@ -44,7 +44,8 @@
         uTime: { value: 0 },
         uHeight: { value: 38 },
         uColor: { value: new THREE.Color(0.46, 0.66, 1.0) },
-        uOpacity: { value: 0.46 }
+        uOpacity: { value: 0.46 },
+        uFlash: { value: 0 }
       },
       vertexShader: `
         uniform float uTime, uHeight;
@@ -54,7 +55,7 @@
           vec3 p = position;
           float y = mod(p.y - uTime * aSpeed + aPhase * uHeight * 2.0, uHeight);
           p.y = y;
-          p.x += sin(uTime * 0.23 + aPhase * 6.28) * 0.45;
+          p.x += sin(uTime * 0.23 + aPhase * 6.28) * 0.60;
           p.z += cos(uTime * 0.19 + aPhase * 5.13) * 0.35;
           float len = 0.15 + aSpeed * 0.017;
           p.y += aEnd * len;
@@ -66,10 +67,10 @@
       `,
       fragmentShader: `
         uniform vec3 uColor;
-        uniform float uOpacity;
+        uniform float uOpacity, uFlash;
         varying float vAlpha;
         void main() {
-          gl_FragColor = vec4(uColor, uOpacity * vAlpha);
+          gl_FragColor = vec4(uColor * (1.0 + uFlash * 1.8), uOpacity * vAlpha * (1.0 + uFlash * 1.4));
         }
       `,
       transparent: true,
@@ -119,7 +120,8 @@
         uColor: { value: new THREE.Color(0.56, 0.74, 0.97) },
         uLightPos: { value: this.groundLights.map(l => l.p) },
         uLightColor: { value: this.groundLights.map(l => l.c) },
-        uOpacity: { value: 0.34 }
+        uOpacity: { value: 0.34 },
+        uFlash: { value: 0 }
       },
       vertexShader: `
         uniform float uTime, uHeight;
@@ -132,7 +134,7 @@
         void main() {
           vec3 p = aCenter;
           p.y = mod(p.y - uTime * aSpeed + aPhase * uHeight * 2.0, uHeight);
-          p.x += sin(uTime * 0.23 + aPhase * 6.28) * 0.32;
+          p.x += sin(uTime * 0.23 + aPhase * 6.28) * 0.45;
           p.z += cos(uTime * 0.19 + aPhase * 5.13) * 0.26;
           vec4 world = modelMatrix * vec4(p, 1.0);
           vec3 lit = vec3(0.04);
@@ -153,7 +155,7 @@
       fragmentShader: `
         uniform sampler2D uMap;
         uniform vec3 uColor;
-        uniform float uOpacity;
+        uniform float uOpacity, uFlash;
         varying vec2 vUv;
         varying float vAlpha;
         varying vec3 vLight;
@@ -163,7 +165,7 @@
           float a = t.a * uOpacity * vAlpha * (0.35 + 0.65 * clamp(lit, 0.0, 1.0));
           if (a < 0.003) discard;
           vec3 col = uColor * 0.55 + vLight * 0.18;
-          gl_FragColor = vec4(col * (0.78 + 0.35 * t.r), a);
+          gl_FragColor = vec4(col * (0.78 + 0.35 * t.r) * (1.0 + uFlash * 1.5), a * (1.0 + uFlash * 1.2));
         }
       `,
       transparent: true,
@@ -376,6 +378,9 @@
       apron.position.set(0, 0.84, 0.27);
       apron.rotation.z = 0.02;
       group.add(apron);
+      const vendorMask = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.08, 0.035), new THREE.MeshBasicMaterial({ color: 0x77f5ff, toneMapped: false }));
+      vendorMask.position.set(0, 1.63, 0.135);
+      group.add(vendorMask);
     } else if (style === 'punk') {
       const hair = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.26, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color(trimCol).multiplyScalar(2.2), toneMapped: false }));
       hair.position.set(0, 1.88, -0.01);
@@ -422,6 +427,9 @@
         strap.rotation.z = sx * 0.12;
         group.add(strap);
       }
+      const visor = new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.045, 0.03), new THREE.MeshBasicMaterial({ color: new THREE.Color(0x5cecff).multiplyScalar(1.9), toneMapped: false }));
+      visor.position.set(0, 1.7, 0.135);
+      group.add(visor);
     }
     const arms = [];
     for (const sx of [-1, 1]) {

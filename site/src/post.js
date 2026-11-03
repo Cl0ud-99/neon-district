@@ -106,9 +106,9 @@
         uniforms: {
           tDiffuse: { value: null },
           uTexel: { value: new THREE.Vector2(1 / 1024, 1 / 1024) },
-          uThreshold: { value: 0.70 },
+          uThreshold: { value: 0.74 },
           uKnee: { value: 0.48 },
-          uIntensity: { value: 1.28 }
+          uIntensity: { value: 1.20 }
         },
         vertexShader: VS,
         fragmentShader: `
@@ -317,12 +317,23 @@
               scene = mix(scene, blurred, coc * uDof * 0.72);
             }
 
+            // Fine local contrast keeps wet stone edges and window frames from
+            // melting into the bloom.
+            vec2 spx = 1.0 / uResolution;
+            vec3 soft = scene * 0.36;
+            soft += texture2D(tScene, uv + vec2( 1.0, 0.0) * spx * 1.4).rgb * 0.16;
+            soft += texture2D(tScene, uv + vec2(-1.0, 0.0) * spx * 1.4).rgb * 0.16;
+            soft += texture2D(tScene, uv + vec2( 0.0, 1.0) * spx * 1.4).rgb * 0.16;
+            soft += texture2D(tScene, uv + vec2( 0.0,-1.0) * spx * 1.4).rgb * 0.16;
+            scene = max(scene + (scene - soft) * 0.095, vec3(0.0));
+
             vec3 bloom = texture2D(tBloom0, uv).rgb * 1.00;
             bloom += texture2D(tBloom1, uv).rgb * 0.78;
             bloom += texture2D(tBloom2, uv).rgb * 0.58;
             bloom += texture2D(tBloom3, uv).rgb * 0.42;
             bloom += texture2D(tBloom4, uv).rgb * 0.30;
             bloom += texture2D(tStreak, uv).rgb * 0.12;
+            bloom *= vec3(1.03, 0.98, 1.045);
 
             vec3 c = scene + bloom * uBloomStrength;
             c *= uExposure;
@@ -335,16 +346,16 @@
             vec3 highTint = vec3(1.045, 0.965, 1.055);
             c = mix(c, c + shadowTint * (1.0 - smoothstep(0.0, 0.32, l)), 0.55);
             c *= mix(vec3(1.0), highTint, smoothstep(0.3, 1.0, l));
-            c = mix(vec3(l), c, 1.18);
+            c = mix(vec3(l), c, 1.12);
             c = pow(clamp(c, 0.0, 1.0), vec3(0.96, 1.0, 1.025));
 
             // vignette + gate weave
             float vig = smoothstep(0.95, 0.28, length(centered * vec2(1.0, 0.9)));
-            c *= mix(0.58, 1.0, vig);
+            c *= mix(0.55, 1.0, vig);
 
             // fine film grain and dither
             float g = hash12(uv * uResolution + fract(uTime) * 431.7);
-            c += (g - 0.5) * 0.028;
+            c += (g - 0.5) * 0.022;
             c = toSRGB(clamp(c, 0.0, 1.0));
             c += (hash12(uv * uResolution + 7.3) - 0.5) / 255.0;
             c *= uFade;
@@ -462,7 +473,7 @@
         uCameraPos: { value: new THREE.Vector3() },
         uNear: { value: 0.1 },
         uFar: { value: 260 },
-        uStrength: { value: 0.72 }
+        uStrength: { value: 0.82 }
       },
       vertexShader: VS,
       fragmentShader: `

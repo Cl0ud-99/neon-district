@@ -85,6 +85,16 @@ Details worth reading:
 - **Mid-ground windows have depth cues.** Per-window shader seeds vary lit/dark cells independently of the base atlas; a matched height map drives bump relief on the frame grid, and instanced floor sills/mullions break the single-plane silhouette.
 - **The cinematic is cut, not one dolly.** Six deliberate shots — aerial descent, street-level dolly, storefront profile, plaza reveal, tower low-angle, crane-out — are hard-cut in the timeline and paired with per-shot focus distances.
 
+## Visual pass V1–V7
+
+- **V1 final grade** — local contrast, halation-tinted bloom, slightly reduced exposure/glow, satin shadows and controlled grain.
+- **V2 rain and air** — wind gusts, lightning response on rain alpha/colour, neon-tinted foreground ribbons and lamp-local mist.
+- **V3 wet reflections** — stronger puddle/stone reflection mix and tuned vertical-wall SSR.
+- **V4 character close-ups** — courier visors, vendor breathing masks, existing coat cloth and umbrella articulation.
+- **V5 hero storefronts** — metal lintels and door sills give the shop line a recessed frame instead of a flat cut-out.
+- **V6 distant city** — the authored rear skyline, gate and far towers provide the depth layer behind the doubled street.
+- **V7 micro particles** — slow additive dust motes follow the camera; steam and lamp mist fill the remaining air.
+
 ## Audio
 
 Synthesized with Web Audio, no samples:

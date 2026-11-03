@@ -139,7 +139,7 @@
       }
       refl /= reflWeight;
 
-      float reflAmount = mix(0.26, 0.96, puddle) * (0.58 + 0.42 * fresnel) * (1.0 - grout * 0.45);
+      float reflAmount = mix(0.30, 0.98, puddle) * (0.60 + 0.40 * fresnel) * (1.0 - grout * 0.42);
       vec3 col = stone * (0.34 + 0.66 * (1.0 - puddle));
 
       // street light spill, physically-ish inverse square
@@ -474,6 +474,7 @@
       this.buildStreetDetails();
       this.applyStaticShadows();
       this.buildAtmosphere();
+      this.buildAirDust();
       this.buildRain();
       this.buildCharacters();
       this.buildVehicles();
@@ -1340,8 +1341,15 @@
       this.skyUniforms.uTime.value = time;
       this.groundUniforms.uTime.value = time;
       if (this.waterMat) this.waterMat.uniforms.uTime.value = time;
-      if (this.rainMat) this.rainMat.uniforms.uTime.value = time;
-      if (this.rainNearMat) this.rainNearMat.uniforms.uTime.value = time;
+      if (this.rainMat) {
+        this.rainMat.uniforms.uTime.value = time;
+        this.rainMat.uniforms.uFlash.value = this.flash;
+      }
+      if (this.rainNearMat) {
+        this.rainNearMat.uniforms.uTime.value = time;
+        this.rainNearMat.uniforms.uFlash.value = this.flash;
+      }
+      if (this.airDustMat) this.airDustMat.uniforms.uTime.value = time;
       if (this.rainMistMat) this.rainMistMat.uniforms.uTime.value = time;
       this.screens.forEach((s, i) => {
         s.mat.uniforms.uTime.value = time;

@@ -919,6 +919,12 @@
           post.position.set(side * 13.42, 0.12 + sh / 2, z - dz);
           g.add(post);
         }
+        const lintel = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.15, width + 0.25), this.metalMat);
+        lintel.position.set(side * 13.38, 0.12 + sh + 0.1, z - width / 2);
+        g.add(lintel);
+        const sill = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.09, width + 0.2), this.metalMat);
+        sill.position.set(side * 13.34, 0.16, z - width / 2);
+        g.add(sill);
         // occasional doorway spill glow
         if (open && rnd() > 0.58) {
           const col = variant % 2 ? 0x44e4ff : 0xff5aa9;
@@ -1166,6 +1172,69 @@
     under.position.set(0, 0.55, -61.5);
     under.scale.set(20, 10, 1);
     this.scene.add(under);
+  };
+
+  World.prototype.buildAirDust = function () {
+    const count = 420;
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(count * 3);
+    const phase = new Float32Array(count);
+    const size = new Float32Array(count);
+    const rnd = ND.util.mulberry32(93117);
+    for (let i = 0; i < count; i++) {
+      pos[i * 3] = (rnd() - 0.5) * 44;
+      pos[i * 3 + 1] = 0.4 + rnd() * 13;
+      pos[i * 3 + 2] = (rnd() - 0.5) * 46;
+      phase[i] = rnd();
+      size[i] = 0.35 + rnd() * 0.9;
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('aPhase', new THREE.BufferAttribute(phase, 1));
+    geo.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
+    const mat = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uMap: { value: ND.Tex.canvasToTexture(ND.Tex.glow(64), true) },
+        uColor: { value: new THREE.Color(0.42, 0.62, 0.82) },
+        uOpacity: { value: 0.11 }
+      },
+      vertexShader: `
+        uniform float uTime;
+        attribute float aPhase, aSize;
+        varying float vAlpha;
+        void main() {
+          vec3 p = position;
+          p.x += sin(uTime * 0.18 + aPhase * 6.28) * 0.8;
+          p.y += sin(uTime * 0.27 + aPhase * 4.2) * 0.5;
+          p.z += cos(uTime * 0.16 + aPhase * 5.1) * 0.7;
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          gl_PointSize = clamp(aSize * (100.0 / max(1.0, -mv.z)), 1.0, 7.0);
+          vAlpha = 0.25 + 0.75 * aPhase;
+          gl_Position = projectionMatrix * mv;
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D uMap;
+        uniform vec3 uColor;
+        uniform float uOpacity;
+        varying float vAlpha;
+        void main() {
+          vec4 t = texture2D(uMap, gl_PointCoord);
+          float a = t.a * uOpacity * vAlpha;
+          if (a < 0.002) discard;
+          gl_FragColor = vec4(uColor, a);
+        }
+      `,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
+    this.airDustMat = mat;
+    this.airDust = new THREE.Points(geo, mat);
+    this.airDust.frustumCulled = false;
+    this.airDust.layers.set(1);
+    this.airDust.renderOrder = 17;
+    this.scene.add(this.airDust);
   };
 
   World.prototype.buildAtmosphere = function () {

@@ -150,8 +150,8 @@
         msaa: this.quality.msaa,
         sceneScale: this.quality.sceneScale,
         reflectionScale: this.quality.reflectionScale,
-        exposure: 1.38,
-        bloomStrength: 1.12,
+        exposure: 1.34,
+        bloomStrength: 1.08,
         ssr: this.qualityKey !== 'low'
       });
       this.applySizes();
@@ -568,6 +568,7 @@
       this.world.update(dt, this.time);
       if (this.world.rain) this.world.rain.position.set(this.camera.position.x, 0, this.camera.position.z);
       if (this.world.rainNear) this.world.rainNear.position.set(this.camera.position.x, 0, this.camera.position.z);
+      if (this.world.airDust) this.world.airDust.position.set(this.camera.position.x, 0, this.camera.position.z);
       if (this.state === 'menu') this.updateMenuCamera(dt, this.time);
       else if (this.state === 'cinematic') { this.updateCinematic(dt); if (this.stateTime > 46.2) { this.stateTime = 0; this.currentCaption = -1; } }
       else if (this.state === 'play') {
