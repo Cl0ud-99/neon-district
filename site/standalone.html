@@ -2115,6 +2115,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     #include <shadowmap_pars_fragment>
     #include <shadowmask_pars_fragment>
     uniform sampler2D tReflection;
+    uniform sampler2D tWetMap;
     uniform float uTime;
     uniform float uFogDensity;
     uniform vec3 uFogColor;
@@ -2177,6 +2178,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       float puddle = smoothstep(0.37, 0.53, large + fine * 0.035);
       puddle = max(puddle, (1.0 - smoothstep(0.0, 1.5, abs(abs(p.x) - 7.6))) * smoothstep(0.28, 0.62, large) * 0.85);
       puddle *= 0.72 + 0.28 * smoothstep(0.0, 4.0, abs(p.x));
+      vec2 wetUv = vec2((p.x + 23.0) / 46.0, (p.y + 170.0) / 430.0);
+      float wetMask = texture2D(tWetMap, wetUv).r;
+      puddle *= mix(0.20, 1.0, wetMask);
 
       vec2 tileUv = kind > 0.5 ? p * vec2(2.6, 2.1) : p / 1.18;
       vec2 tf = fract(tileUv);
@@ -2219,7 +2223,12 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       refl /= reflWeight;
 
       float reflAmount = mix(0.30, 0.98, puddle) * (0.60 + 0.40 * fresnel) * (1.0 - grout * 0.42);
+      reflAmount *= mix(0.45, 1.0, wetMask);
+      float gutterFlow = smoothstep(0.075, 0.0, abs(abs(p.x) - 8.9));
+      float flowPulse = sin(p.y * 3.8 - uTime * 2.1 + vnoise(p * 4.0) * 3.0) * 0.5 + 0.5;
+      reflAmount = clamp(reflAmount + gutterFlow * (0.16 + 0.22 * flowPulse), 0.0, 0.98);
       vec3 col = stone * (0.34 + 0.66 * (1.0 - puddle));
+      col += vec3(0.035, 0.075, 0.11) * gutterFlow * (0.25 + 0.75 * flowPulse);
 
       // street light spill, physically-ish inverse square
       vec3 spill = vec3(0.0);
@@ -3680,9 +3689,34 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     }
 
     buildGround() {
+      const wetCanvas = ND.util.makeCanvas(256, 1024);
+      const wctx = wetCanvas.getContext('2d');
+      const mx = x => ((x + 23.0) / 46.0) * 256;
+      const my = z => ((z + 170.0) / 430.0) * 1024;
+      wctx.fillStyle = '#ffffff'; wctx.fillRect(0, 0, 256, 1024);
+      wctx.fillStyle = '#707070';
+      const dryBars = [];
+      const wrnd = ND.util.mulberry32(18421);
+      for (const side of [-1, 1]) {
+        for (let z = -68; z < 186; z += 5.2) {
+          if (wrnd() > 0.22) {
+            const x = side * 11.7;
+            wctx.fillRect(mx(x - 2.0), my(z - 1.55), mx(x + 2.0) - mx(x - 2.0), my(z + 1.55) - my(z - 1.55));
+          }
+        }
+      }
+      // broad dry shelter under the market / hotel / MTR / gate canopies
+      wctx.fillStyle = '#555555';
+      wctx.fillRect(mx(-13.6), my(111), mx(-8.9) - mx(-13.6), my(133) - my(111));
+      wctx.fillRect(mx(-13.6), my(147), mx(-9.0) - mx(-13.6), my(159) - my(147));
+      wctx.fillRect(mx(-13.6), my(69), mx(-9.1) - mx(-13.6), my(82) - my(69));
+      wctx.fillRect(mx(-13.6), my(172), mx(-9.0) - mx(-13.6), my(185) - my(172));
+      const wetTex = ND.Tex.canvasToTexture(wetCanvas, false);
+      wetTex.wrapS = wetTex.wrapT = THREE.ClampToEdgeWrapping;
       const uniforms = {
         uTextureMatrix: { value: new M4() },
         tReflection: { value: null },
+        tWetMap: { value: wetTex },
         uTime: { value: 0 },
         uFogDensity: { value: this.fogDensity },
         uFogColor: { value: this.fogColor },
@@ -3710,6 +3744,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       const su = {
         uTextureMatrix: uniforms.uTextureMatrix,
         tReflection: uniforms.tReflection,
+        tWetMap: uniforms.tWetMap,
         uTime: uniforms.uTime,
         uFogDensity: uniforms.uFogDensity,
         uFogColor: uniforms.uFogColor,
