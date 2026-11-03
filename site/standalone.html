@@ -1352,6 +1352,94 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     return c;
   };
 
+  T.holoWhale = function () {
+    const W = 1024, H = 512;
+    const c = makeCanvas(W, H);
+    const x = c.getContext('2d');
+    x.clearRect(0, 0, W, H);
+    x.save();
+    x.shadowColor = 'rgba(55,180,255,.95)';
+    x.shadowBlur = 42;
+    const bodyGrad = x.createLinearGradient(150, 0, 880, 0);
+    bodyGrad.addColorStop(0, 'rgba(20,92,255,.78)');
+    bodyGrad.addColorStop(0.48, 'rgba(42,176,255,.72)');
+    bodyGrad.addColorStop(0.82, 'rgba(88,240,255,.78)');
+    bodyGrad.addColorStop(1, 'rgba(188,255,255,.7)');
+    // body silhouette: round head left, tapered back right
+    x.beginPath();
+    x.moveTo(180, 252);
+    x.bezierCurveTo(190, 160, 360, 128, 520, 154);
+    x.bezierCurveTo(665, 178, 770, 206, 846, 250);
+    x.bezierCurveTo(780, 300, 670, 336, 530, 350);
+    x.bezierCurveTo(370, 366, 225, 330, 180, 292);
+    x.bezierCurveTo(160, 278, 160, 265, 180, 252);
+    x.closePath();
+    x.fillStyle = 'rgba(2,12,26,1)'; x.fill();
+    x.fillStyle = bodyGrad; x.fill();
+    x.strokeStyle = 'rgba(210,255,255,.92)'; x.lineWidth = 6; x.stroke();
+    x.strokeStyle = 'rgba(255,95,215,.34)'; x.lineWidth = 2; x.stroke();
+    // white belly
+    const belly = x.createLinearGradient(180, 280, 720, 350);
+    belly.addColorStop(0, 'rgba(205,250,255,.62)');
+    belly.addColorStop(0.7, 'rgba(155,235,255,.28)');
+    belly.addColorStop(1, 'rgba(255,255,255,0)');
+    x.beginPath();
+    x.moveTo(210, 294);
+    x.bezierCurveTo(360, 365, 590, 360, 760, 302);
+    x.bezierCurveTo(600, 390, 360, 390, 210, 294);
+    x.fillStyle = belly; x.fill();
+    // tail flukes
+    x.fillStyle = 'rgba(54,190,255,.8)';
+    x.beginPath();
+    x.moveTo(835, 250);
+    x.bezierCurveTo(900, 214, 955, 174, 982, 142);
+    x.bezierCurveTo(956, 214, 930, 244, 890, 262);
+    x.bezierCurveTo(935, 276, 958, 312, 982, 360);
+    x.bezierCurveTo(930, 322, 892, 286, 835, 268);
+    x.closePath(); x.fill();
+    x.strokeStyle = 'rgba(210,255,255,.78)'; x.lineWidth = 4; x.stroke();
+    // pectoral fin
+    x.beginPath();
+    x.moveTo(355, 326);
+    x.bezierCurveTo(300, 390, 250, 432, 208, 456);
+    x.bezierCurveTo(262, 400, 300, 362, 320, 320);
+    x.closePath(); x.fillStyle = 'rgba(40,155,255,.72)'; x.fill();
+    // dorsal fin
+    x.beginPath();
+    x.moveTo(535, 162);
+    x.bezierCurveTo(570, 102, 610, 72, 650, 52);
+    x.bezierCurveTo(625, 105, 620, 140, 620, 172);
+    x.closePath(); x.fillStyle = 'rgba(64,210,255,.62)'; x.fill();
+    // outline / hologram bloom
+    x.strokeStyle = 'rgba(151,250,255,.92)'; x.lineWidth = 5; x.stroke();
+    x.strokeStyle = 'rgba(255,90,210,.32)'; x.lineWidth = 2; x.stroke();
+    // tech ribs
+    x.strokeStyle = 'rgba(180,255,255,.32)'; x.lineWidth = 2;
+    for (let i = 0; i < 5; i++) {
+      x.beginPath(); x.arc(330 + i * 82, 252, 58 + i * 5, -1.05, 1.05); x.stroke();
+    }
+    // eye
+    x.shadowColor = '#baffff'; x.shadowBlur = 18;
+    x.fillStyle = 'rgba(240,255,255,.98)'; x.beginPath(); x.arc(255, 238, 14, 0, TAU); x.fill();
+    x.fillStyle = 'rgba(7,35,70,.98)'; x.beginPath(); x.arc(258, 239, 7, 0, TAU); x.fill();
+    // blowhole spark
+    x.fillStyle = 'rgba(190,255,255,.8)'; x.beginPath(); x.arc(300, 186, 5, 0, TAU); x.fill();
+    // low-alpha DeepSeek easter egg
+    x.shadowBlur = 8; x.globalAlpha = 0.42;
+    x.fillStyle = 'rgba(190,250,255,.8)'; x.font = '400 15px "Cascadia Mono", Consolas, monospace'; x.textAlign = 'left';
+    x.fillText('DEEPSEEK // DEEP SEA SIGNAL', 34, 486);
+    x.globalAlpha = 1;
+    // scan lines clipped to whale
+    x.globalCompositeOperation = 'source-atop';
+    for (let y = 18; y < H; y += 8) {
+      x.fillStyle = 'rgba(3,10,25,' + (0.07 + Math.random() * 0.12) + ')';
+      x.fillRect(0, y, W, 2);
+    }
+    x.globalCompositeOperation = 'source-over';
+    x.restore();
+    return c;
+  };
+
   T.canvasToTexture = function (canvas, srgb) {
     const t = new THREE.CanvasTexture(canvas);
     if (srgb !== false) t.colorSpace = THREE.SRGBColorSpace;
@@ -6471,6 +6559,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     koiSprite.scale.set(6.0, 3.0, 1);
     orbit.add(koiSprite);
     this.koiSprite = koiSprite;
+    koiSprite.visible = false;
     this.koi = koi;
     this.koiOrbit = orbit;
     this.scene.add(orbit);
@@ -6504,6 +6593,96 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     sparkGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     this.koiSparks = new THREE.Points(sparkGeo, new THREE.PointsMaterial({ size: 0.07, map: this._glowTex, vertexColors: true, transparent: true, opacity: 0.42, depthWrite: false, blending: THREE.AdditiveBlending }));
     this.scene.add(this.koiSparks);
+    this.koiSparks.visible = false;
+    koi.visible = false;
+    this.buildWhaleProjection();
+  };
+
+  World.prototype.buildWhaleProjection = function () {
+    const tex = ND.Tex.canvasToTexture(ND.Tex.holoWhale(), true);
+    const mat = new THREE.SpriteMaterial({
+      map: tex, color: 0xffffff, transparent: true, opacity: 1.0,
+      blending: THREE.NormalBlending, depthWrite: false, depthTest: true, toneMapped: false
+    });
+    this.whaleMat = mat;
+    const group = new THREE.Group();
+    group.position.set(0, 0, -61.5);
+    const backGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: this._glowTex, color: 0x02050c, transparent: true, opacity: 0.30,
+      blending: THREE.NormalBlending, depthWrite: false, depthTest: true
+    }));
+    backGlow.position.set(0, 16.0, -0.7);
+    backGlow.scale.set(24.0, 13.0, 1);
+    backGlow.renderOrder = 2;
+    group.add(backGlow);
+    this.whaleBack = backGlow;
+    const plane = new THREE.Sprite(mat);
+    plane.position.set(0, 16.0, 0);
+    plane.scale.set(20.0, 10.0, 1);
+    plane.renderOrder = 4;
+    group.add(plane);
+    this.whalePlane = plane;
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: this._glowTex, color: 0x45dfff, transparent: true, opacity: 0.07, blending: THREE.AdditiveBlending, depthWrite: false }));
+    halo.position.set(0, 16.0, 1.0);
+    halo.scale.set(28.0, 15.0, 1);
+    group.add(halo);
+    this.whaleHalo = halo;
+
+    const ringMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x45dcff).multiplyScalar(1.3), transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(8.25, 0.045, 4, 96), ringMat);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.35;
+    group.add(ring);
+    this.whaleRing = ring;
+    this.whaleRingMat = ringMat;
+
+    // four corner emitters make the flat projection read as a ground installation
+    const emitterMat = new THREE.MeshStandardMaterial({ color: 0x10151d, roughness: 0.32, metalness: 0.8 });
+    const lensMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x59e8ff).multiplyScalar(2.4), toneMapped: false });
+    const beamMat = new THREE.MeshBasicMaterial({ color: 0x42dfff, transparent: true, opacity: 0.035, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+    const emitters = [];
+    for (const ex of [-7.7, 7.7]) {
+      for (const ez of [-4.0, 4.0]) {
+        const e = new THREE.Group();
+        e.position.set(ex, 0.36, ez);
+        const base = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.18, 0.32), emitterMat);
+        e.add(base);
+        const lens = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), lensMat);
+        lens.position.y = 0.16; e.add(lens);
+        const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.1, 7, 1, true), beamMat);
+        beam.position.y = 0.62; e.add(beam);
+        group.add(e);
+        emitters.push(e);
+      }
+    }
+    this.whaleEmitters = emitters;
+    // a faint cone volume tying the emitters to the projection surface
+    const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 8.2, 17.2, 32, 1, true), beamMat);
+    cone.position.y = 8.95;
+    group.add(cone);
+    this.whaleCone = cone;
+
+    const count = 110;
+    const geo = new THREE.BufferGeometry();
+    const positions = new Float32Array(count * 3);
+    const colors = new Float32Array(count * 3);
+    const rnd = ND.util.mulberry32(76191);
+    for (let i = 0; i < count; i++) {
+      const a = rnd() * TAU;
+      const r = 2.0 + rnd() * 6.2;
+      positions[i * 3] = Math.cos(a) * r;
+      positions[i * 3 + 1] = 10.5 + rnd() * 9.5;
+      positions[i * 3 + 2] = Math.sin(a) * r * 0.46;
+      const c = rnd() > 0.35 ? [0.25, 0.9, 1.0] : [1.0, 0.25, 0.65];
+      colors[i * 3] = c[0]; colors[i * 3 + 1] = c[1]; colors[i * 3 + 2] = c[2];
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    const spark = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.065, map: this._glowTex, vertexColors: true, transparent: true, opacity: 0.38, depthWrite: false, blending: THREE.AdditiveBlending }));
+    group.add(spark);
+    this.whaleSparks = spark;
+    this.whaleGroup = group;
+    this.scene.add(group);
   };
 
   World.prototype.updateActors = function (dt, time) {
@@ -6547,6 +6726,22 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       f.rotation.z = Math.sin(time * 0.4 + u.bobbing) * 0.035;
       f.rotation.y = u.dir > 0 ? 0 : Math.PI;
     }
+    // ground-projected whale
+    if (this.whaleMat) {
+      this.whaleMat.opacity = 0.96 + 0.02 * Math.sin(time * 1.8);
+      if (this.whaleHalo) this.whaleHalo.material.opacity = 0.055 + 0.025 * Math.sin(time * 1.4);
+      this.whaleRingMat.opacity = 0.34 + 0.16 * Math.sin(time * 1.4);
+      this.whaleRing.scale.setScalar(1.0 + 0.006 * Math.sin(time * 2.1));
+      this.whaleCone.material.opacity = 0.018 + 0.010 * Math.sin(time * 1.2);
+      for (let i = 0; i < this.whaleEmitters.length; i++) {
+        const e = this.whaleEmitters[i];
+        const pulse = 0.74 + 0.26 * Math.sin(time * 2.4 + i * 1.7);
+        e.children[1].scale.setScalar(pulse);
+      }
+      this.whaleSparks.rotation.y = time * 0.04;
+      this.whaleSparks.position.y = 0.08 * Math.sin(time * 0.7);
+    }
+
     // koi
     if (this.koiOrbit) {
       this.koiOrbit.rotation.y = time * 0.19;
@@ -7770,6 +7965,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         low: { p: [0, 0.55, 21], l: [0, 15, -80], fov: 62 },
         back: { p: [0, 1.78, 96], l: [0, 7.2, 178], fov: 58 },
         shops: { p: [0, 2.0, -25], l: [0, 4.0, -58], fov: 72 },
+        whale: { p: [0, 4.8, -47], l: [0, 16.0, -61.5], fov: 58 },
         menu: { p: [0, 2.2, 29], l: [0, 11, -77], fov: 52 }
       };
       const p = presets[name] || presets.hero;

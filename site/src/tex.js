@@ -932,6 +932,94 @@
     return c;
   };
 
+  T.holoWhale = function () {
+    const W = 1024, H = 512;
+    const c = makeCanvas(W, H);
+    const x = c.getContext('2d');
+    x.clearRect(0, 0, W, H);
+    x.save();
+    x.shadowColor = 'rgba(55,180,255,.95)';
+    x.shadowBlur = 42;
+    const bodyGrad = x.createLinearGradient(150, 0, 880, 0);
+    bodyGrad.addColorStop(0, 'rgba(20,92,255,.78)');
+    bodyGrad.addColorStop(0.48, 'rgba(42,176,255,.72)');
+    bodyGrad.addColorStop(0.82, 'rgba(88,240,255,.78)');
+    bodyGrad.addColorStop(1, 'rgba(188,255,255,.7)');
+    // body silhouette: round head left, tapered back right
+    x.beginPath();
+    x.moveTo(180, 252);
+    x.bezierCurveTo(190, 160, 360, 128, 520, 154);
+    x.bezierCurveTo(665, 178, 770, 206, 846, 250);
+    x.bezierCurveTo(780, 300, 670, 336, 530, 350);
+    x.bezierCurveTo(370, 366, 225, 330, 180, 292);
+    x.bezierCurveTo(160, 278, 160, 265, 180, 252);
+    x.closePath();
+    x.fillStyle = 'rgba(2,12,26,1)'; x.fill();
+    x.fillStyle = bodyGrad; x.fill();
+    x.strokeStyle = 'rgba(210,255,255,.92)'; x.lineWidth = 6; x.stroke();
+    x.strokeStyle = 'rgba(255,95,215,.34)'; x.lineWidth = 2; x.stroke();
+    // white belly
+    const belly = x.createLinearGradient(180, 280, 720, 350);
+    belly.addColorStop(0, 'rgba(205,250,255,.62)');
+    belly.addColorStop(0.7, 'rgba(155,235,255,.28)');
+    belly.addColorStop(1, 'rgba(255,255,255,0)');
+    x.beginPath();
+    x.moveTo(210, 294);
+    x.bezierCurveTo(360, 365, 590, 360, 760, 302);
+    x.bezierCurveTo(600, 390, 360, 390, 210, 294);
+    x.fillStyle = belly; x.fill();
+    // tail flukes
+    x.fillStyle = 'rgba(54,190,255,.8)';
+    x.beginPath();
+    x.moveTo(835, 250);
+    x.bezierCurveTo(900, 214, 955, 174, 982, 142);
+    x.bezierCurveTo(956, 214, 930, 244, 890, 262);
+    x.bezierCurveTo(935, 276, 958, 312, 982, 360);
+    x.bezierCurveTo(930, 322, 892, 286, 835, 268);
+    x.closePath(); x.fill();
+    x.strokeStyle = 'rgba(210,255,255,.78)'; x.lineWidth = 4; x.stroke();
+    // pectoral fin
+    x.beginPath();
+    x.moveTo(355, 326);
+    x.bezierCurveTo(300, 390, 250, 432, 208, 456);
+    x.bezierCurveTo(262, 400, 300, 362, 320, 320);
+    x.closePath(); x.fillStyle = 'rgba(40,155,255,.72)'; x.fill();
+    // dorsal fin
+    x.beginPath();
+    x.moveTo(535, 162);
+    x.bezierCurveTo(570, 102, 610, 72, 650, 52);
+    x.bezierCurveTo(625, 105, 620, 140, 620, 172);
+    x.closePath(); x.fillStyle = 'rgba(64,210,255,.62)'; x.fill();
+    // outline / hologram bloom
+    x.strokeStyle = 'rgba(151,250,255,.92)'; x.lineWidth = 5; x.stroke();
+    x.strokeStyle = 'rgba(255,90,210,.32)'; x.lineWidth = 2; x.stroke();
+    // tech ribs
+    x.strokeStyle = 'rgba(180,255,255,.32)'; x.lineWidth = 2;
+    for (let i = 0; i < 5; i++) {
+      x.beginPath(); x.arc(330 + i * 82, 252, 58 + i * 5, -1.05, 1.05); x.stroke();
+    }
+    // eye
+    x.shadowColor = '#baffff'; x.shadowBlur = 18;
+    x.fillStyle = 'rgba(240,255,255,.98)'; x.beginPath(); x.arc(255, 238, 14, 0, TAU); x.fill();
+    x.fillStyle = 'rgba(7,35,70,.98)'; x.beginPath(); x.arc(258, 239, 7, 0, TAU); x.fill();
+    // blowhole spark
+    x.fillStyle = 'rgba(190,255,255,.8)'; x.beginPath(); x.arc(300, 186, 5, 0, TAU); x.fill();
+    // low-alpha DeepSeek easter egg
+    x.shadowBlur = 8; x.globalAlpha = 0.42;
+    x.fillStyle = 'rgba(190,250,255,.8)'; x.font = '400 15px "Cascadia Mono", Consolas, monospace'; x.textAlign = 'left';
+    x.fillText('DEEPSEEK // DEEP SEA SIGNAL', 34, 486);
+    x.globalAlpha = 1;
+    // scan lines clipped to whale
+    x.globalCompositeOperation = 'source-atop';
+    for (let y = 18; y < H; y += 8) {
+      x.fillStyle = 'rgba(3,10,25,' + (0.07 + Math.random() * 0.12) + ')';
+      x.fillRect(0, y, W, 2);
+    }
+    x.globalCompositeOperation = 'source-over';
+    x.restore();
+    return c;
+  };
+
   T.canvasToTexture = function (canvas, srgb) {
     const t = new THREE.CanvasTexture(canvas);
     if (srgb !== false) t.colorSpace = THREE.SRGBColorSpace;

@@ -924,6 +924,7 @@
     koiSprite.scale.set(6.0, 3.0, 1);
     orbit.add(koiSprite);
     this.koiSprite = koiSprite;
+    koiSprite.visible = false;
     this.koi = koi;
     this.koiOrbit = orbit;
     this.scene.add(orbit);
@@ -957,6 +958,96 @@
     sparkGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     this.koiSparks = new THREE.Points(sparkGeo, new THREE.PointsMaterial({ size: 0.07, map: this._glowTex, vertexColors: true, transparent: true, opacity: 0.42, depthWrite: false, blending: THREE.AdditiveBlending }));
     this.scene.add(this.koiSparks);
+    this.koiSparks.visible = false;
+    koi.visible = false;
+    this.buildWhaleProjection();
+  };
+
+  World.prototype.buildWhaleProjection = function () {
+    const tex = ND.Tex.canvasToTexture(ND.Tex.holoWhale(), true);
+    const mat = new THREE.SpriteMaterial({
+      map: tex, color: 0xffffff, transparent: true, opacity: 1.0,
+      blending: THREE.NormalBlending, depthWrite: false, depthTest: true, toneMapped: false
+    });
+    this.whaleMat = mat;
+    const group = new THREE.Group();
+    group.position.set(0, 0, -61.5);
+    const backGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: this._glowTex, color: 0x02050c, transparent: true, opacity: 0.30,
+      blending: THREE.NormalBlending, depthWrite: false, depthTest: true
+    }));
+    backGlow.position.set(0, 16.0, -0.7);
+    backGlow.scale.set(24.0, 13.0, 1);
+    backGlow.renderOrder = 2;
+    group.add(backGlow);
+    this.whaleBack = backGlow;
+    const plane = new THREE.Sprite(mat);
+    plane.position.set(0, 16.0, 0);
+    plane.scale.set(20.0, 10.0, 1);
+    plane.renderOrder = 4;
+    group.add(plane);
+    this.whalePlane = plane;
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: this._glowTex, color: 0x45dfff, transparent: true, opacity: 0.07, blending: THREE.AdditiveBlending, depthWrite: false }));
+    halo.position.set(0, 16.0, 1.0);
+    halo.scale.set(28.0, 15.0, 1);
+    group.add(halo);
+    this.whaleHalo = halo;
+
+    const ringMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x45dcff).multiplyScalar(1.3), transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(8.25, 0.045, 4, 96), ringMat);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.35;
+    group.add(ring);
+    this.whaleRing = ring;
+    this.whaleRingMat = ringMat;
+
+    // four corner emitters make the flat projection read as a ground installation
+    const emitterMat = new THREE.MeshStandardMaterial({ color: 0x10151d, roughness: 0.32, metalness: 0.8 });
+    const lensMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x59e8ff).multiplyScalar(2.4), toneMapped: false });
+    const beamMat = new THREE.MeshBasicMaterial({ color: 0x42dfff, transparent: true, opacity: 0.035, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+    const emitters = [];
+    for (const ex of [-7.7, 7.7]) {
+      for (const ez of [-4.0, 4.0]) {
+        const e = new THREE.Group();
+        e.position.set(ex, 0.36, ez);
+        const base = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.18, 0.32), emitterMat);
+        e.add(base);
+        const lens = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), lensMat);
+        lens.position.y = 0.16; e.add(lens);
+        const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.1, 7, 1, true), beamMat);
+        beam.position.y = 0.62; e.add(beam);
+        group.add(e);
+        emitters.push(e);
+      }
+    }
+    this.whaleEmitters = emitters;
+    // a faint cone volume tying the emitters to the projection surface
+    const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 8.2, 17.2, 32, 1, true), beamMat);
+    cone.position.y = 8.95;
+    group.add(cone);
+    this.whaleCone = cone;
+
+    const count = 110;
+    const geo = new THREE.BufferGeometry();
+    const positions = new Float32Array(count * 3);
+    const colors = new Float32Array(count * 3);
+    const rnd = ND.util.mulberry32(76191);
+    for (let i = 0; i < count; i++) {
+      const a = rnd() * TAU;
+      const r = 2.0 + rnd() * 6.2;
+      positions[i * 3] = Math.cos(a) * r;
+      positions[i * 3 + 1] = 10.5 + rnd() * 9.5;
+      positions[i * 3 + 2] = Math.sin(a) * r * 0.46;
+      const c = rnd() > 0.35 ? [0.25, 0.9, 1.0] : [1.0, 0.25, 0.65];
+      colors[i * 3] = c[0]; colors[i * 3 + 1] = c[1]; colors[i * 3 + 2] = c[2];
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    const spark = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.065, map: this._glowTex, vertexColors: true, transparent: true, opacity: 0.38, depthWrite: false, blending: THREE.AdditiveBlending }));
+    group.add(spark);
+    this.whaleSparks = spark;
+    this.whaleGroup = group;
+    this.scene.add(group);
   };
 
   World.prototype.updateActors = function (dt, time) {
@@ -1000,6 +1091,22 @@
       f.rotation.z = Math.sin(time * 0.4 + u.bobbing) * 0.035;
       f.rotation.y = u.dir > 0 ? 0 : Math.PI;
     }
+    // ground-projected whale
+    if (this.whaleMat) {
+      this.whaleMat.opacity = 0.96 + 0.02 * Math.sin(time * 1.8);
+      if (this.whaleHalo) this.whaleHalo.material.opacity = 0.055 + 0.025 * Math.sin(time * 1.4);
+      this.whaleRingMat.opacity = 0.34 + 0.16 * Math.sin(time * 1.4);
+      this.whaleRing.scale.setScalar(1.0 + 0.006 * Math.sin(time * 2.1));
+      this.whaleCone.material.opacity = 0.018 + 0.010 * Math.sin(time * 1.2);
+      for (let i = 0; i < this.whaleEmitters.length; i++) {
+        const e = this.whaleEmitters[i];
+        const pulse = 0.74 + 0.26 * Math.sin(time * 2.4 + i * 1.7);
+        e.children[1].scale.setScalar(pulse);
+      }
+      this.whaleSparks.rotation.y = time * 0.04;
+      this.whaleSparks.position.y = 0.08 * Math.sin(time * 0.7);
+    }
+
     // koi
     if (this.koiOrbit) {
       this.koiOrbit.rotation.y = time * 0.19;
