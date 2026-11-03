@@ -148,7 +148,8 @@
         sceneScale: this.quality.sceneScale,
         reflectionScale: this.quality.reflectionScale,
         exposure: 1.38,
-        bloomStrength: 1.12
+        bloomStrength: 1.12,
+        ssr: this.qualityKey !== 'low'
       });
       this.applySizes();
       this.bootStep('SEEDING RAIN // 落雨', 74);
@@ -365,6 +366,7 @@
       if (this.post) {
         this.post.opts.sceneScale = this.quality.sceneScale;
         this.post.opts.msaa = this.quality.msaa;
+        this.post.opts.ssr = this.qualityKey !== 'low';
         this.post.width = 0;
       }
       this.applySizes();

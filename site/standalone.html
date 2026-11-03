@@ -1380,7 +1380,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         reflectionScale: 0.5,
         sceneScale: 1.0,
         exposure: 1.02,
-        bloomStrength: 0.98
+        bloomStrength: 0.98,
+        ssr: true
       }, opts || {});
       this.quad = makeQuad(renderer);
       this.width = 1; this.height = 1; this.pixelRatio = 1;
@@ -1390,7 +1391,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.bloomB = [];
       this.streakRT = null;
       this.compositeRT = null;
-      this.taaA = null; this.taaB = null; this.taaRead = null; this.taaWrite = null;
+      this.taaA = null; this.taaB = null; this.taaRead = null; this.taaWrite = null; this.ssrRT = null;
+      this.ssrRT = null;
+      this._camPos = new THREE.Vector3();
       this.prevViewProj = new THREE.Matrix4();
       this.taaReset = true;
       this.taaFrame = 0;
@@ -1762,6 +1765,71 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       `,
       depthTest: false, depthWrite: false
     });
+
+    this.ssrMat = new THREE.ShaderMaterial({
+      uniforms: {
+        tScene: { value: null },
+        tDepth: { value: null },
+        uProj: { value: new THREE.Matrix4() },
+        uInvProj: { value: new THREE.Matrix4() },
+        uView: { value: new THREE.Matrix4() },
+        uCameraWorld: { value: new THREE.Matrix4() },
+        uCameraPos: { value: new THREE.Vector3() },
+        uNear: { value: 0.1 },
+        uFar: { value: 260 },
+        uStrength: { value: 0.72 }
+      },
+      vertexShader: VS,
+      fragmentShader: `
+        uniform sampler2D tScene, tDepth;
+        uniform mat4 uProj, uInvProj, uView, uCameraWorld;
+        uniform vec3 uCameraPos;
+        uniform float uNear, uFar, uStrength;
+        varying vec2 vUv;
+        float linearDepth(float d) {
+          float z = d * 2.0 - 1.0;
+          return (2.0 * uNear * uFar) / (uFar + uNear - z * (uFar - uNear));
+        }
+        void main() {
+          vec3 base = texture2D(tScene, vUv).rgb;
+          float d = texture2D(tDepth, vUv).x;
+          if (d >= 0.999) { gl_FragColor = vec4(base, 1.0); return; }
+          vec4 clip = vec4(vUv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
+          vec4 vp = uInvProj * clip;
+          vp /= vp.w;
+          vec3 wpos = (uCameraWorld * vec4(vp.xyz, 1.0)).xyz;
+          vec3 n = normalize(cross(dFdx(wpos), dFdy(wpos)));
+          if (dot(n, uCameraPos - wpos) < 0.0) n = -n;
+          float vertical = 1.0 - smoothstep(0.28, 0.62, abs(n.y));
+          if (vertical < 0.01) { gl_FragColor = vec4(base, 1.0); return; }
+          vec3 V = normalize(wpos - uCameraPos);
+          vec3 R = reflect(V, n);
+          float fres = pow(1.0 - max(dot(-V, n), 0.0), 3.0);
+          vec3 reflected = vec3(0.0);
+          float hit = 0.0;
+          for (int i = 1; i <= 18; i++) {
+            float dist = float(i) * 0.42;
+            vec3 rp = wpos + n * 0.06 + R * dist;
+            vec4 cp = uProj * uView * vec4(rp, 1.0);
+            if (cp.w <= 0.0) break;
+            vec2 uv = cp.xy / cp.w * 0.5 + 0.5;
+            if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) break;
+            float sd = texture2D(tDepth, uv).x;
+            if (sd >= 0.999) continue;
+            float sceneZ = linearDepth(sd);
+            float rayZ = -(uView * vec4(rp, 1.0)).z;
+            if (rayZ > sceneZ && rayZ - sceneZ < 1.4) {
+              reflected = texture2D(tScene, uv).rgb;
+              hit = 1.0;
+              break;
+            }
+          }
+          base += reflected * hit * vertical * (0.25 + fres * 0.75) * uStrength * 0.32;
+          gl_FragColor = vec4(base, 1.0);
+        }
+      `,
+      depthTest: false, depthWrite: false
+    });
     }
 
     setSize(w, h, pixelRatio) {
@@ -1787,6 +1855,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.taaB = this.createRT(sw, sh);
       this.taaRead = this.taaA;
       this.taaWrite = this.taaB;
+      this.ssrRT = this.createRT(Math.max(1, Math.floor(sw * 0.5)), Math.max(1, Math.floor(sh * 0.5)));
       this.taaMat.uniforms.uResolution.value.set(sw, sh);
       this.taaReset = true;
       let lw = Math.max(1, Math.floor(sw * 0.5));
@@ -1813,6 +1882,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       if (this.sceneDepth) this.sceneDepth.dispose();
       if (this.taaA) this.taaA.dispose();
       if (this.taaB) this.taaB.dispose();
+      if (this.ssrRT) this.ssrRT.dispose();
       this.sceneDepth = null;
       this.taaA = null; this.taaB = null; this.taaRead = null; this.taaWrite = null;
       this.bloomA = []; this.bloomB = [];
@@ -1865,7 +1935,24 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         this.taaReset = false;
       }
       this.prevViewProj.copy(viewProj);
-      const sceneTex = taa ? this.taaRead.texture : this.sceneRT.texture;
+      let sceneTex = taa ? this.taaRead.texture : this.sceneRT.texture;
+
+      // 2c. screen-space reflections for vertical wet walls
+      if (this.opts.ssr !== false && this.ssrRT) {
+        const S = this.ssrMat.uniforms;
+        S.tScene.value = sceneTex;
+        S.tDepth.value = this.sceneDepth;
+        S.uProj.value.copy(camera.projectionMatrix);
+        S.uInvProj.value.copy(camera.projectionMatrixInverse);
+        S.uView.value.copy(camera.matrixWorldInverse);
+        S.uCameraWorld.value.copy(camera.matrixWorld);
+        camera.getWorldPosition(this._camPos);
+        S.uCameraPos.value.copy(this._camPos);
+        S.uNear.value = camera.near;
+        S.uFar.value = camera.far;
+        this.quad.draw(this.ssrMat, this.ssrRT);
+        sceneTex = this.ssrRT.texture;
+      }
 
       // 3. bright pass -> bloom mip 0
       this.brightMat.uniforms.tDiffuse.value = sceneTex;
@@ -5514,7 +5601,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         sceneScale: this.quality.sceneScale,
         reflectionScale: this.quality.reflectionScale,
         exposure: 1.38,
-        bloomStrength: 1.12
+        bloomStrength: 1.12,
+        ssr: this.qualityKey !== 'low'
       });
       this.applySizes();
       this.bootStep('SEEDING RAIN // 落雨', 74);
@@ -5731,6 +5819,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       if (this.post) {
         this.post.opts.sceneScale = this.quality.sceneScale;
         this.post.opts.msaa = this.quality.msaa;
+        this.post.opts.ssr = this.qualityKey !== 'low';
         this.post.width = 0;
       }
       this.applySizes();
