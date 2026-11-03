@@ -287,7 +287,7 @@
       else if (this.benchMode && this.state !== 'shot') this.startBenchmark();
       else if (this.params.get('photo') === '1' && this.state !== 'shot') this.enterPhoto();
       if (this.params.get('lightning') === '1') this.world.nextLightning = 0.01;
-      if (this.params.get('capture') === '4k') {
+      if (this.params.get('capture') === '4k' || this.params.get('capture') === '1') {
         this.resolutionMode = '4k';
         this.applySizes();
         this.updateResolutionLabel();
