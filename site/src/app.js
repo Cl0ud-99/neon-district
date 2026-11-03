@@ -539,6 +539,12 @@
             nz = this.player.pos.z;
           }
         }
+        if (this.world && this.world.resolveCollision) {
+          const solved = this.world.resolveCollision(nx, nz, 0.36);
+          nx = solved.x; nz = solved.z;
+          nx = Math.max(-11.8, Math.min(11.8, nx));
+          nz = Math.max(-78.5, Math.min(188, nz));
+        }
         this.player.pos.x = nx; this.player.pos.z = nz;
         this.player.walkTime += dt * (speed > 4 ? 1.35 : 1.0);
         this.player.bob = Math.sin(this.player.walkTime * 11.0) * (speed > 4 ? 0.055 : 0.035);

@@ -450,6 +450,7 @@
       this.roofTanks = [];
       this.reflectionHidden = [];
       this.dynamicGlow = [];
+      this.colliders = [];
       this.groundLights = [
         { p: new V3(-10.7, 8.2, 15.0), c: new THREE.Color(0xff2d8f).multiplyScalar(2.0) },
         { p: new V3(10.8, 11.0, 1.5), c: new THREE.Color(0x23d7ff).multiplyScalar(1.8) },
@@ -610,6 +611,43 @@
         this.scene.add(l);
         this.pointLights.push(l);
       }
+    }
+
+    addCollider(c) {
+      this.colliders.push(c);
+      return c;
+    }
+
+    resolveCollision(px, pz, radius) {
+      let x = px, z = pz;
+      for (let pass = 0; pass < 2; pass++) {
+        for (const c of this.colliders) {
+          const ox = c.obj ? c.obj.position.x : c.x;
+          const oz = c.obj ? c.obj.position.z : c.z;
+          if (c.obj && c.obj.visible === false) continue;
+          if (c.type === 'circle') {
+            const dx = x - ox, dz = z - oz;
+            const rr = radius + (c.r || 0.3);
+            const d2 = dx * dx + dz * dz;
+            if (d2 < rr * rr) {
+              const d = Math.sqrt(d2) || 0.0001;
+              x = ox + (dx / d) * rr;
+              z = oz + (dz / d) * rr;
+            }
+          } else {
+            const hx = (c.hx || 0.2) + radius;
+            const hz = (c.hz || 0.2) + radius;
+            const dx = x - ox, dz = z - oz;
+            if (Math.abs(dx) < hx && Math.abs(dz) < hz) {
+              const pxOut = hx - Math.abs(dx);
+              const pzOut = hz - Math.abs(dz);
+              if (pxOut < pzOut) x = ox + Math.sign(dx || 1) * hx;
+              else z = oz + Math.sign(dz || 1) * hz;
+            }
+          }
+        }
+      }
+      return { x, z };
     }
 
     applyStaticShadows() {

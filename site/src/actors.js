@@ -514,6 +514,7 @@
     group.add(umbrella);
 
     this.addContactShadow(group, 1.15, 0.72, 0.5, 0.008);
+    this.addCollider({ type: 'circle', obj: group, r: 0.34 });
     group.userData = { style, legs, knees, arms, hem, tail, tailBase, umbrella, phase: rnd() * TAU, speed: 0.45 + rnd() * 0.6, dir: rnd() > 0.5 ? 1 : -1 };
     return group;
   };

@@ -73,6 +73,7 @@
       halo.scale.set(5.5, 2.6, 1);
       grp.add(halo);
       g.add(grp);
+      this.addCollider({ type: 'circle', x, z, r: 0.2 });
     }
 
     // long black cables sagging across the canyon
@@ -162,6 +163,7 @@
       glow.position.set(x - Math.sign(x) * 0.55, 1.2, z);
       glow.scale.set(3.8, 3.1, 1);
       g.add(glow);
+      this.addCollider({ type: 'box', x, z, hx: 0.68, hz: 0.45 });
     }
 
     // stacked crates, bins and gas canisters
@@ -174,11 +176,14 @@
       const x = side * (10.2 + rnd() * 3.1);
       const z = -75 + rnd() * 260;
       const s = 0.3 + rnd() * 0.75;
+      const sy = s * (0.5 + rnd());
+      const sz = s * (0.6 + rnd() * 0.9);
       dummy.position.set(x, s * 0.5 + (rnd() > 0.75 ? s : 0), z);
       dummy.rotation.set(0, rnd() * TAU, 0);
-      dummy.scale.set(s, s * (0.5 + rnd()), s * (0.6 + rnd() * 0.9));
+      dummy.scale.set(s, sy, sz);
       dummy.updateMatrix();
       crates.setMatrixAt(i, dummy.matrix);
+      this.addCollider({ type: 'box', x, z, hx: s * 0.5, hz: sz * 0.5 });
     }
     crates.instanceMatrix.needsUpdate = true;
     g.add(crates);
@@ -199,6 +204,7 @@
     stall.add(stallLight);
     this.stall = stall;
     g.add(stall);
+    this.addCollider({ type: 'box', x: -11.1, z: 18.0, hx: 1.9, hz: 2.2 });
     const stallShadow = this.addContactShadow(g, 4.6, 3.6, 0.38, 0.012);
     stallShadow.position.x = -11.1;
     stallShadow.position.z = 18.0;
@@ -444,6 +450,7 @@
       awning.position.set(-11.7, 2.3, sz); awning.rotation.z = 0.12; stall.add(awning);
       this._neonStrip(stall, -11.7, 2.28, sz, 0.05, 0.04, 2.1, i % 2 ? 0x53efff : 0xffb34d);
       g.add(stall);
+      this.addCollider({ type: 'box', x: -11.0, z: sz, hx: 1.0, hz: 1.25 });
       addGlow(-10.8, 1.8, sz, i % 2 ? 0x53efff : 0xffb34d, 3.5, 2.4, 0.12);
       const contact = this.addContactShadow(g, 3.4, 2.7, 0.3, 0.012);
       contact.position.set(-11.0, 0.012, sz);
@@ -484,6 +491,7 @@
     const mtrSign = new THREE.Mesh(new THREE.PlaneGeometry(4.5, 1.25), new THREE.MeshBasicMaterial({ map: mtrTex, toneMapped: false, color: new THREE.Color(1.5, 1.5, 1.5), side: THREE.DoubleSide }));
     mtrSign.position.set(-8.72, 3.9, mtrZ); mtrSign.rotation.y = Math.PI / 2; g.add(mtrSign);
     addGlow(-9.2, 2.4, mtrZ, 0x53efff, 7, 5, 0.15);
+    this.addCollider({ type: 'box', x: -11.35, z: mtrZ, hx: 2.2, hz: 3.0 });
 
     // ---- 5. service alley alcove at z=104 ------------------------------
     const alleyZ = 104;
@@ -519,12 +527,14 @@
       if (i % 3 === 0) {
         const bin = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.36, 0.9, 8), binMat);
         bin.position.set(x, 0.62, z); bin.rotation.z = (rnd() - 0.5) * 0.15; g.add(bin);
+        this.addCollider({ type: 'circle', x, z, r: 0.42 });
       } else {
         for (let k = 0; k < 3; k++) {
           const bag = new THREE.Mesh(new THREE.SphereGeometry(0.22 + rnd() * 0.12, 7, 5), bagMat);
           bag.scale.y = 0.8; bag.position.set(x + (rnd() - 0.5) * 0.8, 0.2, z + (rnd() - 0.5) * 1.2); g.add(bag);
         }
       }
+      this.addCollider({ type: 'circle', x, z, r: 0.55 });
       const contact = this.addContactShadow(g, 1.7, 1.7, 0.25, 0.012);
       contact.position.set(x, 0.012, z);
     }
@@ -535,6 +545,7 @@
       pallet.position.set(x, 0.2, z); pallet.rotation.y = rnd() * 0.4; g.add(pallet);
       const crate = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.55, 0.65), new THREE.MeshStandardMaterial({ color: 0x1b2220, roughness: 0.78, metalness: 0.18 }));
       crate.position.set(x + 0.15, 0.48, z); crate.rotation.y = rnd() * 0.5; g.add(crate);
+      this.addCollider({ type: 'box', x, z, hx: 0.72, hz: 0.55 });
     }
   };
 
@@ -578,6 +589,7 @@
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.1, 4), this.metalMat);
     pole.position.set(-0.2, 0.3, 0.34); pole.rotation.z = 0.15; root.add(pole);
     this.addContactShadow(root, 2.2, 1.2, 0.5, 0.02);
+    this.addCollider({ type: 'box', x: 8.6, z: -17.5, hx: 1.1, hz: 1.2 });
     g.add(root);
     this.hoverbike = root;
   };
@@ -783,6 +795,7 @@
       under.rotation.x = -Math.PI / 2; under.position.y = 0.025; root.add(under);
       const shadow = this.addContactShadow(g, 2.4, 1.25, 0.45, Math.abs(x) > 9.5 ? 0.182 : 0.022);
       shadow.position.set(x, Math.abs(x) > 9.5 ? 0.182 : 0.022, z);
+      this.addCollider({ type: 'box', x, z, hx: 0.55, hz: 1.0 });
       return root;
     };
 
@@ -844,6 +857,7 @@
       under.rotation.x = -Math.PI / 2; under.position.y = 0.025; root.add(under);
       const shadow = this.addContactShadow(g, w * 1.45, l * 0.9, 0.45, Math.abs(x) > 9.5 ? 0.182 : 0.022);
       shadow.position.set(x, Math.abs(x) > 9.5 ? 0.182 : 0.022, z);
+      this.addCollider({ type: 'box', x, z, hx: w / 2 + 0.05, hz: l / 2 + 0.05 });
       return root;
     };
 
