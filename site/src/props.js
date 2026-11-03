@@ -932,6 +932,7 @@
           glow.position.set(side * 12.8, 0.11 + sh * 0.55, z - width / 2);
           glow.scale.set(3.4, 2.6, 1);
           g.add(glow);
+          this.addNeonSpill('ground', side * 10.5, 0.035, z - width / 2, width * 1.25, 3.4, new THREE.Color(col), 0.32);
           const contact = this.addContactShadow(g, 3.0, 1.1, 0.22, 0.012);
           contact.position.x = side * 12.8;
           contact.position.z = z - width / 2;
@@ -1003,6 +1004,10 @@
       glow.position.set(side * 11.8, y, z + 0.4);
       glow.scale.set(w * 3.8, h * 1.5, 1);
       g.add(glow);
+      const spillColor = new THREE.Color(color);
+      this.addNeonSpill('wall', side * 13.70, y, z, w * 1.5, h * 1.05, spillColor, 0.56);
+      this.addNeonSpill('ground', side * 9.4, 0.04, z, w * 1.8, 4.6, spillColor, 0.42);
+      this.addNeonSpill('wall', -side * 13.70, y + 0.3, z, w * 1.2, h * 1.8, spillColor, 0.14);
     }
     // second tier of large hanging banners, above the shopline
     const highDefs = [
@@ -1027,6 +1032,9 @@
       glow.position.set(d.side * 12.4, d.y, d.z + 0.3);
       glow.scale.set(d.w * 4.0, d.h * 1.3, 1);
       g.add(glow);
+      const highColor = new THREE.Color(d.color);
+      this.addNeonSpill('wall', d.side * 13.70, d.y, d.z, d.w * 1.25, d.h * 0.6, highColor, 0.42);
+      this.addNeonSpill('ground', d.side * 9.4, 0.04, d.z, d.w * 1.5, 5.2, highColor, 0.32);
     }
 
     // overhead gantry text spanning the street

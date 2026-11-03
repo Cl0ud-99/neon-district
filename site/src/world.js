@@ -454,6 +454,7 @@
       this.facadeSillMatrices = [];
       this.facadeMullionMatrices = [];
       this.neonBatches = { magenta: [], cyan: [], amber: [], violet: [] };
+      this.neonSpills = [];
       this.roofTanks = [];
       this.reflectionHidden = [];
       this.dynamicGlow = [];
@@ -480,6 +481,7 @@
       this.buildGround();
       this.buildWater();
       this.buildStreetDetails();
+      this.buildNeonSpills();
       this.applyStaticShadows();
       this.buildAtmosphere();
       this.buildAirDust();
@@ -683,7 +685,10 @@
         { pos: [0, 6, 27], color: 0xffb15b, intensity: 90, distance: 28 },
         { pos: [-10.0, 4.2, 122.0], color: 0xff9a4d, intensity: 100, distance: 24 },
         { pos: [11.2, 8.0, 152.0], color: 0xff2d8e, intensity: 130, distance: 28 },
-        { pos: [0.0, 10.0, 178.0], color: 0x5ff4ff, intensity: 140, distance: 30 }
+        { pos: [-11.5, 8.0, 14.0], color: 0xff2d8f, intensity: 50, distance: 10 },
+        { pos: [11.5, 8.0, -2.0], color: 0x2adfff, intensity: 50, distance: 10 },
+        { pos: [-11.5, 6.8, -22.0], color: 0xffb15b, intensity: 42, distance: 9 },
+        { pos: [11.5, 7.2, -38.0], color: 0x8a5bff, intensity: 42, distance: 9 }
       ];
       this.pointLights = [];
       for (const p of points) {
@@ -692,6 +697,55 @@
         this.scene.add(l);
         this.pointLights.push(l);
       }
+    }
+
+    addNeonSpill(kind, x, y, z, width, height, color, intensity) {
+      const c = (color && color.isColor ? color.clone() : new THREE.Color(color || 0xffffff)).multiplyScalar(intensity || 0.3);
+      const px = kind === 'wall' ? x : x - width / 2;
+      const pz = kind === 'wall' ? z - width / 2 : z - height / 2;
+      if (kind === 'wall') {
+        this.neonSpills.push({
+          x: [x, x, x, x], y: [y - height / 2, y - height / 2, y + height / 2, y + height / 2],
+          z: [z - width / 2, z + width / 2, z + width / 2, z - width / 2], c
+        });
+      } else {
+        this.neonSpills.push({
+          x: [x - width / 2, x + width / 2, x + width / 2, x - width / 2],
+          y: [y, y, y, y],
+          z: [z - height / 2, z - height / 2, z + height / 2, z + height / 2], c
+        });
+      }
+    }
+
+    buildNeonSpills() {
+      if (!this.neonSpills.length) return;
+      const pos = [], uvs = [], cols = [], idx = [];
+      let vi = 0;
+      for (const s of this.neonSpills) {
+        for (let i = 0; i < 4; i++) {
+          pos.push(s.x[i], s.y[i], s.z[i]);
+          uvs.push(i === 0 || i === 3 ? 0 : 1, i < 2 ? 0 : 1);
+          cols.push(s.c.r, s.c.g, s.c.b);
+        }
+        idx.push(vi, vi + 1, vi + 2, vi, vi + 2, vi + 3);
+        vi += 4;
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+      geo.setIndex(idx);
+      const tex = ND.Tex.canvasToTexture(ND.Tex.glow(128), true);
+      const mat = new THREE.MeshBasicMaterial({
+        map: tex, vertexColors: true, transparent: true, opacity: 1,
+        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+        toneMapped: false
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.frustumCulled = false;
+      mesh.renderOrder = 4;
+      this.scene.add(mesh);
+      this.neonSpillMesh = mesh;
     }
 
     addCollider(c) {
@@ -1317,6 +1371,9 @@
       grp.position.set(side * 13.05, y, z);
       grp.rotation.y = -side * (Math.PI / 2 - 0.38);
       this.scene.add(grp);
+      const billboardColor = new THREE.Color(kind === 'axiom' || kind === 'void' ? 0x38e6ff : 0xff3b9d);
+      this.addNeonSpill('ground', side * 8.8, 0.04, z, w * 1.35, 8.5, billboardColor, 0.66);
+      this.addNeonSpill('wall', -side * 13.70, y * 0.82, z, w * 0.82, h * 0.5, billboardColor, 0.20);
 
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
       mesh.position.z = 0.05;
@@ -1419,6 +1476,9 @@
         glow.position.set(d.side * 13.25, d.y, d.z);
         glow.scale.set(d.w * 1.4, d.w * 0.42, 1);
         this.scene.add(glow);
+        const bannerColor = new THREE.Color(d.a);
+        this.addNeonSpill('wall', d.side * 13.70, d.y, d.z, d.w * 1.2, 3.4, bannerColor, 0.52);
+        this.addNeonSpill('ground', d.side * 9.3, 0.04, d.z, d.w * 1.35, 4.6, bannerColor, 0.42);
       }
     }
 
