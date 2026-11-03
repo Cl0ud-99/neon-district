@@ -4,7 +4,7 @@
 
 **DSH-PTC**
 
-**1 scene · 100% procedural · 0 assets · single-file build 0.88 MB**
+**1 scene · 100% procedural · 0 assets · single-file build 0.89 MB**
 
 [**Live preview**](https://cl0ud-99.github.io/neon-district/) — runs in the browser, nothing to install.
 
@@ -71,7 +71,7 @@ Details worth reading:
 - **Hero windows have interior parallax.** The close-up window bays use a small view-dependent UV offset against a drawn interior, so the room behind the glass shifts against the frame as the camera moves.
 - **TAA + FXAA + super-sampling.** The HDR frame is rendered with a Halton sub-pixel jitter, then resolved against the previous frame using depth reprojection and a neighbourhood clamp. FXAA cleans the final LDR image. Multisampled float targets caused a driver artifact on one test GPU, so this path is cheaper and keeps thin neon lines stable while reducing shimmer in motion.
 - **Adaptive quality.** If the measured frame rate drops below the threshold for six seconds during play/cinematic mode, the app steps down one quality tier automatically. The HUD’s quality control can override it at any time.
-- **Two-layer rain.** The far rain is 9–10k GPU line segments; a camera-following foreground layer of soft point-sprite streaks makes individual drops readable in motion instead of disappearing into 1px lines. The wet ground adds its own ripple rings under the rain.
+- **Two-layer rain.** The far rain is 9–10k GPU line segments; a camera-following foreground layer of soft point-sprite streaks makes individual drops readable in motion instead of disappearing into 1px lines. The wet ground adds instanced splash rings, while soft motes under the main neon lights form a local rain veil.
 - **Five independent bloom mips.** A soft-threshold prefilter at half resolution feeds a Gaussian chain; all mips plus a horizontal anamorphic streak are composited before tonemapping.
 - **Every procedural texture is drawn in 2D at boot.** No `.png`, `.jpg`, `.glb` or audio file is loaded. The repository contains only code and documentation images.
 - **Screens use a shader, not a video.** Slow scanlines, RGB split, flicker and occasional UV glitches are applied in GLSL to canvas-generated billboard artwork.
@@ -98,7 +98,7 @@ npm run dev
 # open http://127.0.0.1:5273/
 ```
 
-Or simply double-click `site/standalone.html` — it is a fully inlined 0.88 MB single file.
+Or simply double-click `site/standalone.html` — it is a fully inlined 0.89 MB single file.
 
 Rebuild the single-file version after editing `site/src/`:
 

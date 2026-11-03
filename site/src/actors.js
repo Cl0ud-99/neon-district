@@ -149,6 +149,148 @@
     this.rainNear.layers.set(1);
     this.rainNear.renderOrder = 21;
     this.scene.add(this.rainNear);
+
+    // Ground splash rings: instanced quads in the XZ plane. Each instance has
+    // its own phase, so the street reads as a field of separate impacts.
+    const splashCount = Math.max(90, Math.floor(count * 0.028));
+    const qverts = [-1,0,-1, 1,0,-1, 1,0,1, -1,0,-1, 1,0,1, -1,0,1];
+    const quvs = [0,0, 1,0, 1,1, 0,0, 1,1, 0,1];
+    const sgeo = new THREE.InstancedBufferGeometry();
+    sgeo.setAttribute('position', new THREE.Float32BufferAttribute(qverts, 3));
+    sgeo.setAttribute('uv', new THREE.Float32BufferAttribute(quvs, 2));
+    const scenter = new Float32Array(splashCount * 3);
+    const sphase = new Float32Array(splashCount);
+    const sspeed = new Float32Array(splashCount);
+    const ssize = new Float32Array(splashCount);
+    const srnd = ND.util.mulberry32(55191);
+    for (let i = 0; i < splashCount; i++) {
+      scenter[i * 3] = (srnd() - 0.5) * 34;
+      scenter[i * 3 + 1] = 0;
+      scenter[i * 3 + 2] = (srnd() - 0.5) * 28;
+      sphase[i] = srnd();
+      sspeed[i] = 0.55 + srnd() * 0.9;
+      ssize[i] = 0.24 + srnd() * 0.48;
+    }
+    sgeo.setAttribute('aCenter', new THREE.InstancedBufferAttribute(scenter, 3));
+    sgeo.setAttribute('aPhase', new THREE.InstancedBufferAttribute(sphase, 1));
+    sgeo.setAttribute('aSpeed', new THREE.InstancedBufferAttribute(sspeed, 1));
+    sgeo.setAttribute('aSize', new THREE.InstancedBufferAttribute(ssize, 1));
+    sgeo.instanceCount = splashCount;
+    const splashMat = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uColor: { value: new THREE.Color(0.45, 0.78, 1.0) },
+        uOpacity: { value: 0.42 }
+      },
+      vertexShader: `
+        uniform float uTime;
+        attribute vec3 aCenter;
+        attribute float aPhase, aSpeed, aSize;
+        varying vec2 vUv;
+        varying float vAlpha;
+        void main() {
+          float life = fract(uTime * aSpeed + aPhase);
+          float scale = mix(0.035, aSize, life);
+          vec3 p = position;
+          p.xz *= scale;
+          vec4 world = modelMatrix * vec4(vec3(aCenter.x, 0.19, aCenter.z) + p, 1.0);
+          vUv = uv;
+          vAlpha = sin(life * 3.14159265) * (1.0 - 0.45 * life);
+          gl_Position = projectionMatrix * viewMatrix * world;
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 uColor;
+        uniform float uOpacity;
+        varying vec2 vUv;
+        varying float vAlpha;
+        void main() {
+          vec2 q = vUv * 2.0 - 1.0;
+          float r = length(q);
+          float ring = smoothstep(0.56, 0.72, r) * (1.0 - smoothstep(0.85, 0.98, r));
+          float core = (1.0 - smoothstep(0.0, 0.16, r)) * 0.35;
+          float a = (ring * 0.72 + core) * vAlpha * uOpacity;
+          if (a < 0.002) discard;
+          gl_FragColor = vec4(mix(uColor, vec3(0.92, 0.98, 1.0), core), a);
+        }
+      `,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide
+    });
+    this.rainSplashMat = splashMat;
+    this.rainSplash = new THREE.Mesh(sgeo, splashMat);
+    this.rainSplash.frustumCulled = false;
+    this.rainSplash.layers.set(1);
+    this.rainSplash.renderOrder = 22;
+    this.scene.add(this.rainSplash);
+
+    // Soft motes under the main neon/point lights: a local rain veil rather
+    // than a uniform fog layer. The glows bloom naturally with the signs.
+    const mistCount = Math.max(140, Math.floor(count * 0.045));
+    const mgeo = new THREE.BufferGeometry();
+    const mpos = new Float32Array(mistCount * 3);
+    const mpha = new Float32Array(mistCount);
+    const msiz = new Float32Array(mistCount);
+    const mrnd = ND.util.mulberry32(88117);
+    const lamps = [
+      [-11, 8, 16], [11, 12, 0], [0, 6, 27], [-11, 8, -35], [11, 9, -50]
+    ];
+    for (let i = 0; i < mistCount; i++) {
+      const l = lamps[i % lamps.length];
+      mpos[i * 3] = l[0] + (mrnd() - 0.5) * 4.5;
+      mpos[i * 3 + 1] = 1.2 + mrnd() * (l[1] - 1.2);
+      mpos[i * 3 + 2] = l[2] + (mrnd() - 0.5) * 5.0;
+      mpha[i] = mrnd();
+      msiz[i] = 0.35 + mrnd() * 0.9;
+    }
+    mgeo.setAttribute('position', new THREE.BufferAttribute(mpos, 3));
+    mgeo.setAttribute('aPhase', new THREE.BufferAttribute(mpha, 1));
+    mgeo.setAttribute('aSize', new THREE.BufferAttribute(msiz, 1));
+    const mistMat = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uMap: { value: ND.Tex.canvasToTexture(ND.Tex.glow(64), true) },
+        uColor: { value: new THREE.Color(0.42, 0.64, 0.95) },
+        uOpacity: { value: 0.13 }
+      },
+      vertexShader: `
+        uniform float uTime;
+        attribute float aPhase, aSize;
+        varying float vAlpha;
+        void main() {
+          vec3 p = position;
+          p.x += sin(uTime * 0.28 + aPhase * 6.28) * 0.35;
+          p.y += sin(uTime * 0.36 + aPhase * 4.0) * 0.22;
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          gl_PointSize = clamp(aSize * (90.0 / max(1.0, -mv.z)), 2.0, 42.0);
+          vAlpha = 0.32 + 0.68 * aPhase;
+          gl_Position = projectionMatrix * mv;
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D uMap;
+        uniform vec3 uColor;
+        uniform float uOpacity;
+        varying float vAlpha;
+        void main() {
+          vec4 t = texture2D(uMap, gl_PointCoord);
+          float a = t.a * uOpacity * vAlpha;
+          if (a < 0.002) discard;
+          gl_FragColor = vec4(uColor * (0.75 + 0.4 * t.r), a);
+        }
+      `,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
+    this.rainMistMat = mistMat;
+    this.rainMist = new THREE.Points(mgeo, mistMat);
+    this.rainMist.frustumCulled = false;
+    this.rainMist.layers.set(1);
+    this.rainMist.renderOrder = 19;
+    this.scene.add(this.rainMist);
   };
 
   /* ---------------------------------------------------------------------

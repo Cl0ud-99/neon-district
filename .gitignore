@@ -6,6 +6,7 @@ node_modules/
 .chrome*/
 .edge*/
 .devshot-*/
+.test-*/
 .capture-*/
 
 # build artifacts

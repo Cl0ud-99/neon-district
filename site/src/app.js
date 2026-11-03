@@ -550,6 +550,7 @@
       this.world.update(dt, this.time);
       if (this.world.rain) this.world.rain.position.set(this.camera.position.x, 0, this.camera.position.z);
       if (this.world.rainNear) this.world.rainNear.position.set(this.camera.position.x, 0, this.camera.position.z);
+      if (this.world.rainSplash) this.world.rainSplash.position.set(this.camera.position.x, 0, this.camera.position.z);
       if (this.state === 'menu') this.updateMenuCamera(dt, this.time);
       else if (this.state === 'cinematic') { this.updateCinematic(dt); if (this.stateTime > 46.2) { this.stateTime = 0; this.currentCaption = -1; } }
       else if (this.state === 'play') {

@@ -1292,6 +1292,8 @@
       if (this.waterMat) this.waterMat.uniforms.uTime.value = time;
       if (this.rainMat) this.rainMat.uniforms.uTime.value = time;
       if (this.rainNearMat) this.rainNearMat.uniforms.uTime.value = time;
+      if (this.rainSplashMat) this.rainSplashMat.uniforms.uTime.value = time;
+      if (this.rainMistMat) this.rainMistMat.uniforms.uTime.value = time;
       this.screens.forEach((s, i) => {
         s.mat.uniforms.uTime.value = time;
         const flicker = 0.94 + 0.06 * Math.sin(time * (1.7 + (i % 4) * 0.3) + s.phase);
