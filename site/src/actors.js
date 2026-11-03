@@ -782,41 +782,51 @@
       f.userData.z = -65 + i * 22;
       f.userData.speed = (f.userData.shipStyle === 'hauler' ? 2.8 : 4.5) + (i % 3) * 1.6;
       f.userData.dir = i % 2 ? 1 : -1;
-      if (i === 0) { f.userData.y = 8.8; f.userData.z = -28; f.userData.speed = 6.5; }
-      if (i === 1) { f.userData.y = 11.5; f.userData.z = -55; f.userData.speed = 5.0; }
-      if (i === 2) { f.userData.y = 14.0; f.userData.z = 8; f.userData.speed = 7.0; }
-      if (i === 3) { f.userData.y = 10.5; f.userData.z = 120; f.userData.speed = 4.2; }
-      if (i === 4) { f.userData.y = 12.0; f.userData.z = 142; f.userData.speed = 5.2; }
-      if (i === 5) { f.userData.y = 14.0; f.userData.z = 168; f.userData.speed = 3.4; }
-      if (i === 6) { f.userData.y = 8.5; f.userData.z = 86; f.userData.speed = 5.8; }
+      // Low patrol lanes stay inside the canyon opening. High lanes are above
+      // the tallest roofs and skyline, so ships never cut through buildings.
+      f.userData.maxX = 8.6;
+      if (i === 0) { f.userData.y = 22; f.userData.z = -28; f.userData.speed = 6.5; }
+      if (i === 1) { f.userData.y = 26; f.userData.z = -55; f.userData.speed = 5.0; }
+      if (i === 2) { f.userData.y = 30; f.userData.z = 8; f.userData.speed = 7.0; }
+      if (i === 3) { f.userData.y = 24; f.userData.z = 120; f.userData.speed = 4.2; }
+      if (i === 4) { f.userData.y = 28; f.userData.z = 142; f.userData.speed = 5.2; }
+      if (i === 5) { f.userData.y = 34; f.userData.z = 168; f.userData.speed = 3.4; }
+      if (i === 6) { f.userData.y = 20; f.userData.z = 86; f.userData.speed = 5.8; }
+      if (i === 7) { f.userData.y = 98; f.userData.z = 60; f.userData.speed = 5.5; f.userData.maxX = 82; }
+      if (i === 8) { f.userData.y = 108; f.userData.z = 92; f.userData.speed = 4.8; f.userData.maxX = 82; }
+      if (i === 9) { f.userData.y = 120; f.userData.z = 130; f.userData.speed = 4.2; f.userData.maxX = 82; }
+      if (i === 10) { f.userData.y = 135; f.userData.z = 170; f.userData.speed = 3.8; f.userData.maxX = 82; }
       this.flyers.push(f);
       this.scene.add(f);
     }
     // a slow heavy freighter crosses the rear skyline occasionally
     const freighter = this._makeFlyer(301, 'hauler');
     freighter.scale.multiplyScalar(1.8);
-    freighter.userData.y = 34;
+    freighter.userData.y = 120;
     freighter.userData.z = 206;
     freighter.userData.x = -55;
     freighter.userData.speed = 1.6;
+    freighter.userData.maxX = 82;
     freighter.userData.dir = 1;
     this.scene.add(freighter);
     this.flyers.push(freighter);
     // a low patrol drone hovers above the new market, clearly visible from street level
     const rearDrone = this._makeFlyer(402, 'drone');
     rearDrone.scale.multiplyScalar(1.35);
-    rearDrone.userData.y = 7.2;
+    rearDrone.userData.y = 12.0;
     rearDrone.userData.z = 112;
     rearDrone.userData.x = -1.0;
     rearDrone.userData.speed = 0.03;
+    rearDrone.userData.maxX = 6.0;
     rearDrone.userData.dir = 1;
     this.scene.add(rearDrone);
     this.flyers.push(rearDrone);
 
     // one sentinel patrol car hangs almost still above the crossing
     const sentinel = this._makeFlyer(99, 'shuttle');
-    sentinel.userData.y = 9.4;
+    sentinel.userData.y = 16;
     sentinel.userData.z = -34;
+    sentinel.userData.maxX = 6.0;
     sentinel.userData.x = 2.2;
     sentinel.userData.speed = 0.08;
     sentinel.userData.dir = 1;
@@ -1001,9 +1011,10 @@
     // traffic
     for (const f of this.flyers) {
       const u = f.userData;
+      const xLimit = u.maxX || 82;
       u.x += u.speed * u.dir * dt;
-      if (u.x > 82) u.x = -82;
-      if (u.x < -82) u.x = 82;
+      if (u.x > xLimit) u.x = -xLimit;
+      if (u.x < -xLimit) u.x = xLimit;
       f.position.set(u.x, u.y + Math.sin(time * 0.55 + u.bobbing) * 0.3, u.z);
       f.rotation.z = Math.sin(time * 0.4 + u.bobbing) * 0.035;
       f.rotation.y = u.dir > 0 ? 0 : Math.PI;
