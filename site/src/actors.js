@@ -117,20 +117,31 @@
         uHeight: { value: 26 },
         uMap: { value: rainDropTex },
         uColor: { value: new THREE.Color(0.56, 0.74, 0.97) },
+        uLightPos: { value: this.groundLights.map(l => l.p) },
+        uLightColor: { value: this.groundLights.map(l => l.c) },
         uOpacity: { value: 0.34 }
       },
       vertexShader: `
         uniform float uTime, uHeight;
+        uniform vec3 uLightPos[6], uLightColor[6];
         attribute vec3 aCenter;
         attribute float aSpeed, aPhase, aSize;
         varying vec2 vUv;
         varying float vAlpha;
+        varying vec3 vLight;
         void main() {
           vec3 p = aCenter;
           p.y = mod(p.y - uTime * aSpeed + aPhase * uHeight * 2.0, uHeight);
           p.x += sin(uTime * 0.23 + aPhase * 6.28) * 0.32;
           p.z += cos(uTime * 0.19 + aPhase * 5.13) * 0.26;
-          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          vec4 world = modelMatrix * vec4(p, 1.0);
+          vec3 lit = vec3(0.04);
+          for (int i = 0; i < 6; i++) {
+            vec3 d = uLightPos[i] - world.xyz;
+            lit += uLightColor[i] / (1.0 + dot(d, d) * 0.08);
+          }
+          vLight = lit;
+          vec4 mv = viewMatrix * world;
           float shear = position.y * 0.16;
           mv.xyz += vec3((position.x + shear) * aSize * 0.011, position.y * aSize * 0.52, 0.0);
           gl_Position = projectionMatrix * mv;
@@ -145,11 +156,14 @@
         uniform float uOpacity;
         varying vec2 vUv;
         varying float vAlpha;
+        varying vec3 vLight;
         void main() {
           vec4 t = texture2D(uMap, vUv);
-          float a = t.a * uOpacity * vAlpha;
+          float lit = dot(vLight, vec3(0.333));
+          float a = t.a * uOpacity * vAlpha * (0.35 + 0.65 * clamp(lit, 0.0, 1.0));
           if (a < 0.003) discard;
-          gl_FragColor = vec4(uColor * (0.78 + 0.35 * t.r), a);
+          vec3 col = uColor * 0.55 + vLight * 0.18;
+          gl_FragColor = vec4(col * (0.78 + 0.35 * t.r), a);
         }
       `,
       transparent: true,
