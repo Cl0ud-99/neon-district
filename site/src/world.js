@@ -672,14 +672,30 @@
       let cursor = 193;
       const buildings = [];
       while (cursor > -79) {
-        let len = 8 + rnd() * 13;
+        const district = cursor > 68 ? 'rear' : (cursor < 52 ? 'front' : 'mid');
+        let len, gap, depth, h;
+        if (district === 'rear') {
+          // Kowloon stack: narrow lots, low-rise mass, very dense gaps.
+          len = 6.5 + rnd() * 7.5;
+          gap = 0.12 + rnd() * 0.65;
+          depth = 8 + rnd() * 7;
+          h = 16 + Math.pow(rnd(), 1.35) * 44;
+        } else if (district === 'front') {
+          // Corporate frontage: wider lots, taller slabs, breathing room.
+          len = 11 + rnd() * 11;
+          gap = 0.5 + rnd() * 1.8;
+          depth = 13 + rnd() * 10;
+          h = 26 + Math.pow(rnd(), 1.5) * 62;
+          if (cursor < 18 && cursor > -60) h = Math.max(h, 30 + rnd() * 28);
+        } else {
+          len = 8 + rnd() * 10;
+          gap = 0.25 + rnd() * 1.2;
+          depth = 10 + rnd() * 10;
+          h = 22 + Math.pow(rnd(), 1.55) * 54;
+        }
         if (cursor - len < -79) len = Math.max(4, cursor + 79);
-        const gap = 0.35 + rnd() * 2.2;
-        const depth = 10 + rnd() * 15;
-        let h = 18 + Math.pow(rnd(), 1.7) * 68;
-        if (cursor < 18 && cursor > -60) h = Math.max(h, 24 + rnd() * 26);
         const z = cursor - len / 2;
-        const b = { side, z, len, depth, h, facadeX, hero: z > 14 && z < 46 };
+        const b = { side, z, len, depth, h, facadeX, district, hero: z > 14 && z < 46 };
         this.addBuilding(b, rnd, buildings.length);
         buildings.push(b);
         cursor -= len + gap;
@@ -688,16 +704,20 @@
     }
 
     addBuilding(b, rnd, index) {
-      const { side, z, len, depth, h } = b;
+      const { side, z, len, depth, h, district } = b;
+      const rear = district === 'rear';
+      const front = district === 'front';
       const group = new THREE.Group();
-      const bodyColor = new THREE.Color().setHSL(0.66 + rnd() * 0.08, 0.08 + rnd() * 0.08, 0.035 + rnd() * 0.02);
+      const bodyColor = rear
+        ? new THREE.Color().setHSL(0.045 + rnd() * 0.055, 0.17 + rnd() * 0.1, 0.035 + rnd() * 0.018)
+        : new THREE.Color().setHSL(0.63 + rnd() * 0.05, 0.07 + rnd() * 0.07, 0.035 + rnd() * 0.02);
       const bodyMat = this.bodyMat.clone();
       bodyMat.color.copy(bodyColor);
       const body = new THREE.Mesh(new THREE.BoxGeometry(depth, h, len), bodyMat);
       body.position.set(side * (b.facadeX + depth / 2), h / 2, z);
       group.add(body);
 
-      const canvas = this.facadeCanvases[index % this.facadeCanvases.length];
+      const canvas = this.facadeCanvases[(index + (rear ? 2 : 0)) % this.facadeCanvases.length];
       const tex = new THREE.CanvasTexture(canvas);
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
@@ -708,10 +728,12 @@
         map: tex,
         emissiveMap: tex,
         emissive: new THREE.Color(0xffffff),
-        emissiveIntensity: 0.82 + rnd() * 0.25,
-        color: new THREE.Color().setHSL(0.62 + rnd() * 0.16, 0.12, 0.56 + rnd() * 0.12),
-        roughness: 0.32 + rnd() * 0.18,
-        metalness: 0.28 + rnd() * 0.2
+        emissiveIntensity: rear ? 0.94 + rnd() * 0.2 : 0.72 + rnd() * 0.18,
+        color: rear
+          ? new THREE.Color().setHSL(0.055 + rnd() * 0.04, 0.18, 0.5 + rnd() * 0.12)
+          : new THREE.Color().setHSL(0.62 + rnd() * 0.1, 0.11, 0.58 + rnd() * 0.12),
+        roughness: rear ? 0.46 + rnd() * 0.16 : 0.27 + rnd() * 0.14,
+        metalness: rear ? 0.18 + rnd() * 0.12 : 0.36 + rnd() * 0.18
       });
       addFacadeWindowVariation(mat);
       const bump = this.facadeBumpBase.clone();
@@ -841,7 +863,7 @@
       }
 
       // projecting floor ledges give the flat facades a real silhouette
-      const ledges = 2 + Math.floor(rnd() * 4);
+      const ledges = rear ? 4 + Math.floor(rnd() * 4) : (front ? 1 + Math.floor(rnd() * 2) : 2 + Math.floor(rnd() * 3));
       for (let i = 0; i < ledges; i++) {
         const ly = 7 + rnd() * Math.max(2, h - 12);
         const dummy = new THREE.Object3D();
@@ -852,7 +874,7 @@
       }
 
       // air conditioners, balconies, pipes
-      const acCount = Math.floor(len * (0.8 + rnd() * 1.5));
+      const acCount = Math.floor(len * (rear ? (2.1 + rnd() * 2.3) : (front ? (0.06 + rnd() * 0.22) : (0.8 + rnd() * 1.3))));
       for (let i = 0; i < acCount; i++) {
         const dummy = new THREE.Object3D();
         const ay = 3 + rnd() * (h - 6);
@@ -871,7 +893,7 @@
           this.acLedColors.push(c > 0.55 ? new THREE.Color(0.4, 0.95, 1.0) : (c > 0.25 ? new THREE.Color(1.0, 0.55, 0.25) : new THREE.Color(1.0, 0.22, 0.55)));
         }
       }
-      const balconyCount = rnd() > 0.48 ? 1 + Math.floor(rnd() * 4) : 0;
+      const balconyCount = rear ? 3 + Math.floor(rnd() * 4) : (front ? (rnd() > 0.72 ? 1 : 0) : (rnd() > 0.48 ? 1 + Math.floor(rnd() * 4) : 0));
       for (let i = 0; i < balconyCount; i++) {
         const by = 4 + Math.floor(rnd() * Math.max(1, h / 4)) * 4;
         if (by > h - 3) continue;
@@ -887,7 +909,7 @@
         rail.updateMatrix();
         this.railMatrices.push(rail.matrix.clone());
       }
-      const pipeCount = rnd() > 0.5 ? 1 + Math.floor(rnd() * 3) : 0;
+      const pipeCount = rear ? 2 + Math.floor(rnd() * 3) : (front ? (rnd() > 0.55 ? 1 : 0) : (rnd() > 0.5 ? 1 + Math.floor(rnd() * 3) : 0));
       for (let i = 0; i < pipeCount; i++) {
         const dummy = new THREE.Object3D();
         const py = 2 + rnd() * 8;
@@ -895,6 +917,72 @@
         dummy.scale.set(0.07, h - py, 0.07);
         dummy.updateMatrix();
         this.pipeMatrices.push(dummy.matrix.clone());
+      }
+
+      if (front) {
+        // Corporate frontage: tall glass fins, a clean crown and a crown band.
+        const finCount = 3 + Math.floor(rnd() * 4);
+        for (let i = 0; i < finCount; i++) {
+          const dummy = new THREE.Object3D();
+          dummy.position.set(side * (b.facadeX - 0.34), h / 2 + 1.0, z - len / 2 + ((i + 1) / (finCount + 1)) * len);
+          dummy.scale.set(0.14, h - 4.0, 0.2);
+          dummy.updateMatrix();
+          this.facadeMullionMatrices.push(dummy.matrix.clone());
+        }
+        const crownMat = new THREE.MeshStandardMaterial({
+          color: 0x071622, roughness: 0.14, metalness: 0.88,
+          emissive: new THREE.Color(0x082534), emissiveIntensity: 0.45
+        });
+        const crown = new THREE.Mesh(new THREE.BoxGeometry(1.0, 2.4, len * 0.58), crownMat);
+        crown.position.set(side * (b.facadeX - 0.58), h - 2.4, z);
+        group.add(crown);
+        const band = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, len * 0.54), new THREE.MeshBasicMaterial({ color: new THREE.Color(0x4be6ff).multiplyScalar(1.55), toneMapped: false }));
+        band.position.set(side * (b.facadeX - 1.08), h - 3.55, z);
+        group.add(band);
+      }
+      if (rear) {
+        // Kowloon stack: an overhanging mid-floor slab, a steel service tower,
+        // laundry rails and rooftop shacks break the cloned tower silhouette.
+        if (h > 24 && rnd() > 0.24) {
+          const overhang = new THREE.Mesh(new THREE.BoxGeometry(1.55, 4.2 + rnd() * 3.0, len * 0.86), bodyMat);
+          overhang.position.set(side * (b.facadeX - 0.62), h * (0.55 + rnd() * 0.16), z);
+          group.add(overhang);
+        }
+        if (rnd() > 0.3) {
+          const th = Math.min(18, h * 0.58);
+          const tz = z + (rnd() > 0.5 ? 1 : -1) * len * 0.3;
+          for (const dz of [-0.55, 0.55]) {
+            const leg = new THREE.Object3D();
+            leg.position.set(side * (b.facadeX - 1.02), th / 2, tz + dz);
+            leg.scale.set(0.09, th, 0.09);
+            leg.updateMatrix();
+            this.facadeMullionMatrices.push(leg.matrix.clone());
+          }
+          for (let k = 1; k <= 4; k++) {
+            const rung = new THREE.Object3D();
+            rung.position.set(side * (b.facadeX - 1.02), th * (k / 5), tz);
+            rung.scale.set(1.25, 0.06, 1.3);
+            rung.updateMatrix();
+            this.ledgeMatrices.push(rung.matrix.clone());
+          }
+        }
+        if (h > 12) {
+          for (let k = 0; k < 2; k++) {
+            const line = new THREE.Object3D();
+            line.position.set(side * (b.facadeX - 0.84), 5 + rnd() * Math.max(2, h - 8), z + (rnd() - 0.5) * len * 0.8);
+            line.scale.set(0.045, 0.045, 1.2 + rnd() * 1.6);
+            line.updateMatrix();
+            this.railMatrices.push(line.matrix.clone());
+          }
+        }
+        if (rnd() > 0.3) {
+          const shack = new THREE.Mesh(new THREE.BoxGeometry(2.2 + rnd() * 1.2, 1.3 + rnd() * 1.1, 2.4 + rnd()), bodyMat);
+          shack.position.set(side * (b.facadeX + depth * (0.23 + rnd() * 0.22)), h + shack.geometry.parameters.height / 2, z + (rnd() - 0.5) * len * 0.55);
+          group.add(shack);
+          const shackLight = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.16, 0.34), new THREE.MeshBasicMaterial({ color: new THREE.Color(rnd() > 0.5 ? 0xffa34d : 0x5ce8ff).multiplyScalar(1.5), toneMapped: false }));
+          shackLight.position.set(shack.position.x - side * 1.15, shack.position.y, shack.position.z);
+          group.add(shackLight);
+        }
       }
 
       if (b.hero) this.addHeroFacade(b, group, rnd);

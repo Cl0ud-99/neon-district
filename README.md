@@ -4,7 +4,7 @@
 
 **DSH-PTC**
 
-**1 scene · 100% procedural · 0 assets · single-file build 0.94 MB**
+**1 scene · 100% procedural · 0 assets · single-file build 0.95 MB**
 
 [**Live preview**](https://cl0ud-99.github.io/neon-district/) — runs in the browser, nothing to install.
 
@@ -25,7 +25,7 @@ A real-time cyberpunk rain street built entirely in code: wet asphalt, mirrored 
 
 ## What it is
 
-A single-scene WebGL2 application with a ~272 m canyon: a rear gate, night market, hotel and skybridge extend the original street, while parked cyber bikes/cars and occasional ships fill the road and sky. The deployable site is plain HTML plus classic scripts — no bundler, no server-side runtime, no asset pipeline. `site/index.html` loads `site/src/*.js` directly; `site/standalone.html` is the same scene inlined into one file for offline sharing.
+A single-scene WebGL2 application with a ~272 m canyon: a rear gate, night market, hotel and skybridge extend the original street, while parked cyber bikes/cars fill the road, while occasional high-altitude ships cross the sky. The deployable site is plain HTML plus classic scripts — no bundler, no server-side runtime, no asset pipeline. `site/index.html` loads `site/src/*.js` directly; `site/standalone.html` is the same scene inlined into one file for offline sharing.
 
 | File | Role |
 | --- | --- |
@@ -33,7 +33,7 @@ A single-scene WebGL2 application with a ~272 m canyon: a rear gate, night marke
 | `src/post.js` | TAA, vertical-wall SSR, HDR target, five-level bloom, depth AO/DOF, FXAA, ACES grade, grain, lens droplets, super-sampling |
 | `src/world.js` | City generator, baked static shadow map sampled by wet ground, parallax hero windows, water, sky, planar mirror, lighting |
 | `src/props.js` | Storefronts, hero window bays/fire escapes, rear landmarks, parked bikes/cars, blade signs, cables, lanterns, volumetric shafts, steam, fog, gantry |
-| `src/actors.js` | GPU rain (lines, foreground ribbons, lamp mist), fountain, six citizen archetypes, mixed shuttle/swoop/hauler/drone traffic, holographic koi, ripples |
+| `src/actors.js` | GPU rain (lines, foreground ribbons, lamp mist), fountain, six citizen archetypes, high-altitude shuttle/swoop/hauler/drone traffic, holographic koi, ripples |
 | `src/audio.js` | Procedural WebAudio rain, hum, synth pad and thunder |
 | `src/app.js` | Camera, state machine, title/cinematic UI, input, adaptive quality |
 
@@ -76,6 +76,7 @@ Details worth reading:
 - **TAA + FXAA + super-sampling.** The HDR frame is rendered with a Halton sub-pixel jitter, then resolved against the previous frame using depth reprojection and a neighbourhood clamp. FXAA cleans the final LDR image. Multisampled float targets caused a driver artifact on one test GPU, so this path is cheaper and keeps thin neon lines stable while reducing shimmer in motion.
 - **Adaptive quality and resolution.** In play/cinematic mode the renderer first lowers its internal resolution scale when frames get expensive, then steps down one quality tier if it still cannot recover. DPR is capped more aggressively on 4K panels. The HUD’s quality control resets the dynamic scale at any time.
 - **Vertical-wall SSR.** A half-resolution screen-space pass reconstructs world normals from depth, limits the effect to vertical surfaces, and ray-marches the depth buffer for neon reflections on wet facades. It is disabled on the low quality preset.
+- **Front and rear are different cities.** The frontage uses wider, taller corporate slabs with glass fins, clean crowns and sparse AC clutter. The rear is narrow-lot Kowloon stacking: overhanging floors, steel service towers, laundry rails, dense balconies and rooftop shacks.
 - **Volume collision everywhere it matters.** Parked bikes/cars, pedestrians, vending machines, market stalls, crates, bins, pallets, street lamps and the MTR entrance register circles or boxes. Player movement resolves against them with a 0.36 m capsule, using two sliding passes so you do not stick on corners.
 - **Layered rain, no fake ripples.** The far rain is 9–10k GPU line segments; a camera-following ribbon layer adds depth-faded, wind-sheared streaks near the lens and tints them with the colour of the nearest neon lights; soft motes under those lights form a local rain veil. The pavement keeps only subtle sparkle and real reflections, with no splash rings.
 - **Five independent bloom mips.** A soft-threshold prefilter at half resolution feeds a Gaussian chain; all mips plus a horizontal anamorphic streak are composited before tonemapping.

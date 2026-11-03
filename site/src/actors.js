@@ -782,28 +782,23 @@
   World.prototype.buildVehicles = function () {
     this.flyers = [];
     const styles = ['shuttle', 'swoop', 'hauler', 'drone'];
-    for (let i = 0; i < 11; i++) {
+    // Only high-altitude traffic remains. Low patrol lanes were removed:
+    // repeated ships crossing the canyon read as a loop, not a city.
+    const lanes = [
+      { y: 98, z: 60, speed: 5.5 },
+      { y: 108, z: 92, speed: 4.8 },
+      { y: 120, z: 130, speed: 4.2 },
+      { y: 135, z: 170, speed: 3.8 }
+    ];
+    for (let i = 0; i < lanes.length; i++) {
       const f = this._makeFlyer(i * 7 + 3, styles[i % styles.length]);
-      f.position.set(-60 + i * 18, 0, 0);
-      f.userData.x = -78 + i * 15.5;
-      f.userData.y = 12 + (i % 5) * 4.2;
-      f.userData.z = -65 + i * 22;
-      f.userData.speed = (f.userData.shipStyle === 'hauler' ? 2.8 : 4.5) + (i % 3) * 1.6;
+      f.position.set(0, 0, 0);
+      f.userData.x = -78 + i * 38;
+      f.userData.y = lanes[i].y;
+      f.userData.z = lanes[i].z;
+      f.userData.speed = lanes[i].speed;
       f.userData.dir = i % 2 ? 1 : -1;
-      // Low patrol lanes stay inside the canyon opening. High lanes are above
-      // the tallest roofs and skyline, so ships never cut through buildings.
-      f.userData.maxX = 8.6;
-      if (i === 0) { f.userData.y = 22; f.userData.z = -28; f.userData.speed = 6.5; }
-      if (i === 1) { f.userData.y = 26; f.userData.z = -55; f.userData.speed = 5.0; }
-      if (i === 2) { f.userData.y = 30; f.userData.z = 8; f.userData.speed = 7.0; }
-      if (i === 3) { f.userData.y = 24; f.userData.z = 120; f.userData.speed = 4.2; }
-      if (i === 4) { f.userData.y = 28; f.userData.z = 142; f.userData.speed = 5.2; }
-      if (i === 5) { f.userData.y = 34; f.userData.z = 168; f.userData.speed = 3.4; }
-      if (i === 6) { f.userData.y = 20; f.userData.z = 86; f.userData.speed = 5.8; }
-      if (i === 7) { f.userData.y = 98; f.userData.z = 60; f.userData.speed = 5.5; f.userData.maxX = 82; }
-      if (i === 8) { f.userData.y = 108; f.userData.z = 92; f.userData.speed = 4.8; f.userData.maxX = 82; }
-      if (i === 9) { f.userData.y = 120; f.userData.z = 130; f.userData.speed = 4.2; f.userData.maxX = 82; }
-      if (i === 10) { f.userData.y = 135; f.userData.z = 170; f.userData.speed = 3.8; f.userData.maxX = 82; }
+      f.userData.maxX = 82;
       this.flyers.push(f);
       this.scene.add(f);
     }
@@ -818,28 +813,6 @@
     freighter.userData.dir = 1;
     this.scene.add(freighter);
     this.flyers.push(freighter);
-    // a low patrol drone hovers above the new market, clearly visible from street level
-    const rearDrone = this._makeFlyer(402, 'drone');
-    rearDrone.scale.multiplyScalar(1.35);
-    rearDrone.userData.y = 12.0;
-    rearDrone.userData.z = 112;
-    rearDrone.userData.x = -1.0;
-    rearDrone.userData.speed = 0.03;
-    rearDrone.userData.maxX = 6.0;
-    rearDrone.userData.dir = 1;
-    this.scene.add(rearDrone);
-    this.flyers.push(rearDrone);
-
-    // one sentinel patrol car hangs almost still above the crossing
-    const sentinel = this._makeFlyer(99, 'shuttle');
-    sentinel.userData.y = 16;
-    sentinel.userData.z = -34;
-    sentinel.userData.maxX = 6.0;
-    sentinel.userData.x = 2.2;
-    sentinel.userData.speed = 0.08;
-    sentinel.userData.dir = 1;
-    this.scene.add(sentinel);
-    this.flyers.push(sentinel);
   };
 
   /* ---------------------------------------------------------------------
