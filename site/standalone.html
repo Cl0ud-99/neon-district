@@ -2533,6 +2533,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.facadeSillMatrices = [];
       this.facadeMullionMatrices = [];
       this.windowFrameMatrices = [];
+      this.windowSilhouetteMatrices = [];
       this.curtainMatrices = [];
       this.curtainColors = [];
       this.neonBatches = { magenta: [], cyan: [], amber: [], violet: [] };
@@ -2635,6 +2636,17 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.rustMat = new THREE.MeshStandardMaterial({ color: 0x2a1712, roughness: 0.55, metalness: 0.6 });
       this.glowingWindowMat = new THREE.MeshBasicMaterial({ color: 0xffd19a, toneMapped: false });
       this.billboardFrameMat = new THREE.MeshStandardMaterial({ color: 0x08090e, roughness: 0.35, metalness: 0.85 });
+      const silhouetteCanvas = ND.util.makeCanvas(128, 256);
+      const sc = silhouetteCanvas.getContext('2d');
+      sc.clearRect(0, 0, 128, 256);
+      sc.fillStyle = 'rgba(3,4,8,.72)';
+      sc.beginPath(); sc.arc(64, 76, 24, 0, TAU); sc.fill();
+      sc.beginPath(); sc.moveTo(30, 220); sc.lineTo(36, 108); sc.quadraticCurveTo(64, 82, 92, 108); sc.lineTo(98, 220); sc.closePath(); sc.fill();
+      sc.fillStyle = 'rgba(3,4,8,.45)'; sc.fillRect(0, 210, 128, 10);
+      this.windowSilhouetteMat = new THREE.MeshBasicMaterial({
+        map: ND.Tex.canvasToTexture(silhouetteCanvas, true), transparent: true, opacity: 0.78,
+        depthWrite: false, side: THREE.DoubleSide, toneMapped: false
+      });
       this.wetStreakMat = new THREE.MeshBasicMaterial({
         map: ND.Tex.canvasToTexture(ND.Tex.rainStreak(), true),
         color: 0x7898b5, transparent: true, opacity: 0.22,
@@ -3028,6 +3040,14 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
               this.curtainMatrices.push(curtain.matrix.clone());
               this.curtainColors.push(new THREE.Color(curtainPalette[(c + f) % curtainPalette.length]));
             }
+          }
+          if (f > 0 && (c * 7 + f * 5) % 13 === 0) {
+            const fig = new THREE.Object3D();
+            fig.position.set(side * (b.facadeX - 0.075), wy, wz);
+            fig.rotation.y = -side * Math.PI / 2;
+            fig.scale.set(0.86, 1.24, 1);
+            fig.updateMatrix();
+            this.windowSilhouetteMatrices.push(fig.matrix.clone());
           }
         }
       }
@@ -3460,6 +3480,17 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         curtainMesh.instanceMatrix.needsUpdate = true;
         if (curtainMesh.instanceColor) curtainMesh.instanceColor.needsUpdate = true;
         this.scene.add(curtainMesh);
+      }
+      if (this.windowSilhouetteMatrices.length) {
+        const silhouetteMesh = new THREE.InstancedMesh(
+          new THREE.PlaneGeometry(1, 1),
+          this.windowSilhouetteMat,
+          this.windowSilhouetteMatrices.length
+        );
+        this.windowSilhouetteMatrices.forEach((m, i) => silhouetteMesh.setMatrixAt(i, m));
+        silhouetteMesh.instanceMatrix.needsUpdate = true;
+        silhouetteMesh.renderOrder = 2;
+        this.scene.add(silhouetteMesh);
       }
       const ledMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }), this.acLedMatrices.length);
       this.acLedMatrices.forEach((m, i) => {
