@@ -13,9 +13,9 @@
   function tick() { return new Promise(r => requestAnimationFrame(() => setTimeout(r, 0))); }
 
   const QUALITY = {
-    high: { name: '高 / HIGH', dpr: 1.35, msaa: 0, sceneScale: 1.25, bloomLevels: 5, reflectionScale: 0.55, rainCount: 20000, rainNearCount: 1600, shadowSize: 2048 },
-    medium: { name: '中 / MEDIUM', dpr: 1.05, msaa: 0, sceneScale: 1.0, bloomLevels: 5, reflectionScale: 0.4, rainCount: 14000, rainNearCount: 1200, shadowSize: 1024 },
-    low: { name: '低 / LOW', dpr: 0.85, msaa: 0, sceneScale: 0.8, bloomLevels: 4, reflectionScale: 0.3, rainCount: 9000, rainNearCount: 900, shadowSize: 1024 }
+    high: { name: '高 / HIGH', dpr: 1.0, msaa: 0, sceneScale: 0.82, bloomLevels: 4, reflectionScale: 0.26, rainCount: 16000, rainNearCount: 1400, shadowSize: 2048 },
+    medium: { name: '中 / MEDIUM', dpr: 0.95, msaa: 0, sceneScale: 0.78, bloomLevels: 4, reflectionScale: 0.24, rainCount: 12000, rainNearCount: 1100, shadowSize: 1024 },
+    low: { name: '低 / LOW', dpr: 0.8, msaa: 0, sceneScale: 0.66, bloomLevels: 4, reflectionScale: 0.18, rainCount: 8000, rainNearCount: 800, shadowSize: 1024 }
   };
 
   class App {
@@ -30,7 +30,6 @@
       this.fps = 60;
       this.fpsAccum = 0;
       this.fpsFrames = 0;
-      this.lastHUD = 0;
       this.perfTimer = 0;
       this.renderScale = 1.0;
       this.photo = null;
@@ -46,6 +45,7 @@
       this.benchDuration = Math.max(8, parseFloat(benchParam) || 20);
       this.benchElapsed = 0;
       this.benchDone = false;
+      this.benchWarmup = 1.2;
       this.benchTimes = [];
       this.frameTimes = [];
       this.perfPanel = false;
@@ -214,6 +214,10 @@
       this.world.update(0.016, 0, this.camera);
       this.camera.position.set(0, 2.2, 28);
       this.camera.lookAt(0, 10, -70);
+      // Compile every material before the title card; otherwise the first
+      // frames of play absorb shader compilation as a visible 100–300ms hitch.
+      this.renderer.compile(this.scene, this.camera);
+      this.post.render(this.scene, this.camera, this.world, 0, 0);
       this.post.render(this.scene, this.camera, this.world, 0, 0);
       this.bootStep('SYNCING SIGNAL // 接入城市', 100);
       await new Promise(r => setTimeout(r, 350));
@@ -605,6 +609,7 @@
       this.benchMode = true;
       this.benchDone = false;
       this.benchElapsed = 0;
+      this.benchWarmup = 1.2;
       this.benchTimes = [];
       this.frameTimes = [];
       this.perfPanel = true;
@@ -643,9 +648,13 @@
       this.frameTimes.push(ms);
       if (this.frameTimes.length > 240) this.frameTimes.shift();
       if (this.benchMode && !this.benchDone) {
-        this.benchTimes.push(ms);
-        this.benchElapsed += ms / 1000;
-        if (this.benchElapsed >= this.benchDuration) this.finishBenchmark();
+        if (this.benchWarmup > 0) {
+          this.benchWarmup -= dt;
+        } else {
+          this.benchTimes.push(ms);
+          this.benchElapsed += ms / 1000;
+          if (this.benchElapsed >= this.benchDuration) this.finishBenchmark();
+        }
       }
       if (!this.perfPanel && !this.benchMode) return;
       this.perfUpdateTimer += dt;

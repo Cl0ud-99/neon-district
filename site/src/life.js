@@ -10,7 +10,6 @@
 
   const _dummy = new THREE.Object3D();
   const _color = new THREE.Color();
-  const _v = new THREE.Vector3();
 
   World.prototype.emitLife = function (type, data) {
     if (!this.onLifeEvent) return;
@@ -24,7 +23,6 @@
     this._splashCursor = 0;
     this._splashAccum = 0;
     this._dripAccum = 0;
-    this._lifeClock = 0;
 
     // ---- expanding rain-impact rings -------------------------------------
     const splashCount = 120;

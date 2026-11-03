@@ -58,7 +58,6 @@
   World.prototype.buildStreetDetails = function () {
     const rnd = ND.util.mulberry32(44031);
     const g = new THREE.Group();
-    this.detailGroup = g;
     this.scene.add(g);
 
     // raised curbs, wet stone and gutter mouths
@@ -78,7 +77,6 @@
       [-10.7, 92], [10.8, 78], [-10.7, 58], [10.8, 40],
       [-10.7, 32], [10.8, 20], [10.8, -44], [-10.7, -61]
     ];
-    this.lampLights = [];
     for (let i = 0; i < lampPositions.length; i++) {
       const [x, z] = lampPositions[i];
       const shopSide = x < 0 ? -1 : 1;
@@ -235,9 +233,7 @@
     const stallShadow = this.addContactShadow(g, 4.6, 3.6, 0.38, 0.012);
     stallShadow.position.x = -11.1;
     stallShadow.position.z = 18.0;
-    const stallGlow = new THREE.PointLight(0xff8a3a, 38, 10, 2);
-    stallGlow.position.set(-10.2, 2.1, 18.0);
-    this.scene.add(stallGlow);
+
 
     // floating holographic wayfinding near the plaza
     const arrowTex = this._wayfindingTexture();
@@ -618,7 +614,6 @@
     this.addContactShadow(root, 2.2, 1.2, 0.5, 0.02);
     this.addCollider({ type: 'box', x: 8.6, z: -17.5, hx: 1.1, hz: 1.2 });
     g.add(root);
-    this.hoverbike = root;
   };
 
   World.prototype._storefrontTexture = function (variant) {
@@ -968,11 +963,8 @@
         const signPost = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.65, 0.07), this.metalMat);
         signPost.position.set(side * 13.12, 3.18, sz); root.add(signPost);
       }
-      // street wash and local warm light
+      // street wash; the painted interior and neon spill carry the shop light
       this.addNeonSpill('ground', side * 10.3, 0.04, d.z, 4.6, 5.4, new THREE.Color(d.color), 0.38);
-      const light = new THREE.PointLight(d.color, 20, 7, 2);
-      light.position.set(side * 13.35, 2.05, d.z);
-      this.scene.add(light);
     }
   };
 
@@ -1539,7 +1531,6 @@
 
     // big soft fog banks hugging the wet street
     const smokeTex = ND.Tex.canvasToTexture(ND.Tex.smoke(192, 7), true);
-    this._fogTex = smokeTex;
     const fogDefs = [
       [-7, 1.5, 25, 35, 9, 0x492d64], [8, 1.2, 8, 31, 8, 0x374e78],
       [-5, 1.4, -18, 40, 10, 0x4b2a5e], [9, 1.5, -42, 36, 9, 0x2f4a66],

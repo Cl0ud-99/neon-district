@@ -8,6 +8,33 @@
   const V3 = THREE.Vector3;
   const M4 = THREE.Matrix4;
 
+  function materialSignature(m) {
+    if (!m) return 'none';
+    const mapKey = (map) => {
+      if (!map) return '';
+      const src = map.source && map.source.uuid ? map.source.uuid : map.uuid;
+      return [src, map.repeat.x, map.repeat.y, map.offset.x, map.offset.y, map.rotation, map.colorSpace, map.channel, map.flipY].join(',');
+    };
+    const common = [m.type, m.side, m.vertexColors, m.toneMapped, m.transparent, m.opacity, m.alphaTest, m.depthTest, m.depthWrite, m.blending, m.flatShading].join('|');
+    if (m.isMeshStandardMaterial) {
+      return common + '|' + [
+        m.color.getHexString(), m.emissive.getHexString(), m.emissiveIntensity,
+        m.roughness, m.metalness, m.envMapIntensity, m.aoMapIntensity,
+        m.normalScale.x, m.normalScale.y, m.bumpScale,
+        mapKey(m.map), mapKey(m.emissiveMap), mapKey(m.normalMap), mapKey(m.roughnessMap),
+        mapKey(m.metalnessMap), mapKey(m.aoMap), mapKey(m.alphaMap), mapKey(m.bumpMap)
+      ].join('|');
+    }
+    if (m.isMeshBasicMaterial) {
+      return common + '|' + [m.color.getHexString(), mapKey(m.map), mapKey(m.alphaMap), m.wireframe].join('|');
+    }
+    if (m.isMeshLambertMaterial) {
+      return common + '|' + [m.color.getHexString(), m.emissive.getHexString(), m.emissiveIntensity, mapKey(m.map), mapKey(m.emissiveMap), mapKey(m.alphaMap)].join('|');
+    }
+    return m.uuid;
+  }
+
+
   const GROUND_VERT = `
     #include <common>
     #include <shadowmap_pars_vertex>
@@ -436,20 +463,23 @@
       this.time = 0;
       this.flash = 0;
       this.nextLightning = 7.5;
-      this.lightningDecay = 0;
       this.lightningActive = false;
       this.lightningElapsed = 0;
       this.lightningCameraPos = new V3();
       this.cameraYaw = 0;
+      this._reflCamPos = new V3();
+      this._reflNormal = new V3(0, 1, 0);
+      this._reflView = new V3();
+      this._reflLook = new V3();
+      this._reflTarget = new V3();
+      this._reflRot = new M4();
       this.onLightning = null;
       this.onLifeEvent = null;
       this.random = ND.util.mulberry32(92731);
       this.fogColor = new THREE.Color(0x12081d);
       this.fogDensity = 0.0074;
       this.screens = [];
-      this.cars = [];
       this.pedestrians = [];
-      this.steamVents = [];
       this.fogCards = [];
       this.neonMats = [];
       this.acMatrices = [];
@@ -469,7 +499,6 @@
       this.curtainColors = [];
       this.neonBatches = { magenta: [], cyan: [], amber: [], violet: [] };
       this.neonSpills = [];
-      this.roofTanks = [];
       this.reflectionHidden = [];
       this.dynamicGlow = [];
       this.colliders = [];
@@ -508,6 +537,14 @@
       this.buildVehicles();
       this.buildHologram();
       this.buildLife();
+      for (const p of this.pedestrians) {
+        const u = p.userData;
+        this.mergeGroupStatic(p, [u.head, u.hem, u.tail, u.umbrella, ...u.legs, ...u.knees, ...u.arms]);
+      }
+      for (const f of this.flyers) this.mergeGroupStatic(f, []);
+      if (this.cat) this.mergeGroupStatic(this.cat, [this.catTail]);
+      this.batchGlowSprites();
+      this.mergeStaticGeometry();
       this.buildReflection();
       this.applyEnvironmentIntensity();
     }
@@ -570,7 +607,6 @@
       this.roofMat = new THREE.MeshStandardMaterial({ color: 0x0b0c12, roughness: 0.72, metalness: 0.25 });
       this.metalMat = new THREE.MeshStandardMaterial({ color: 0x11131a, roughness: 0.38, metalness: 0.72 });
       this.rustMat = new THREE.MeshStandardMaterial({ color: 0x2a1712, roughness: 0.55, metalness: 0.6 });
-      this.glowingWindowMat = new THREE.MeshBasicMaterial({ color: 0xffd19a, toneMapped: false });
       this.billboardFrameMat = new THREE.MeshStandardMaterial({ color: 0x08090e, roughness: 0.35, metalness: 0.85 });
       const silhouetteCanvas = ND.util.makeCanvas(128, 256);
       const sc = silhouetteCanvas.getContext('2d');
@@ -680,7 +716,6 @@
       const tex = ND.Tex.canvasToTexture(ND.Tex.environment(), true);
       tex.mapping = THREE.EquirectangularReflectionMapping;
       this.scene.environment = tex;
-      this.envTexture = tex;
       // tame the IBL slightly so the emissive signage still leads
       this.scene.traverse(o => {
         if (o.isMesh && o.material && o.material.isMeshStandardMaterial) {
@@ -1706,9 +1741,12 @@
 
     buildReflection() {
       this.reflectionCamera = new THREE.PerspectiveCamera();
-      this.reflectionCamera.layers.set(0);
+      // The reflection only needs the architecture, signage and large props.
+      // Small clutter and every glow sprite stay out; this roughly halves the
+      // reflection draw calls while keeping everything visible in the main pass.
+      this.reflectionCamera.layers.set(2);
       this.reflectionTextureMatrix = new M4();
-      this.reflectorPlane = new THREE.Plane(new V3(0, 1, 0), 0);
+      this._selectReflectionLayers();
       const size = new THREE.Vector2();
       this.renderer.getSize(size);
       const ratio = Math.min(this.renderer.getPixelRatio(), 1.5) * (this.quality.reflectionScale || 0.5);
@@ -1724,6 +1762,301 @@
       this.groundUniforms.tReflection.value = this.reflectionRT.texture;
       this.sidewalkMat.uniforms.tReflection.value = this.reflectionRT.texture;
       if (this.waterMat) this.waterMat.uniforms.tReflection.value = this.reflectionRT.texture;
+    }
+
+
+
+    batchGlowSprites() {
+      // Every shop halo / street glow used to be its own additive draw call.
+      // They are static, share one radial texture and can live in a single
+      // instanced billboard batch.
+      const animated = new Set();
+      for (const list of [this.pedestrians, this.flyers, this.waterRings, this.dynamicGlow]) {
+        for (const o of list || []) animated.add(o);
+      }
+      for (const o of [this.cat, this.whaleGroup, this.wayfinding, this.stall]) {
+        if (o) animated.add(o);
+      }
+      for (const s of this.lifeSways || []) animated.add(s.obj);
+      const isAnimated = o => {
+        for (let p = o; p; p = p.parent) if (animated.has(p)) return true;
+        return false;
+      };
+      const glowTex = this._glowTex;
+      const sprites = [];
+      this.scene.traverse(o => {
+        if (!o.isSprite || !o.visible || isAnimated(o)) return;
+        const m = o.material;
+        if (!m || m.map !== glowTex || m.blending !== THREE.AdditiveBlending) return;
+        if (m.rotation !== 0 || m.opacity < 0.01 || m.depthTest === false) return;
+        sprites.push(o);
+      });
+      if (sprites.length < 8) return;
+
+      const count = sprites.length;
+      const base = new THREE.PlaneGeometry(1, 1);
+      const geo = new THREE.InstancedBufferGeometry();
+      geo.index = base.index;
+      geo.setAttribute('position', base.getAttribute('position'));
+      geo.setAttribute('uv', base.getAttribute('uv'));
+      const pos = new Float32Array(count * 3);
+      const col = new Float32Array(count * 3);
+      const size = new Float32Array(count * 2);
+      const alpha = new Float32Array(count);
+      const p = new THREE.Vector3();
+      const s = new THREE.Vector3();
+      for (let i = 0; i < count; i++) {
+        const sp = sprites[i];
+        sp.getWorldPosition(p);
+        sp.getWorldScale(s);
+        pos[i * 3] = p.x; pos[i * 3 + 1] = p.y; pos[i * 3 + 2] = p.z;
+        col[i * 3] = sp.material.color.r;
+        col[i * 3 + 1] = sp.material.color.g;
+        col[i * 3 + 2] = sp.material.color.b;
+        size[i * 2] = s.x;
+        size[i * 2 + 1] = s.y;
+        alpha[i] = sp.material.opacity;
+      }
+      geo.setAttribute('iPos', new THREE.InstancedBufferAttribute(pos, 3));
+      geo.setAttribute('iColor', new THREE.InstancedBufferAttribute(col, 3));
+      geo.setAttribute('iSize', new THREE.InstancedBufferAttribute(size, 2));
+      geo.setAttribute('iAlpha', new THREE.InstancedBufferAttribute(alpha, 1));
+      geo.instanceCount = count;
+
+      const mat = new THREE.ShaderMaterial({
+        uniforms: {
+          uMap: { value: glowTex },
+          uFogDensity: { value: this.fogDensity },
+          uFogColor: { value: this.fogColor }
+        },
+        vertexShader: `
+          attribute vec3 iPos, iColor;
+          attribute vec2 iSize;
+          attribute float iAlpha;
+          varying vec2 vUv;
+          varying vec3 vColor;
+          varying float vAlpha;
+          varying float vDepth;
+          void main() {
+            vec4 mv = viewMatrix * vec4(iPos, 1.0);
+            mv.xy += position.xy * iSize;
+            vUv = uv;
+            vColor = iColor;
+            vAlpha = iAlpha;
+            vDepth = -mv.z;
+            gl_Position = projectionMatrix * mv;
+          }
+        `,
+        fragmentShader: `
+          uniform sampler2D uMap;
+          uniform float uFogDensity;
+          uniform vec3 uFogColor;
+          varying vec2 vUv;
+          varying vec3 vColor;
+          varying float vAlpha;
+          varying float vDepth;
+          void main() {
+            vec4 t = texture2D(uMap, vUv);
+            float a = t.a * vAlpha;
+            if (a < 0.002) discard;
+            float fogAmt = 1.0 - exp(-uFogDensity * uFogDensity * vDepth * vDepth);
+            vec3 c = vColor * t.rgb;
+            c = mix(c, uFogColor, fogAmt * 0.7);
+            gl_FragColor = vec4(c, a);
+          }
+        `,
+        transparent: true,
+        depthWrite: false,
+        depthTest: true,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.frustumCulled = false;
+      mesh.renderOrder = 4;
+      mesh.layers.set(0);
+      this.scene.add(mesh);
+      for (const sp of sprites) { if (sp.parent) sp.parent.remove(sp); }
+    }
+
+
+    mergeGroupStatic(group, animatedRoots) {
+      if (!group) return;
+      const animated = new Set(animatedRoots || []);
+      const isAnimated = o => {
+        for (let p = o; p && p !== group; p = p.parent) if (animated.has(p)) return true;
+        return false;
+      };
+      group.updateWorldMatrix(true, true);
+      const inv = new THREE.Matrix4().copy(group.matrixWorld).invert();
+      const groups = new Map();
+      group.traverse(o => {
+        if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || !o.visible) return;
+        if (o.children.length) return;
+        if (Array.isArray(o.material)) return;
+        const mat = o.material;
+        if (!mat || mat.transparent || mat.isShaderMaterial || mat.isSpriteMaterial) return;
+        if (isAnimated(o)) return;
+        if (!o.geometry.attributes.position) return;
+        const attrs = Object.keys(o.geometry.attributes).sort().map(n => {
+          const a = o.geometry.attributes[n];
+          return n + ':' + a.itemSize + ':' + a.array.constructor.name;
+        }).join(',');
+        const key = materialSignature(mat) + '|' + attrs;
+        if (!groups.has(key)) groups.set(key, { mat, items: [] });
+        groups.get(key).items.push(o);
+      });
+      for (const groupData of groups.values()) {
+        if (groupData.items.length < 2) continue;
+        const first = groupData.items[0];
+        const attrNames = Object.keys(first.geometry.attributes);
+        const attrMeta = attrNames.map(name => {
+          const a = first.geometry.attributes[name];
+          return { name, itemSize: a.itemSize, normalized: !!a.normalized };
+        });
+        for (const o of groupData.items) {
+          o.updateWorldMatrix(true, false);
+        }
+        const chunks = [];
+        const totals = {};
+        for (const { name, itemSize } of attrMeta) totals[name] = 0;
+        let valid = true;
+        for (const o of groupData.items) {
+          for (const { name } of attrMeta) {
+            const a = o.geometry.attributes[name];
+            if (!a || !(a.array instanceof Float32Array)) { valid = false; break; }
+          }
+          if (!valid) break;
+          let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+          g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
+          chunks.push(g);
+          for (const { name, itemSize } of attrMeta) totals[name] += g.attributes[name].count * itemSize;
+        }
+        if (!valid) continue;
+        const merged = new THREE.BufferGeometry();
+        for (const { name, itemSize, normalized } of attrMeta) {
+          const arr = new Float32Array(totals[name]);
+          let offset = 0;
+          for (const g of chunks) {
+            const a = g.attributes[name];
+            arr.set(a.array, offset);
+            offset += a.array.length;
+          }
+          merged.setAttribute(name, new THREE.BufferAttribute(arr, itemSize, normalized));
+        }
+        merged.computeBoundingSphere();
+        const mesh = new THREE.Mesh(merged, first.material);
+        mesh.layers.mask = first.layers.mask;
+        mesh.castShadow = false;
+        mesh.receiveShadow = false;
+        group.add(mesh);
+        for (const o of groupData.items) { if (o.parent) o.parent.remove(o); }
+      }
+    }
+
+    mergeStaticGeometry() {
+      // Merge static, opaque meshes that share a material. The scene uses many
+      // small metal/plastic parts; batching them cuts hundreds of draw calls
+      // without changing what is visible.
+      const animated = new Set();
+      for (const list of [this.pedestrians, this.flyers, this.waterRings, this.dynamicGlow]) {
+        for (const o of list || []) animated.add(o);
+      }
+      for (const o of [this.cat, this.whaleGroup, this.wayfinding, this.water, this.ground, this.sky, this.splashMesh, this.dripPoints]) {
+        if (o) animated.add(o);
+      }
+      for (const s of this.lifeSways || []) animated.add(s.obj);
+      const isAnimated = o => {
+        for (let p = o; p; p = p.parent) if (animated.has(p)) return true;
+        return false;
+      };
+      const groups = new Map();
+      this.scene.traverse(o => {
+        if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || !o.visible) return;
+        if (o.children.length) return;
+        if (Array.isArray(o.material)) return;
+        const mat = o.material;
+        if (!mat || mat.transparent || mat.isShaderMaterial || mat.isSpriteMaterial) return;
+        if (o.morphTargetInfluences && o.morphTargetInfluences.length) return;
+        if (isAnimated(o)) return;
+        if (!o.geometry.attributes.position) return;
+        const attrs = Object.keys(o.geometry.attributes).sort().map(n => n + ':' + o.geometry.attributes[n].itemSize + ':' + o.geometry.attributes[n].array.constructor.name).join(',');
+        const key = materialSignature(mat) + '|' + o.renderOrder + '|' + o.layers.mask + '|' + attrs;
+        if (!groups.has(key)) groups.set(key, { mat, items: [] });
+        groups.get(key).items.push(o);
+      });
+
+      for (const group of groups.values()) {
+        if (group.items.length < 2) continue;
+        const first = group.items[0];
+        const attrNames = Object.keys(first.geometry.attributes);
+        const attrMeta = attrNames.map(name => {
+          const a = first.geometry.attributes[name];
+          return { name, itemSize: a.itemSize, normalized: !!a.normalized };
+        });
+        const chunks = [];
+        const totals = {};
+        for (const { name, itemSize } of attrMeta) totals[name] = 0;
+        let valid = true;
+        for (const o of group.items) {
+          const geo = o.geometry;
+          for (const { name } of attrMeta) {
+            const a = geo.attributes[name];
+            if (!a || !(a.array instanceof Float32Array)) { valid = false; break; }
+          }
+          if (!valid) break;
+          let g = geo.index ? geo.toNonIndexed() : geo.clone();
+          o.updateWorldMatrix(true, false);
+          g.applyMatrix4(o.matrixWorld);
+          chunks.push(g);
+          for (const { name, itemSize } of attrMeta) totals[name] += g.attributes[name].count * itemSize;
+        }
+        if (!valid) continue;
+        const merged = new THREE.BufferGeometry();
+        for (const { name, itemSize, normalized } of attrMeta) {
+          const arr = new Float32Array(totals[name]);
+          let offset = 0;
+          for (const g of chunks) {
+            const a = g.attributes[name];
+            arr.set(a.array, offset);
+            offset += a.array.length;
+          }
+          merged.setAttribute(name, new THREE.BufferAttribute(arr, itemSize, normalized));
+        }
+        merged.computeBoundingSphere();
+        const mesh = new THREE.Mesh(merged, first.material);
+        mesh.renderOrder = first.renderOrder;
+        mesh.layers.mask = first.layers.mask;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.frustumCulled = true;
+        this.scene.add(mesh);
+        for (const o of group.items) { if (o.parent) o.parent.remove(o); }
+      }
+    }
+
+    _selectReflectionLayers() {
+      const includeSprite = o => o === this.whalePlane || o === this.whaleHalo || o === this.whaleBack;
+      this.scene.traverse(o => {
+        if (o.isLight) { o.layers.enable(2); return; }
+        if (o === this.sky || o === this.ground || o === this.water) return;
+        if (this.sidewalks && this.sidewalks.indexOf(o) !== -1) return;
+        if (o === this.neonSpillMesh) return;
+        if (o.isSprite) { if (includeSprite(o)) o.layers.enable(2); return; }
+        if (o.isPoints || o.isLine) return;
+        if (o.isInstancedMesh) { o.layers.enable(2); return; }
+        if (!o.isMesh || !o.geometry) return;
+        const geo = o.geometry;
+        if (!geo.boundingSphere) geo.computeBoundingSphere();
+        const bs = geo.boundingSphere;
+        if (!bs) return;
+        const s = Math.max(Math.abs(o.scale.x), Math.abs(o.scale.y), Math.abs(o.scale.z));
+        const r = bs.radius * s;
+        const mat = Array.isArray(o.material) ? o.material[0] : o.material;
+        if (!mat || mat.transparent) return;
+        const emissive = mat && (mat.toneMapped === false || (mat.emissive && mat.emissive.getHex() !== 0));
+        if (r >= 3.0 || (emissive && r >= 0.9)) o.layers.enable(2);
+      });
     }
 
     setSize(w, h, dpr) {
@@ -1833,20 +2166,20 @@
     renderReflection(renderer, camera) {
       if (!this.reflectionRT || camera.position.y < 0.04) return;
       camera.updateMatrixWorld();
-      const camPos = camera.getWorldPosition(new V3());
-      const normal = new V3(0, 1, 0);
-      const view = new V3().subVectors(new V3(0, 0, 0), camPos);
+      const camPos = camera.getWorldPosition(this._reflCamPos);
+      const normal = this._reflNormal;
+      const view = this._reflView.subVectors(this._reflTarget.set(0, 0, 0), camPos);
       if (view.dot(normal) > 0) return;
-      view.reflect(normal).negate().add(new V3(0, 0, 0));
-      const rotationMatrix = new M4().extractRotation(camera.matrixWorld);
-      const lookAtPosition = new V3(0, 0, -1).applyMatrix4(rotationMatrix).add(camPos);
-      const target = new V3().subVectors(new V3(0, 0, 0), lookAtPosition);
-      target.reflect(normal).negate().add(new V3(0, 0, 0));
+      view.reflect(normal).negate();
+      const rotationMatrix = this._reflRot.extractRotation(camera.matrixWorld);
+      const lookAtPosition = this._reflLook.set(0, 0, -1).applyMatrix4(rotationMatrix).add(camPos);
+      const target = this._reflTarget.subVectors(this._reflTarget.set(0, 0, 0), lookAtPosition);
+      target.reflect(normal).negate();
       const rc = this.reflectionCamera;
       rc.position.copy(view);
       rc.up.set(0, 1, 0).applyMatrix4(rotationMatrix).reflect(normal);
       rc.lookAt(target);
-      rc.near = camera.near; rc.far = camera.far;
+      rc.near = camera.near; rc.far = Math.min(camera.far, 150);
       rc.updateMatrixWorld();
       rc.projectionMatrix.copy(camera.projectionMatrix);
       rc.projectionMatrixInverse.copy(camera.projectionMatrixInverse);

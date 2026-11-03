@@ -293,7 +293,7 @@
     <div class="boot-sub">霓虹街区 · 雨夜叙事场景<br>PROCEDURAL CITY / HDR / PLANAR REFLECTIONS / VOLUMETRIC RAIN</div>
     <div class="boot-bar-wrap"><div id="boot-bar"></div></div>
     <div id="boot-status">BOOTING CITY // 初始化城市</div>
-    <div class="boot-meta"><span>WEBGL2 RENDERER</span><span>BUILD 0.0.9</span><span>SECTOR 07</span></div>
+    <div class="boot-meta"><span>WEBGL2 RENDERER</span><span>BUILD 0.1.0</span><span>SECTOR 07</span></div>
   </div>
   <div class="boot-corners"></div>
 </div>
@@ -1247,110 +1247,6 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     return c;
   };
 
-  T.holoKoi = function () {
-    const W = 1024, H = 512;
-    const c = makeCanvas(W, H);
-    const x = c.getContext('2d');
-    x.clearRect(0, 0, W, H);
-    const grad = x.createLinearGradient(120, 0, 900, 0);
-    grad.addColorStop(0, 'rgba(54,240,255,.9)');
-    grad.addColorStop(0.45, 'rgba(85,255,255,.65)');
-    grad.addColorStop(0.74, 'rgba(255,55,178,.8)');
-    grad.addColorStop(1, 'rgba(255,210,245,.95)');
-    x.save();
-    x.shadowColor = 'rgba(55,235,255,.9)';
-    x.shadowBlur = 34;
-
-    // flowing tail
-    x.strokeStyle = 'rgba(102,245,255,.65)';
-    x.lineWidth = 8;
-    x.beginPath(); x.moveTo(205, 262);
-    x.bezierCurveTo(150, 190, 70, 168, 32, 120);
-    x.bezierCurveTo(92, 205, 92, 250, 150, 278);
-    x.stroke();
-    x.beginPath(); x.moveTo(205, 262);
-    x.bezierCurveTo(112, 290, 74, 365, 44, 414);
-    x.bezierCurveTo(92, 340, 130, 300, 188, 296);
-    x.stroke();
-    x.lineWidth = 3;
-    x.strokeStyle = 'rgba(255,130,225,.45)';
-    x.beginPath(); x.moveTo(205, 262);
-    x.bezierCurveTo(130, 240, 82, 220, 38, 188); x.stroke();
-    x.beginPath(); x.moveTo(205, 262);
-    x.bezierCurveTo(130, 285, 92, 328, 45, 360); x.stroke();
-
-    // body silhouette
-    x.beginPath();
-    x.moveTo(760, 258);
-    x.bezierCurveTo(710, 164, 580, 140, 460, 170);
-    x.bezierCurveTo(360, 194, 284, 226, 206, 258);
-    x.bezierCurveTo(285, 296, 365, 334, 465, 350);
-    x.bezierCurveTo(580, 370, 706, 338, 760, 258);
-    x.closePath();
-    const bodyFill = x.createLinearGradient(200, 0, 760, 0);
-    bodyFill.addColorStop(0, 'rgba(33,212,235,.25)');
-    bodyFill.addColorStop(0.55, 'rgba(50,235,255,.48)');
-    bodyFill.addColorStop(1, 'rgba(255,64,180,.45)');
-    x.fillStyle = bodyFill; x.fill();
-
-    // pale belly
-    x.beginPath();
-    x.moveTo(760, 260);
-    x.bezierCurveTo(690, 328, 560, 352, 420, 342);
-    x.bezierCurveTo(540, 320, 670, 300, 760, 260);
-    x.fillStyle = 'rgba(255,230,250,.20)'; x.fill();
-
-    // ghost outline, doubled for hologram bloom
-    x.strokeStyle = 'rgba(103,247,255,.9)'; x.lineWidth = 6;
-    x.stroke();
-    x.strokeStyle = 'rgba(255,120,220,.45)'; x.lineWidth = 2; x.stroke();
-
-    // top and side fins
-    x.strokeStyle = 'rgba(93,244,255,.72)'; x.lineWidth = 5;
-    x.beginPath(); x.moveTo(470, 170); x.bezierCurveTo(405, 100, 360, 52, 304, 34); x.bezierCurveTo(355, 98, 390, 145, 430, 184); x.stroke();
-    x.beginPath(); x.moveTo(475, 348); x.bezierCurveTo(440, 404, 405, 448, 360, 470); x.bezierCurveTo(390, 404, 405, 372, 430, 342); x.stroke();
-    x.beginPath(); x.moveTo(590, 342); x.bezierCurveTo(590, 402, 630, 444, 684, 460); x.bezierCurveTo(652, 402, 638, 366, 634, 344); x.stroke();
-
-    // scales
-    x.lineWidth = 1.5;
-    for (let row = 0; row < 4; row++) {
-      for (let col = 0; col < 9; col++) {
-        const px = 290 + col * 47 + (row % 2) * 22;
-        const py = 220 + row * 24;
-        x.beginPath(); x.arc(px, py, 22, 0.18, Math.PI - 0.18);
-        x.strokeStyle = 'rgba(145,252,255,' + (0.10 + row * 0.035) + ')'; x.stroke();
-      }
-    }
-    // gill line
-    x.beginPath(); x.arc(650, 255, 70, -1.1, 1.1); x.strokeStyle = 'rgba(255,185,240,.42)'; x.lineWidth = 2.5; x.stroke();
-
-    // eye and whiskers
-    x.shadowColor = '#ff54be'; x.shadowBlur = 24;
-    x.fillStyle = 'rgba(255,239,250,.95)';
-    x.beginPath(); x.arc(690, 232, 14, 0, TAU); x.fill();
-    x.fillStyle = 'rgba(255,45,156,.95)';
-    x.beginPath(); x.arc(693, 233, 7, 0, TAU); x.fill();
-    x.shadowBlur = 10; x.strokeStyle = 'rgba(110,246,255,.65)'; x.lineWidth = 2;
-    x.beginPath(); x.moveTo(756, 238); x.bezierCurveTo(822, 222, 870, 198, 913, 176); x.stroke();
-    x.beginPath(); x.moveTo(756, 272); x.bezierCurveTo(818, 290, 864, 316, 900, 342); x.stroke();
-
-    // digital scan slices
-    x.globalCompositeOperation = 'source-atop';
-    for (let y = 20; y < H; y += 7) {
-      x.fillStyle = 'rgba(5,8,16,' + (0.10 + Math.random() * 0.12) + ')';
-      x.fillRect(0, y, W, 2);
-    }
-    x.globalCompositeOperation = 'source-over';
-
-    // rim dust
-    x.shadowBlur = 8; x.fillStyle = 'rgba(210,255,255,.7)';
-    for (let i = 0; i < 55; i++) {
-      const px = 180 + Math.random() * 700, py = 150 + Math.random() * 220;
-      x.fillRect(px, py, 1.5, 1.5);
-    }
-    x.restore();
-    return c;
-  };
 
   T.holoWhale = function () {
     const W = 1024, H = 512;
@@ -1535,8 +1431,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.streakRT = null;
       this.compositeRT = null;
       this.taaA = null; this.taaB = null; this.taaRead = null; this.taaWrite = null; this.ssrRT = null;
-      this.ssrRT = null;
       this._camPos = new THREE.Vector3();
+      this._proj = new THREE.Matrix4();
+      this._invProj = new THREE.Matrix4();
+      this._viewProj = new THREE.Matrix4();
       this.prevViewProj = new THREE.Matrix4();
       this.taaReset = true;
       this.taaFrame = 0;
@@ -1997,7 +1895,6 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       const scale = this.opts.sceneScale || 1.0;
       const sw = Math.max(1, Math.floor(width * scale));
       const sh = Math.max(1, Math.floor(height * scale));
-      this.renderWidth = sw; this.renderHeight = sh;
       this.sceneRT = this.createRT(sw, sh, {
         depth: true,
         samples: this.opts.msaa || 0
@@ -2056,9 +1953,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       // 2. HDR scene, temporarily jittered by a sub-pixel Halton offset.
       camera.updateMatrixWorld();
       camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
-      const proj = camera.projectionMatrix.clone();
-      const invProj = proj.clone().invert();
-      const viewProj = new THREE.Matrix4().multiplyMatrices(proj, camera.matrixWorldInverse);
+      const proj = this._proj.copy(camera.projectionMatrix);
+      const invProj = this._invProj.copy(proj).invert();
+      const viewProj = this._viewProj.multiplyMatrices(proj, camera.matrixWorldInverse);
       const taa = this.opts.taa !== false;
       this.taaFrame++;
       if (taa) {
@@ -2174,6 +2071,33 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   const TAU = Math.PI * 2;
   const V3 = THREE.Vector3;
   const M4 = THREE.Matrix4;
+
+  function materialSignature(m) {
+    if (!m) return 'none';
+    const mapKey = (map) => {
+      if (!map) return '';
+      const src = map.source && map.source.uuid ? map.source.uuid : map.uuid;
+      return [src, map.repeat.x, map.repeat.y, map.offset.x, map.offset.y, map.rotation, map.colorSpace, map.channel, map.flipY].join(',');
+    };
+    const common = [m.type, m.side, m.vertexColors, m.toneMapped, m.transparent, m.opacity, m.alphaTest, m.depthTest, m.depthWrite, m.blending, m.flatShading].join('|');
+    if (m.isMeshStandardMaterial) {
+      return common + '|' + [
+        m.color.getHexString(), m.emissive.getHexString(), m.emissiveIntensity,
+        m.roughness, m.metalness, m.envMapIntensity, m.aoMapIntensity,
+        m.normalScale.x, m.normalScale.y, m.bumpScale,
+        mapKey(m.map), mapKey(m.emissiveMap), mapKey(m.normalMap), mapKey(m.roughnessMap),
+        mapKey(m.metalnessMap), mapKey(m.aoMap), mapKey(m.alphaMap), mapKey(m.bumpMap)
+      ].join('|');
+    }
+    if (m.isMeshBasicMaterial) {
+      return common + '|' + [m.color.getHexString(), mapKey(m.map), mapKey(m.alphaMap), m.wireframe].join('|');
+    }
+    if (m.isMeshLambertMaterial) {
+      return common + '|' + [m.color.getHexString(), m.emissive.getHexString(), m.emissiveIntensity, mapKey(m.map), mapKey(m.emissiveMap), mapKey(m.alphaMap)].join('|');
+    }
+    return m.uuid;
+  }
+
 
   const GROUND_VERT = `
     #include <common>
@@ -2603,20 +2527,23 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.time = 0;
       this.flash = 0;
       this.nextLightning = 7.5;
-      this.lightningDecay = 0;
       this.lightningActive = false;
       this.lightningElapsed = 0;
       this.lightningCameraPos = new V3();
       this.cameraYaw = 0;
+      this._reflCamPos = new V3();
+      this._reflNormal = new V3(0, 1, 0);
+      this._reflView = new V3();
+      this._reflLook = new V3();
+      this._reflTarget = new V3();
+      this._reflRot = new M4();
       this.onLightning = null;
       this.onLifeEvent = null;
       this.random = ND.util.mulberry32(92731);
       this.fogColor = new THREE.Color(0x12081d);
       this.fogDensity = 0.0074;
       this.screens = [];
-      this.cars = [];
       this.pedestrians = [];
-      this.steamVents = [];
       this.fogCards = [];
       this.neonMats = [];
       this.acMatrices = [];
@@ -2636,7 +2563,6 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.curtainColors = [];
       this.neonBatches = { magenta: [], cyan: [], amber: [], violet: [] };
       this.neonSpills = [];
-      this.roofTanks = [];
       this.reflectionHidden = [];
       this.dynamicGlow = [];
       this.colliders = [];
@@ -2675,6 +2601,14 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.buildVehicles();
       this.buildHologram();
       this.buildLife();
+      for (const p of this.pedestrians) {
+        const u = p.userData;
+        this.mergeGroupStatic(p, [u.head, u.hem, u.tail, u.umbrella, ...u.legs, ...u.knees, ...u.arms]);
+      }
+      for (const f of this.flyers) this.mergeGroupStatic(f, []);
+      if (this.cat) this.mergeGroupStatic(this.cat, [this.catTail]);
+      this.batchGlowSprites();
+      this.mergeStaticGeometry();
       this.buildReflection();
       this.applyEnvironmentIntensity();
     }
@@ -2737,7 +2671,6 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.roofMat = new THREE.MeshStandardMaterial({ color: 0x0b0c12, roughness: 0.72, metalness: 0.25 });
       this.metalMat = new THREE.MeshStandardMaterial({ color: 0x11131a, roughness: 0.38, metalness: 0.72 });
       this.rustMat = new THREE.MeshStandardMaterial({ color: 0x2a1712, roughness: 0.55, metalness: 0.6 });
-      this.glowingWindowMat = new THREE.MeshBasicMaterial({ color: 0xffd19a, toneMapped: false });
       this.billboardFrameMat = new THREE.MeshStandardMaterial({ color: 0x08090e, roughness: 0.35, metalness: 0.85 });
       const silhouetteCanvas = ND.util.makeCanvas(128, 256);
       const sc = silhouetteCanvas.getContext('2d');
@@ -2847,7 +2780,6 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       const tex = ND.Tex.canvasToTexture(ND.Tex.environment(), true);
       tex.mapping = THREE.EquirectangularReflectionMapping;
       this.scene.environment = tex;
-      this.envTexture = tex;
       // tame the IBL slightly so the emissive signage still leads
       this.scene.traverse(o => {
         if (o.isMesh && o.material && o.material.isMeshStandardMaterial) {
@@ -3873,9 +3805,12 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 
     buildReflection() {
       this.reflectionCamera = new THREE.PerspectiveCamera();
-      this.reflectionCamera.layers.set(0);
+      // The reflection only needs the architecture, signage and large props.
+      // Small clutter and every glow sprite stay out; this roughly halves the
+      // reflection draw calls while keeping everything visible in the main pass.
+      this.reflectionCamera.layers.set(2);
       this.reflectionTextureMatrix = new M4();
-      this.reflectorPlane = new THREE.Plane(new V3(0, 1, 0), 0);
+      this._selectReflectionLayers();
       const size = new THREE.Vector2();
       this.renderer.getSize(size);
       const ratio = Math.min(this.renderer.getPixelRatio(), 1.5) * (this.quality.reflectionScale || 0.5);
@@ -3891,6 +3826,301 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.groundUniforms.tReflection.value = this.reflectionRT.texture;
       this.sidewalkMat.uniforms.tReflection.value = this.reflectionRT.texture;
       if (this.waterMat) this.waterMat.uniforms.tReflection.value = this.reflectionRT.texture;
+    }
+
+
+
+    batchGlowSprites() {
+      // Every shop halo / street glow used to be its own additive draw call.
+      // They are static, share one radial texture and can live in a single
+      // instanced billboard batch.
+      const animated = new Set();
+      for (const list of [this.pedestrians, this.flyers, this.waterRings, this.dynamicGlow]) {
+        for (const o of list || []) animated.add(o);
+      }
+      for (const o of [this.cat, this.whaleGroup, this.wayfinding, this.stall]) {
+        if (o) animated.add(o);
+      }
+      for (const s of this.lifeSways || []) animated.add(s.obj);
+      const isAnimated = o => {
+        for (let p = o; p; p = p.parent) if (animated.has(p)) return true;
+        return false;
+      };
+      const glowTex = this._glowTex;
+      const sprites = [];
+      this.scene.traverse(o => {
+        if (!o.isSprite || !o.visible || isAnimated(o)) return;
+        const m = o.material;
+        if (!m || m.map !== glowTex || m.blending !== THREE.AdditiveBlending) return;
+        if (m.rotation !== 0 || m.opacity < 0.01 || m.depthTest === false) return;
+        sprites.push(o);
+      });
+      if (sprites.length < 8) return;
+
+      const count = sprites.length;
+      const base = new THREE.PlaneGeometry(1, 1);
+      const geo = new THREE.InstancedBufferGeometry();
+      geo.index = base.index;
+      geo.setAttribute('position', base.getAttribute('position'));
+      geo.setAttribute('uv', base.getAttribute('uv'));
+      const pos = new Float32Array(count * 3);
+      const col = new Float32Array(count * 3);
+      const size = new Float32Array(count * 2);
+      const alpha = new Float32Array(count);
+      const p = new THREE.Vector3();
+      const s = new THREE.Vector3();
+      for (let i = 0; i < count; i++) {
+        const sp = sprites[i];
+        sp.getWorldPosition(p);
+        sp.getWorldScale(s);
+        pos[i * 3] = p.x; pos[i * 3 + 1] = p.y; pos[i * 3 + 2] = p.z;
+        col[i * 3] = sp.material.color.r;
+        col[i * 3 + 1] = sp.material.color.g;
+        col[i * 3 + 2] = sp.material.color.b;
+        size[i * 2] = s.x;
+        size[i * 2 + 1] = s.y;
+        alpha[i] = sp.material.opacity;
+      }
+      geo.setAttribute('iPos', new THREE.InstancedBufferAttribute(pos, 3));
+      geo.setAttribute('iColor', new THREE.InstancedBufferAttribute(col, 3));
+      geo.setAttribute('iSize', new THREE.InstancedBufferAttribute(size, 2));
+      geo.setAttribute('iAlpha', new THREE.InstancedBufferAttribute(alpha, 1));
+      geo.instanceCount = count;
+
+      const mat = new THREE.ShaderMaterial({
+        uniforms: {
+          uMap: { value: glowTex },
+          uFogDensity: { value: this.fogDensity },
+          uFogColor: { value: this.fogColor }
+        },
+        vertexShader: `
+          attribute vec3 iPos, iColor;
+          attribute vec2 iSize;
+          attribute float iAlpha;
+          varying vec2 vUv;
+          varying vec3 vColor;
+          varying float vAlpha;
+          varying float vDepth;
+          void main() {
+            vec4 mv = viewMatrix * vec4(iPos, 1.0);
+            mv.xy += position.xy * iSize;
+            vUv = uv;
+            vColor = iColor;
+            vAlpha = iAlpha;
+            vDepth = -mv.z;
+            gl_Position = projectionMatrix * mv;
+          }
+        `,
+        fragmentShader: `
+          uniform sampler2D uMap;
+          uniform float uFogDensity;
+          uniform vec3 uFogColor;
+          varying vec2 vUv;
+          varying vec3 vColor;
+          varying float vAlpha;
+          varying float vDepth;
+          void main() {
+            vec4 t = texture2D(uMap, vUv);
+            float a = t.a * vAlpha;
+            if (a < 0.002) discard;
+            float fogAmt = 1.0 - exp(-uFogDensity * uFogDensity * vDepth * vDepth);
+            vec3 c = vColor * t.rgb;
+            c = mix(c, uFogColor, fogAmt * 0.7);
+            gl_FragColor = vec4(c, a);
+          }
+        `,
+        transparent: true,
+        depthWrite: false,
+        depthTest: true,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.frustumCulled = false;
+      mesh.renderOrder = 4;
+      mesh.layers.set(0);
+      this.scene.add(mesh);
+      for (const sp of sprites) { if (sp.parent) sp.parent.remove(sp); }
+    }
+
+
+    mergeGroupStatic(group, animatedRoots) {
+      if (!group) return;
+      const animated = new Set(animatedRoots || []);
+      const isAnimated = o => {
+        for (let p = o; p && p !== group; p = p.parent) if (animated.has(p)) return true;
+        return false;
+      };
+      group.updateWorldMatrix(true, true);
+      const inv = new THREE.Matrix4().copy(group.matrixWorld).invert();
+      const groups = new Map();
+      group.traverse(o => {
+        if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || !o.visible) return;
+        if (o.children.length) return;
+        if (Array.isArray(o.material)) return;
+        const mat = o.material;
+        if (!mat || mat.transparent || mat.isShaderMaterial || mat.isSpriteMaterial) return;
+        if (isAnimated(o)) return;
+        if (!o.geometry.attributes.position) return;
+        const attrs = Object.keys(o.geometry.attributes).sort().map(n => {
+          const a = o.geometry.attributes[n];
+          return n + ':' + a.itemSize + ':' + a.array.constructor.name;
+        }).join(',');
+        const key = materialSignature(mat) + '|' + attrs;
+        if (!groups.has(key)) groups.set(key, { mat, items: [] });
+        groups.get(key).items.push(o);
+      });
+      for (const groupData of groups.values()) {
+        if (groupData.items.length < 2) continue;
+        const first = groupData.items[0];
+        const attrNames = Object.keys(first.geometry.attributes);
+        const attrMeta = attrNames.map(name => {
+          const a = first.geometry.attributes[name];
+          return { name, itemSize: a.itemSize, normalized: !!a.normalized };
+        });
+        for (const o of groupData.items) {
+          o.updateWorldMatrix(true, false);
+        }
+        const chunks = [];
+        const totals = {};
+        for (const { name, itemSize } of attrMeta) totals[name] = 0;
+        let valid = true;
+        for (const o of groupData.items) {
+          for (const { name } of attrMeta) {
+            const a = o.geometry.attributes[name];
+            if (!a || !(a.array instanceof Float32Array)) { valid = false; break; }
+          }
+          if (!valid) break;
+          let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+          g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
+          chunks.push(g);
+          for (const { name, itemSize } of attrMeta) totals[name] += g.attributes[name].count * itemSize;
+        }
+        if (!valid) continue;
+        const merged = new THREE.BufferGeometry();
+        for (const { name, itemSize, normalized } of attrMeta) {
+          const arr = new Float32Array(totals[name]);
+          let offset = 0;
+          for (const g of chunks) {
+            const a = g.attributes[name];
+            arr.set(a.array, offset);
+            offset += a.array.length;
+          }
+          merged.setAttribute(name, new THREE.BufferAttribute(arr, itemSize, normalized));
+        }
+        merged.computeBoundingSphere();
+        const mesh = new THREE.Mesh(merged, first.material);
+        mesh.layers.mask = first.layers.mask;
+        mesh.castShadow = false;
+        mesh.receiveShadow = false;
+        group.add(mesh);
+        for (const o of groupData.items) { if (o.parent) o.parent.remove(o); }
+      }
+    }
+
+    mergeStaticGeometry() {
+      // Merge static, opaque meshes that share a material. The scene uses many
+      // small metal/plastic parts; batching them cuts hundreds of draw calls
+      // without changing what is visible.
+      const animated = new Set();
+      for (const list of [this.pedestrians, this.flyers, this.waterRings, this.dynamicGlow]) {
+        for (const o of list || []) animated.add(o);
+      }
+      for (const o of [this.cat, this.whaleGroup, this.wayfinding, this.water, this.ground, this.sky, this.splashMesh, this.dripPoints]) {
+        if (o) animated.add(o);
+      }
+      for (const s of this.lifeSways || []) animated.add(s.obj);
+      const isAnimated = o => {
+        for (let p = o; p; p = p.parent) if (animated.has(p)) return true;
+        return false;
+      };
+      const groups = new Map();
+      this.scene.traverse(o => {
+        if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || !o.visible) return;
+        if (o.children.length) return;
+        if (Array.isArray(o.material)) return;
+        const mat = o.material;
+        if (!mat || mat.transparent || mat.isShaderMaterial || mat.isSpriteMaterial) return;
+        if (o.morphTargetInfluences && o.morphTargetInfluences.length) return;
+        if (isAnimated(o)) return;
+        if (!o.geometry.attributes.position) return;
+        const attrs = Object.keys(o.geometry.attributes).sort().map(n => n + ':' + o.geometry.attributes[n].itemSize + ':' + o.geometry.attributes[n].array.constructor.name).join(',');
+        const key = materialSignature(mat) + '|' + o.renderOrder + '|' + o.layers.mask + '|' + attrs;
+        if (!groups.has(key)) groups.set(key, { mat, items: [] });
+        groups.get(key).items.push(o);
+      });
+
+      for (const group of groups.values()) {
+        if (group.items.length < 2) continue;
+        const first = group.items[0];
+        const attrNames = Object.keys(first.geometry.attributes);
+        const attrMeta = attrNames.map(name => {
+          const a = first.geometry.attributes[name];
+          return { name, itemSize: a.itemSize, normalized: !!a.normalized };
+        });
+        const chunks = [];
+        const totals = {};
+        for (const { name, itemSize } of attrMeta) totals[name] = 0;
+        let valid = true;
+        for (const o of group.items) {
+          const geo = o.geometry;
+          for (const { name } of attrMeta) {
+            const a = geo.attributes[name];
+            if (!a || !(a.array instanceof Float32Array)) { valid = false; break; }
+          }
+          if (!valid) break;
+          let g = geo.index ? geo.toNonIndexed() : geo.clone();
+          o.updateWorldMatrix(true, false);
+          g.applyMatrix4(o.matrixWorld);
+          chunks.push(g);
+          for (const { name, itemSize } of attrMeta) totals[name] += g.attributes[name].count * itemSize;
+        }
+        if (!valid) continue;
+        const merged = new THREE.BufferGeometry();
+        for (const { name, itemSize, normalized } of attrMeta) {
+          const arr = new Float32Array(totals[name]);
+          let offset = 0;
+          for (const g of chunks) {
+            const a = g.attributes[name];
+            arr.set(a.array, offset);
+            offset += a.array.length;
+          }
+          merged.setAttribute(name, new THREE.BufferAttribute(arr, itemSize, normalized));
+        }
+        merged.computeBoundingSphere();
+        const mesh = new THREE.Mesh(merged, first.material);
+        mesh.renderOrder = first.renderOrder;
+        mesh.layers.mask = first.layers.mask;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.frustumCulled = true;
+        this.scene.add(mesh);
+        for (const o of group.items) { if (o.parent) o.parent.remove(o); }
+      }
+    }
+
+    _selectReflectionLayers() {
+      const includeSprite = o => o === this.whalePlane || o === this.whaleHalo || o === this.whaleBack;
+      this.scene.traverse(o => {
+        if (o.isLight) { o.layers.enable(2); return; }
+        if (o === this.sky || o === this.ground || o === this.water) return;
+        if (this.sidewalks && this.sidewalks.indexOf(o) !== -1) return;
+        if (o === this.neonSpillMesh) return;
+        if (o.isSprite) { if (includeSprite(o)) o.layers.enable(2); return; }
+        if (o.isPoints || o.isLine) return;
+        if (o.isInstancedMesh) { o.layers.enable(2); return; }
+        if (!o.isMesh || !o.geometry) return;
+        const geo = o.geometry;
+        if (!geo.boundingSphere) geo.computeBoundingSphere();
+        const bs = geo.boundingSphere;
+        if (!bs) return;
+        const s = Math.max(Math.abs(o.scale.x), Math.abs(o.scale.y), Math.abs(o.scale.z));
+        const r = bs.radius * s;
+        const mat = Array.isArray(o.material) ? o.material[0] : o.material;
+        if (!mat || mat.transparent) return;
+        const emissive = mat && (mat.toneMapped === false || (mat.emissive && mat.emissive.getHex() !== 0));
+        if (r >= 3.0 || (emissive && r >= 0.9)) o.layers.enable(2);
+      });
     }
 
     setSize(w, h, dpr) {
@@ -4000,20 +4230,20 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     renderReflection(renderer, camera) {
       if (!this.reflectionRT || camera.position.y < 0.04) return;
       camera.updateMatrixWorld();
-      const camPos = camera.getWorldPosition(new V3());
-      const normal = new V3(0, 1, 0);
-      const view = new V3().subVectors(new V3(0, 0, 0), camPos);
+      const camPos = camera.getWorldPosition(this._reflCamPos);
+      const normal = this._reflNormal;
+      const view = this._reflView.subVectors(this._reflTarget.set(0, 0, 0), camPos);
       if (view.dot(normal) > 0) return;
-      view.reflect(normal).negate().add(new V3(0, 0, 0));
-      const rotationMatrix = new M4().extractRotation(camera.matrixWorld);
-      const lookAtPosition = new V3(0, 0, -1).applyMatrix4(rotationMatrix).add(camPos);
-      const target = new V3().subVectors(new V3(0, 0, 0), lookAtPosition);
-      target.reflect(normal).negate().add(new V3(0, 0, 0));
+      view.reflect(normal).negate();
+      const rotationMatrix = this._reflRot.extractRotation(camera.matrixWorld);
+      const lookAtPosition = this._reflLook.set(0, 0, -1).applyMatrix4(rotationMatrix).add(camPos);
+      const target = this._reflTarget.subVectors(this._reflTarget.set(0, 0, 0), lookAtPosition);
+      target.reflect(normal).negate();
       const rc = this.reflectionCamera;
       rc.position.copy(view);
       rc.up.set(0, 1, 0).applyMatrix4(rotationMatrix).reflect(normal);
       rc.lookAt(target);
-      rc.near = camera.near; rc.far = camera.far;
+      rc.near = camera.near; rc.far = Math.min(camera.far, 150);
       rc.updateMatrixWorld();
       rc.projectionMatrix.copy(camera.projectionMatrix);
       rc.projectionMatrixInverse.copy(camera.projectionMatrixInverse);
@@ -4106,7 +4336,6 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   World.prototype.buildStreetDetails = function () {
     const rnd = ND.util.mulberry32(44031);
     const g = new THREE.Group();
-    this.detailGroup = g;
     this.scene.add(g);
 
     // raised curbs, wet stone and gutter mouths
@@ -4126,7 +4355,6 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       [-10.7, 92], [10.8, 78], [-10.7, 58], [10.8, 40],
       [-10.7, 32], [10.8, 20], [10.8, -44], [-10.7, -61]
     ];
-    this.lampLights = [];
     for (let i = 0; i < lampPositions.length; i++) {
       const [x, z] = lampPositions[i];
       const shopSide = x < 0 ? -1 : 1;
@@ -4283,9 +4511,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     const stallShadow = this.addContactShadow(g, 4.6, 3.6, 0.38, 0.012);
     stallShadow.position.x = -11.1;
     stallShadow.position.z = 18.0;
-    const stallGlow = new THREE.PointLight(0xff8a3a, 38, 10, 2);
-    stallGlow.position.set(-10.2, 2.1, 18.0);
-    this.scene.add(stallGlow);
+
 
     // floating holographic wayfinding near the plaza
     const arrowTex = this._wayfindingTexture();
@@ -4666,7 +4892,6 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     this.addContactShadow(root, 2.2, 1.2, 0.5, 0.02);
     this.addCollider({ type: 'box', x: 8.6, z: -17.5, hx: 1.1, hz: 1.2 });
     g.add(root);
-    this.hoverbike = root;
   };
 
   World.prototype._storefrontTexture = function (variant) {
@@ -5016,11 +5241,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         const signPost = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.65, 0.07), this.metalMat);
         signPost.position.set(side * 13.12, 3.18, sz); root.add(signPost);
       }
-      // street wash and local warm light
+      // street wash; the painted interior and neon spill carry the shop light
       this.addNeonSpill('ground', side * 10.3, 0.04, d.z, 4.6, 5.4, new THREE.Color(d.color), 0.38);
-      const light = new THREE.PointLight(d.color, 20, 7, 2);
-      light.position.set(side * 13.35, 2.05, d.z);
-      this.scene.add(light);
     }
   };
 
@@ -5587,7 +5809,6 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 
     // big soft fog banks hugging the wet street
     const smokeTex = ND.Tex.canvasToTexture(ND.Tex.smoke(192, 7), true);
-    this._fogTex = smokeTex;
     const fogDefs = [
       [-7, 1.5, 25, 35, 9, 0x492d64], [8, 1.2, 8, 31, 8, 0x374e78],
       [-5, 1.4, -18, 40, 10, 0x4b2a5e], [9, 1.5, -42, 36, 9, 0x2f4a66],
@@ -5657,7 +5878,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 
 /* ---- src/actors.js ---- */
 /* =========================================================================
-   NEON DISTRICT — rain, citizens, traffic and a holographic koi
+   NEON DISTRICT — rain, citizens, traffic and a holographic whale
    ========================================================================= */
 (function () {
   'use strict';
@@ -6487,118 +6708,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   };
 
   /* ---------------------------------------------------------------------
-     Holographic koi and water rings.
+     Water rings and the holographic plaza whale.
      --------------------------------------------------------------------- */
   World.prototype.buildHologram = function () {
-    const holoMat = new THREE.ShaderMaterial({
-      uniforms: {
-        uTime: { value: 0 },
-        uColorA: { value: new THREE.Color(0x064c5a) },
-        uColorB: { value: new THREE.Color(0x4d072d) }
-      },
-      vertexShader: `
-        varying vec3 vNormal;
-        varying vec3 vView;
-        varying vec3 vPos;
-        void main() {
-          vec3 n = normalize(normalMatrix * normal);
-          vec4 mv = modelViewMatrix * vec4(position, 1.0);
-          vNormal = n;
-          vView = -normalize(mv.xyz);
-          vPos = position;
-          gl_Position = projectionMatrix * mv;
-        }
-      `,
-      fragmentShader: `
-        uniform float uTime;
-        uniform vec3 uColorA, uColorB;
-        varying vec3 vNormal;
-        varying vec3 vView;
-        varying vec3 vPos;
-        void main() {
-          float fres = pow(1.0 - abs(dot(normalize(vNormal), normalize(vView))), 1.3);
-          float scan = smoothstep(0.25, 0.72, sin(vPos.x * 18.0 - uTime * 6.0) * 0.5 + 0.5);
-          vec3 col = mix(uColorB, uColorA, fres) * (0.24 + 0.62 * fres + 0.14 * scan);
-          float alpha = 0.015 + 0.20 * pow(fres, 1.25) + 0.02 * scan;
-          gl_FragColor = vec4(col, alpha);
-        }
-      `,
-      transparent: true,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending
-    });
-    this.holoMat = holoMat;
 
-    const orbit = new THREE.Group();
-    orbit.position.set(0, 6.0, -61.5);
-    const koi = new THREE.Group();
-    koi.position.set(8.7, 0, 0);
-    koi.rotation.y = -Math.PI / 2;
-
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 4.0, 5, 12), holoMat);
-    body.rotation.z = Math.PI / 2;
-    body.scale.set(1, 0.86, 0.48);
-    koi.add(body);
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.53, 12, 9), holoMat);
-    head.position.x = 2.35;
-    head.scale.set(1.12, 0.86, 0.54);
-    koi.add(head);
-    const tailA = new THREE.Mesh(new THREE.ConeGeometry(0.74, 2.5, 3, 1, true), holoMat);
-    tailA.position.x = -3.55;
-    tailA.rotation.z = Math.PI / 2;
-    tailA.rotation.y = 0.35;
-    tailA.scale.z = 0.4;
-    koi.add(tailA);
-    const tailB = new THREE.Mesh(new THREE.ConeGeometry(0.62, 2.3, 3, 1, true), holoMat);
-    tailB.position.x = -3.4;
-    tailB.rotation.z = Math.PI / 2;
-    tailB.rotation.y = -0.35;
-    tailB.scale.z = 0.35;
-    koi.add(tailB);
-    const finA = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.9), holoMat);
-    finA.position.set(-0.2, -0.45, 0);
-    finA.rotation.set(0.7, 0, -0.4);
-    koi.add(finA);
-    const finB = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.8), holoMat);
-    finB.position.set(-0.4, 0.5, 0);
-    finB.rotation.set(-0.6, 0, 0.4);
-    koi.add(finB);
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff3b9f, toneMapped: false }));
-    eye.position.set(2.45, 0.12, 0.3);
-    koi.add(eye);
-
-    // thin digital wireframe over the solid body
-    const wireMat = new THREE.MeshBasicMaterial({ color: 0x6df4ff, wireframe: true, transparent: true, opacity: 0.38, blending: THREE.AdditiveBlending, depthWrite: false });
-    const wire = new THREE.Mesh(body.geometry, wireMat);
-    wire.rotation.copy(body.rotation);
-    wire.scale.copy(body.scale).multiplyScalar(1.006);
-    koi.add(wire);
-    const wireHead = new THREE.Mesh(head.geometry, wireMat);
-    wireHead.position.copy(head.position);
-    wireHead.scale.copy(head.scale).multiplyScalar(1.01);
-    koi.add(wireHead);
-    const spine = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 5.3, 4), wireMat);
-    spine.rotation.z = Math.PI / 2;
-    koi.add(spine);
-
-    orbit.add(koi);
-    koi.visible = false;
-    const koiCanvas = ND.Tex.holoKoi();
-    const koiTex = ND.Tex.canvasToTexture(koiCanvas, true);
-    const koiSpriteMat = new THREE.SpriteMaterial({
-      map: koiTex, color: 0xffffff, transparent: true, opacity: 0.68,
-      blending: THREE.AdditiveBlending, depthWrite: false
-    });
-    const koiSprite = new THREE.Sprite(koiSpriteMat);
-    koiSprite.position.set(7.3, 0, 0);
-    koiSprite.scale.set(6.0, 3.0, 1);
-    orbit.add(koiSprite);
-    this.koiSprite = koiSprite;
-    koiSprite.visible = false;
-    this.koi = koi;
-    this.koiOrbit = orbit;
-    this.scene.add(orbit);
 
     // water rings and a shimmering trail
     const ringMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x2bb8cc).multiplyScalar(0.95), transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
@@ -6612,25 +6725,6 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.scene.add(ring);
     }
 
-    const sparkGeo = new THREE.BufferGeometry();
-    const n = 90;
-    const pos = new Float32Array(n * 3);
-    const col = new Float32Array(n * 3);
-    const rnd = ND.util.mulberry32(5501);
-    for (let i = 0; i < n; i++) {
-      const a = rnd() * TAU, r = 8.7 + (rnd() - 0.5) * 4;
-      pos[i * 3] = Math.cos(a) * r;
-      pos[i * 3 + 1] = Math.sin(a) * 0.7 + rnd() * 1.8;
-      pos[i * 3 + 2] = Math.sin(a) * r * 0.35;
-      const c = rnd() > 0.5 ? [0.2, 0.9, 1.0] : [1.0, 0.2, 0.65];
-      col[i * 3] = c[0]; col[i * 3 + 1] = c[1]; col[i * 3 + 2] = c[2];
-    }
-    sparkGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    sparkGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    this.koiSparks = new THREE.Points(sparkGeo, new THREE.PointsMaterial({ size: 0.07, map: this._glowTex, vertexColors: true, transparent: true, opacity: 0.42, depthWrite: false, blending: THREE.AdditiveBlending }));
-    this.scene.add(this.koiSparks);
-    this.koiSparks.visible = false;
-    koi.visible = false;
     this.buildWhaleProjection();
   };
 
@@ -6806,21 +6900,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.whaleSparks.position.y = 0.08 * Math.sin(time * 0.7);
     }
 
-    // koi
-    if (this.koiOrbit) {
-      this.koiOrbit.rotation.y = time * 0.19;
-      this.koi.position.y = Math.sin(time * 0.8) * 0.55;
-      this.koi.rotation.z = Math.sin(time * 1.1) * 0.08;
-      this.koi.rotation.y = -Math.PI / 2 + Math.sin(time * 0.9) * 0.18;
-      if (this.koiSprite) {
-        this.koiSprite.material.opacity = 0.58 + 0.10 * Math.sin(time * 2.1);
-        const pulse = 1 + Math.sin(time * 1.7) * 0.018;
-        this.koiSprite.scale.set(6.0 * pulse, 3.0 * pulse, 1);
-        this.koiSprite.position.y = Math.sin(time * 0.8) * 0.55;
-      }
-      this.holoMat.uniforms.uTime.value = time;
-      this.koiSparks.rotation.y = -time * 0.19;
-      this.koiSparks.position.y = Math.sin(time * 0.8) * 0.55;
+    // water rings around the plaza projector
+    if (this.waterRings) {
       for (let i = 0; i < this.waterRings.length; i++) {
         const r = this.waterRings[i];
         r.rotation.z = time * (0.08 + i * 0.03);
@@ -6872,7 +6953,6 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 
   const _dummy = new THREE.Object3D();
   const _color = new THREE.Color();
-  const _v = new THREE.Vector3();
 
   World.prototype.emitLife = function (type, data) {
     if (!this.onLifeEvent) return;
@@ -6886,7 +6966,6 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     this._splashCursor = 0;
     this._splashAccum = 0;
     this._dripAccum = 0;
-    this._lifeClock = 0;
 
     // ---- expanding rain-impact rings -------------------------------------
     const splashCount = 120;
@@ -7242,11 +7321,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.ctx = null;
       this.ready = false;
       this.muted = false;
-      this.nextThunder = 18 + Math.random() * 20;
       this.master = null;
       this.captureDest = null;
       this.rainGain = null;
-      this.padGain = null;
       this.humGain = null;
       this.neonBuzzGain = null;
       this.ambient = null;
@@ -7789,9 +7866,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   function tick() { return new Promise(r => requestAnimationFrame(() => setTimeout(r, 0))); }
 
   const QUALITY = {
-    high: { name: '高 / HIGH', dpr: 1.35, msaa: 0, sceneScale: 1.25, bloomLevels: 5, reflectionScale: 0.55, rainCount: 20000, rainNearCount: 1600, shadowSize: 2048 },
-    medium: { name: '中 / MEDIUM', dpr: 1.05, msaa: 0, sceneScale: 1.0, bloomLevels: 5, reflectionScale: 0.4, rainCount: 14000, rainNearCount: 1200, shadowSize: 1024 },
-    low: { name: '低 / LOW', dpr: 0.85, msaa: 0, sceneScale: 0.8, bloomLevels: 4, reflectionScale: 0.3, rainCount: 9000, rainNearCount: 900, shadowSize: 1024 }
+    high: { name: '高 / HIGH', dpr: 1.0, msaa: 0, sceneScale: 0.82, bloomLevels: 4, reflectionScale: 0.26, rainCount: 16000, rainNearCount: 1400, shadowSize: 2048 },
+    medium: { name: '中 / MEDIUM', dpr: 0.95, msaa: 0, sceneScale: 0.78, bloomLevels: 4, reflectionScale: 0.24, rainCount: 12000, rainNearCount: 1100, shadowSize: 1024 },
+    low: { name: '低 / LOW', dpr: 0.8, msaa: 0, sceneScale: 0.66, bloomLevels: 4, reflectionScale: 0.18, rainCount: 8000, rainNearCount: 800, shadowSize: 1024 }
   };
 
   class App {
@@ -7806,7 +7883,6 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.fps = 60;
       this.fpsAccum = 0;
       this.fpsFrames = 0;
-      this.lastHUD = 0;
       this.perfTimer = 0;
       this.renderScale = 1.0;
       this.photo = null;
@@ -7822,6 +7898,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.benchDuration = Math.max(8, parseFloat(benchParam) || 20);
       this.benchElapsed = 0;
       this.benchDone = false;
+      this.benchWarmup = 1.2;
       this.benchTimes = [];
       this.frameTimes = [];
       this.perfPanel = false;
@@ -7990,6 +8067,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.world.update(0.016, 0, this.camera);
       this.camera.position.set(0, 2.2, 28);
       this.camera.lookAt(0, 10, -70);
+      // Compile every material before the title card; otherwise the first
+      // frames of play absorb shader compilation as a visible 100–300ms hitch.
+      this.renderer.compile(this.scene, this.camera);
+      this.post.render(this.scene, this.camera, this.world, 0, 0);
       this.post.render(this.scene, this.camera, this.world, 0, 0);
       this.bootStep('SYNCING SIGNAL // 接入城市', 100);
       await new Promise(r => setTimeout(r, 350));
@@ -8381,6 +8462,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.benchMode = true;
       this.benchDone = false;
       this.benchElapsed = 0;
+      this.benchWarmup = 1.2;
       this.benchTimes = [];
       this.frameTimes = [];
       this.perfPanel = true;
@@ -8419,9 +8501,13 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.frameTimes.push(ms);
       if (this.frameTimes.length > 240) this.frameTimes.shift();
       if (this.benchMode && !this.benchDone) {
-        this.benchTimes.push(ms);
-        this.benchElapsed += ms / 1000;
-        if (this.benchElapsed >= this.benchDuration) this.finishBenchmark();
+        if (this.benchWarmup > 0) {
+          this.benchWarmup -= dt;
+        } else {
+          this.benchTimes.push(ms);
+          this.benchElapsed += ms / 1000;
+          if (this.benchElapsed >= this.benchDuration) this.finishBenchmark();
+        }
       }
       if (!this.perfPanel && !this.benchMode) return;
       this.perfUpdateTimer += dt;

@@ -77,8 +77,10 @@
       this.streakRT = null;
       this.compositeRT = null;
       this.taaA = null; this.taaB = null; this.taaRead = null; this.taaWrite = null; this.ssrRT = null;
-      this.ssrRT = null;
       this._camPos = new THREE.Vector3();
+      this._proj = new THREE.Matrix4();
+      this._invProj = new THREE.Matrix4();
+      this._viewProj = new THREE.Matrix4();
       this.prevViewProj = new THREE.Matrix4();
       this.taaReset = true;
       this.taaFrame = 0;
@@ -539,7 +541,6 @@
       const scale = this.opts.sceneScale || 1.0;
       const sw = Math.max(1, Math.floor(width * scale));
       const sh = Math.max(1, Math.floor(height * scale));
-      this.renderWidth = sw; this.renderHeight = sh;
       this.sceneRT = this.createRT(sw, sh, {
         depth: true,
         samples: this.opts.msaa || 0
@@ -598,9 +599,9 @@
       // 2. HDR scene, temporarily jittered by a sub-pixel Halton offset.
       camera.updateMatrixWorld();
       camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
-      const proj = camera.projectionMatrix.clone();
-      const invProj = proj.clone().invert();
-      const viewProj = new THREE.Matrix4().multiplyMatrices(proj, camera.matrixWorldInverse);
+      const proj = this._proj.copy(camera.projectionMatrix);
+      const invProj = this._invProj.copy(proj).invert();
+      const viewProj = this._viewProj.multiplyMatrices(proj, camera.matrixWorldInverse);
       const taa = this.opts.taa !== false;
       this.taaFrame++;
       if (taa) {

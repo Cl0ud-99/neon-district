@@ -1,5 +1,5 @@
 /* =========================================================================
-   NEON DISTRICT — rain, citizens, traffic and a holographic koi
+   NEON DISTRICT — rain, citizens, traffic and a holographic whale
    ========================================================================= */
 (function () {
   'use strict';
@@ -829,118 +829,10 @@
   };
 
   /* ---------------------------------------------------------------------
-     Holographic koi and water rings.
+     Water rings and the holographic plaza whale.
      --------------------------------------------------------------------- */
   World.prototype.buildHologram = function () {
-    const holoMat = new THREE.ShaderMaterial({
-      uniforms: {
-        uTime: { value: 0 },
-        uColorA: { value: new THREE.Color(0x064c5a) },
-        uColorB: { value: new THREE.Color(0x4d072d) }
-      },
-      vertexShader: `
-        varying vec3 vNormal;
-        varying vec3 vView;
-        varying vec3 vPos;
-        void main() {
-          vec3 n = normalize(normalMatrix * normal);
-          vec4 mv = modelViewMatrix * vec4(position, 1.0);
-          vNormal = n;
-          vView = -normalize(mv.xyz);
-          vPos = position;
-          gl_Position = projectionMatrix * mv;
-        }
-      `,
-      fragmentShader: `
-        uniform float uTime;
-        uniform vec3 uColorA, uColorB;
-        varying vec3 vNormal;
-        varying vec3 vView;
-        varying vec3 vPos;
-        void main() {
-          float fres = pow(1.0 - abs(dot(normalize(vNormal), normalize(vView))), 1.3);
-          float scan = smoothstep(0.25, 0.72, sin(vPos.x * 18.0 - uTime * 6.0) * 0.5 + 0.5);
-          vec3 col = mix(uColorB, uColorA, fres) * (0.24 + 0.62 * fres + 0.14 * scan);
-          float alpha = 0.015 + 0.20 * pow(fres, 1.25) + 0.02 * scan;
-          gl_FragColor = vec4(col, alpha);
-        }
-      `,
-      transparent: true,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending
-    });
-    this.holoMat = holoMat;
 
-    const orbit = new THREE.Group();
-    orbit.position.set(0, 6.0, -61.5);
-    const koi = new THREE.Group();
-    koi.position.set(8.7, 0, 0);
-    koi.rotation.y = -Math.PI / 2;
-
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 4.0, 5, 12), holoMat);
-    body.rotation.z = Math.PI / 2;
-    body.scale.set(1, 0.86, 0.48);
-    koi.add(body);
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.53, 12, 9), holoMat);
-    head.position.x = 2.35;
-    head.scale.set(1.12, 0.86, 0.54);
-    koi.add(head);
-    const tailA = new THREE.Mesh(new THREE.ConeGeometry(0.74, 2.5, 3, 1, true), holoMat);
-    tailA.position.x = -3.55;
-    tailA.rotation.z = Math.PI / 2;
-    tailA.rotation.y = 0.35;
-    tailA.scale.z = 0.4;
-    koi.add(tailA);
-    const tailB = new THREE.Mesh(new THREE.ConeGeometry(0.62, 2.3, 3, 1, true), holoMat);
-    tailB.position.x = -3.4;
-    tailB.rotation.z = Math.PI / 2;
-    tailB.rotation.y = -0.35;
-    tailB.scale.z = 0.35;
-    koi.add(tailB);
-    const finA = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.9), holoMat);
-    finA.position.set(-0.2, -0.45, 0);
-    finA.rotation.set(0.7, 0, -0.4);
-    koi.add(finA);
-    const finB = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.8), holoMat);
-    finB.position.set(-0.4, 0.5, 0);
-    finB.rotation.set(-0.6, 0, 0.4);
-    koi.add(finB);
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff3b9f, toneMapped: false }));
-    eye.position.set(2.45, 0.12, 0.3);
-    koi.add(eye);
-
-    // thin digital wireframe over the solid body
-    const wireMat = new THREE.MeshBasicMaterial({ color: 0x6df4ff, wireframe: true, transparent: true, opacity: 0.38, blending: THREE.AdditiveBlending, depthWrite: false });
-    const wire = new THREE.Mesh(body.geometry, wireMat);
-    wire.rotation.copy(body.rotation);
-    wire.scale.copy(body.scale).multiplyScalar(1.006);
-    koi.add(wire);
-    const wireHead = new THREE.Mesh(head.geometry, wireMat);
-    wireHead.position.copy(head.position);
-    wireHead.scale.copy(head.scale).multiplyScalar(1.01);
-    koi.add(wireHead);
-    const spine = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 5.3, 4), wireMat);
-    spine.rotation.z = Math.PI / 2;
-    koi.add(spine);
-
-    orbit.add(koi);
-    koi.visible = false;
-    const koiCanvas = ND.Tex.holoKoi();
-    const koiTex = ND.Tex.canvasToTexture(koiCanvas, true);
-    const koiSpriteMat = new THREE.SpriteMaterial({
-      map: koiTex, color: 0xffffff, transparent: true, opacity: 0.68,
-      blending: THREE.AdditiveBlending, depthWrite: false
-    });
-    const koiSprite = new THREE.Sprite(koiSpriteMat);
-    koiSprite.position.set(7.3, 0, 0);
-    koiSprite.scale.set(6.0, 3.0, 1);
-    orbit.add(koiSprite);
-    this.koiSprite = koiSprite;
-    koiSprite.visible = false;
-    this.koi = koi;
-    this.koiOrbit = orbit;
-    this.scene.add(orbit);
 
     // water rings and a shimmering trail
     const ringMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x2bb8cc).multiplyScalar(0.95), transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
@@ -954,25 +846,6 @@
       this.scene.add(ring);
     }
 
-    const sparkGeo = new THREE.BufferGeometry();
-    const n = 90;
-    const pos = new Float32Array(n * 3);
-    const col = new Float32Array(n * 3);
-    const rnd = ND.util.mulberry32(5501);
-    for (let i = 0; i < n; i++) {
-      const a = rnd() * TAU, r = 8.7 + (rnd() - 0.5) * 4;
-      pos[i * 3] = Math.cos(a) * r;
-      pos[i * 3 + 1] = Math.sin(a) * 0.7 + rnd() * 1.8;
-      pos[i * 3 + 2] = Math.sin(a) * r * 0.35;
-      const c = rnd() > 0.5 ? [0.2, 0.9, 1.0] : [1.0, 0.2, 0.65];
-      col[i * 3] = c[0]; col[i * 3 + 1] = c[1]; col[i * 3 + 2] = c[2];
-    }
-    sparkGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    sparkGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    this.koiSparks = new THREE.Points(sparkGeo, new THREE.PointsMaterial({ size: 0.07, map: this._glowTex, vertexColors: true, transparent: true, opacity: 0.42, depthWrite: false, blending: THREE.AdditiveBlending }));
-    this.scene.add(this.koiSparks);
-    this.koiSparks.visible = false;
-    koi.visible = false;
     this.buildWhaleProjection();
   };
 
@@ -1148,21 +1021,8 @@
       this.whaleSparks.position.y = 0.08 * Math.sin(time * 0.7);
     }
 
-    // koi
-    if (this.koiOrbit) {
-      this.koiOrbit.rotation.y = time * 0.19;
-      this.koi.position.y = Math.sin(time * 0.8) * 0.55;
-      this.koi.rotation.z = Math.sin(time * 1.1) * 0.08;
-      this.koi.rotation.y = -Math.PI / 2 + Math.sin(time * 0.9) * 0.18;
-      if (this.koiSprite) {
-        this.koiSprite.material.opacity = 0.58 + 0.10 * Math.sin(time * 2.1);
-        const pulse = 1 + Math.sin(time * 1.7) * 0.018;
-        this.koiSprite.scale.set(6.0 * pulse, 3.0 * pulse, 1);
-        this.koiSprite.position.y = Math.sin(time * 0.8) * 0.55;
-      }
-      this.holoMat.uniforms.uTime.value = time;
-      this.koiSparks.rotation.y = -time * 0.19;
-      this.koiSparks.position.y = Math.sin(time * 0.8) * 0.55;
+    // water rings around the plaza projector
+    if (this.waterRings) {
       for (let i = 0; i < this.waterRings.length; i++) {
         const r = this.waterRings[i];
         r.rotation.z = time * (0.08 + i * 0.03);

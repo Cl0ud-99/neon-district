@@ -10,11 +10,9 @@
       this.ctx = null;
       this.ready = false;
       this.muted = false;
-      this.nextThunder = 18 + Math.random() * 20;
       this.master = null;
       this.captureDest = null;
       this.rainGain = null;
-      this.padGain = null;
       this.humGain = null;
       this.neonBuzzGain = null;
       this.ambient = null;
