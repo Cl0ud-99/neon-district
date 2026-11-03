@@ -670,7 +670,13 @@
       { style: 'punk', x: 9.0, z: 113, ry: -0.4, sc: 1.0, speed: 0.08 },
       { style: 'elder', x: -9.0, z: 126, ry: 0.8, sc: 0.93, speed: 0.03 },
       { style: 'droid', x: 9.4, z: 150, ry: -0.7, sc: 1.02, speed: 0.05 },
-      { style: 'commuter', x: -9.4, z: 172, ry: 0.2, sc: 0.97, speed: 0.06 }
+      { style: 'commuter', x: -9.4, z: 172, ry: 0.2, sc: 0.97, speed: 0.06 },
+      { style: 'vendor', x: -9.9, z: 120, ry: 1.4, sc: 0.92, speed: 0.0 },
+      { style: 'courier', x: 9.9, z: 132, ry: -0.2, sc: 0.95, speed: 0.03 },
+      { style: 'commuter', x: -2.6, z: 107, ry: 0.3, sc: 1.05, speed: 0.02 },
+      { style: 'courier', x: 2.4, z: 108, ry: -0.3, sc: 1.02, speed: 0.03 },
+      { style: 'vendor', x: 2.1, z: 129, ry: -0.6, sc: 1.0, speed: 0.02 },
+      { style: 'courier', x: -0.2, z: 136, ry: 0.1, sc: 1.04, speed: 0.04 }
     ];
     rearPeople.forEach((e, i) => {
       const p = this._makeCitizen(320 + i, e.style);
@@ -687,9 +693,10 @@
   /* ---------------------------------------------------------------------
      Traffic above the canyon.
      --------------------------------------------------------------------- */
-  World.prototype._makeFlyer = function (index) {
+  World.prototype._makeFlyer = function (index, forceStyle) {
     const rnd = ND.util.mulberry32(5521 + index * 31);
     const g = new THREE.Group();
+    const style = forceStyle || ['shuttle', 'swoop', 'hauler', 'drone'][index % 4];
     const bodyMat = new THREE.MeshStandardMaterial({ color: 0x0c1019, roughness: 0.3, metalness: 0.8 });
     const body = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.52, 1.18), bodyMat);
     g.add(body);
@@ -708,6 +715,41 @@
       light.position.set(1.43, 0.05, z);
       g.add(light);
     }
+    if (style === 'swoop') {
+      for (const sz of [-1, 1]) {
+        const wing = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.08, 2.7), new THREE.MeshStandardMaterial({ color: 0x101823, roughness: 0.26, metalness: 0.82 }));
+        wing.position.set(-0.2, 0.05, sz * 1.42);
+        wing.rotation.z = sz * 0.12;
+        g.add(wing);
+        const edge = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.035, 0.045), new THREE.MeshBasicMaterial({ color: new THREE.Color(0x51eaff).multiplyScalar(1.8), toneMapped: false }));
+        edge.position.set(0.18, 0.08, sz * 2.72);
+        g.add(edge);
+        const engine = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 0.55, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color(0x2bdcff).multiplyScalar(1.5), toneMapped: false }));
+        engine.rotation.x = Math.PI / 2;
+        engine.position.set(-1.15, 0.02, sz * 0.62);
+        g.add(engine);
+      }
+    } else if (style === 'hauler') {
+      g.scale.set(1.2, 1.1, 1.35);
+      for (const sz of [-1, 1]) {
+        const cargo = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.55, 1.0), new THREE.MeshStandardMaterial({ color: 0x241711, roughness: 0.55, metalness: 0.45 }));
+        cargo.position.set(-0.55, 0.12, sz * 0.92);
+        g.add(cargo);
+        const band = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.04, 0.06), new THREE.MeshBasicMaterial({ color: new THREE.Color(0xff9a3d).multiplyScalar(1.8), toneMapped: false }));
+        band.position.set(-0.55, 0.39, sz * 1.44);
+        g.add(band);
+      }
+    } else if (style === 'drone') {
+      g.scale.set(0.66, 0.66, 0.66);
+      const nose = new THREE.Mesh(new THREE.ConeGeometry(0.46, 1.2, 4), new THREE.MeshStandardMaterial({ color: 0x0a1218, roughness: 0.25, metalness: 0.8 }));
+      nose.rotation.z = -Math.PI / 2;
+      nose.position.x = 1.8;
+      g.add(nose);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.035, 4, 20), new THREE.MeshBasicMaterial({ color: new THREE.Color(0xff2e7f).multiplyScalar(1.9), toneMapped: false }));
+      ring.rotation.y = Math.PI / 2;
+      ring.position.set(-0.2, 0, 0);
+      g.add(ring);
+    }
     const under = new THREE.Sprite(new THREE.SpriteMaterial({ map: this._glowTex, color: 0x2ee8ff, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));
     under.position.set(0, -0.34, 0);
     under.scale.set(5.2, 1.5, 1);
@@ -722,25 +764,56 @@
       z: -70 + rnd() * 85,
       x: -80 + rnd() * 160,
       dir: rnd() > 0.5 ? 1 : -1,
-      bobbing: rnd() * TAU
+      bobbing: rnd() * TAU,
+      shipStyle: style
     };
     return g;
   };
 
   World.prototype.buildVehicles = function () {
     this.flyers = [];
-    for (let i = 0; i < 7; i++) {
-      const f = this._makeFlyer(i);
-      f.position.set(-60 + i * 20, 0, 0);
-      // two low patrol lanes cut through the canyon, visible from street level
+    const styles = ['shuttle', 'swoop', 'hauler', 'drone'];
+    for (let i = 0; i < 11; i++) {
+      const f = this._makeFlyer(i * 7 + 3, styles[i % styles.length]);
+      f.position.set(-60 + i * 18, 0, 0);
+      f.userData.x = -78 + i * 15.5;
+      f.userData.y = 12 + (i % 5) * 4.2;
+      f.userData.z = -65 + i * 22;
+      f.userData.speed = (f.userData.shipStyle === 'hauler' ? 2.8 : 4.5) + (i % 3) * 1.6;
+      f.userData.dir = i % 2 ? 1 : -1;
       if (i === 0) { f.userData.y = 8.8; f.userData.z = -28; f.userData.speed = 6.5; }
       if (i === 1) { f.userData.y = 11.5; f.userData.z = -55; f.userData.speed = 5.0; }
       if (i === 2) { f.userData.y = 14.0; f.userData.z = 8; f.userData.speed = 7.0; }
+      if (i === 3) { f.userData.y = 10.5; f.userData.z = 120; f.userData.speed = 4.2; }
+      if (i === 4) { f.userData.y = 12.0; f.userData.z = 142; f.userData.speed = 5.2; }
+      if (i === 5) { f.userData.y = 14.0; f.userData.z = 168; f.userData.speed = 3.4; }
+      if (i === 6) { f.userData.y = 8.5; f.userData.z = 86; f.userData.speed = 5.8; }
       this.flyers.push(f);
       this.scene.add(f);
     }
+    // a slow heavy freighter crosses the rear skyline occasionally
+    const freighter = this._makeFlyer(301, 'hauler');
+    freighter.scale.multiplyScalar(1.8);
+    freighter.userData.y = 34;
+    freighter.userData.z = 206;
+    freighter.userData.x = -55;
+    freighter.userData.speed = 1.6;
+    freighter.userData.dir = 1;
+    this.scene.add(freighter);
+    this.flyers.push(freighter);
+    // a low patrol drone hovers above the new market, clearly visible from street level
+    const rearDrone = this._makeFlyer(402, 'drone');
+    rearDrone.scale.multiplyScalar(1.35);
+    rearDrone.userData.y = 7.2;
+    rearDrone.userData.z = 112;
+    rearDrone.userData.x = -1.0;
+    rearDrone.userData.speed = 0.03;
+    rearDrone.userData.dir = 1;
+    this.scene.add(rearDrone);
+    this.flyers.push(rearDrone);
+
     // one sentinel patrol car hangs almost still above the crossing
-    const sentinel = this._makeFlyer(99);
+    const sentinel = this._makeFlyer(99, 'shuttle');
     sentinel.userData.y = 9.4;
     sentinel.userData.z = -34;
     sentinel.userData.x = 2.2;
@@ -900,8 +973,8 @@
     for (const p of this.pedestrians) {
       const u = p.userData;
       p.position.z += u.speed * u.dir * dt;
-      if (p.position.z > 48) { p.position.z = -78; }
-      if (p.position.z < -78) { p.position.z = 48; }
+      if (p.position.z > 188) { p.position.z = -78; }
+      if (p.position.z < -78) { p.position.z = 188; }
       p.position.y = (Math.abs(p.position.x) > 9.5 ? 0.17 : 0.03) + Math.sin(time * 1.9 + u.phase) * 0.012;
       p.rotation.y = u.dir > 0 ? 0.1 : Math.PI - 0.1;
       const gait = Math.sin(time * 5.2 + u.phase);
