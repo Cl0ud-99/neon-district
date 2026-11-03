@@ -31,7 +31,7 @@ A single-scene WebGL2 application. The deployable site is plain HTML plus classi
 | `src/post.js` | TAA, HDR target, five-level bloom, depth AO/DOF, FXAA, ACES grade, grain, lens droplets, super-sampling |
 | `src/world.js` | City generator, baked static shadow map sampled by wet ground, parallax hero windows, water, sky, planar mirror, lighting |
 | `src/props.js` | Storefronts, hero window bays/fire escapes, blade signs, cables, lanterns, volumetric shafts, steam, fog, hoverbike, gantry |
-| `src/actors.js` | Rain, fountain, six citizen archetypes with shared rigs and coat cloth, flying traffic, holographic koi, ripples |
+| `src/actors.js` | GPU rain (line + foreground sprite layer), fountain, six citizen archetypes with shared rigs and coat cloth, flying traffic, holographic koi, ripples |
 | `src/audio.js` | Procedural WebAudio rain, hum, synth pad and thunder |
 | `src/app.js` | Camera, state machine, title/cinematic UI, input, adaptive quality |
 
@@ -71,6 +71,7 @@ Details worth reading:
 - **Hero windows have interior parallax.** The close-up window bays use a small view-dependent UV offset against a drawn interior, so the room behind the glass shifts against the frame as the camera moves.
 - **TAA + FXAA + super-sampling.** The HDR frame is rendered with a Halton sub-pixel jitter, then resolved against the previous frame using depth reprojection and a neighbourhood clamp. FXAA cleans the final LDR image. Multisampled float targets caused a driver artifact on one test GPU, so this path is cheaper and keeps thin neon lines stable while reducing shimmer in motion.
 - **Adaptive quality.** If the measured frame rate drops below the threshold for six seconds during play/cinematic mode, the app steps down one quality tier automatically. The HUD’s quality control can override it at any time.
+- **Two-layer rain.** The far rain is 9–10k GPU line segments; a camera-following foreground layer of soft point-sprite streaks makes individual drops readable in motion instead of disappearing into 1px lines. The wet ground adds its own ripple rings under the rain.
 - **Five independent bloom mips.** A soft-threshold prefilter at half resolution feeds a Gaussian chain; all mips plus a horizontal anamorphic streak are composited before tonemapping.
 - **Every procedural texture is drawn in 2D at boot.** No `.png`, `.jpg`, `.glb` or audio file is loaded. The repository contains only code and documentation images.
 - **Screens use a shader, not a video.** Slow scanlines, RGB split, flicker and occasional UV glitches are applied in GLSL to canvas-generated billboard artwork.

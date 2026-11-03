@@ -5,6 +5,8 @@ node_modules/
 .chrome-profile*/
 .chrome*/
 .edge*/
+.devshot-*/
+.capture-*/
 
 # build artifacts
 dist/

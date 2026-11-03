@@ -273,6 +273,25 @@
     return c;
   };
 
+  // Soft vertical streak sprite for the foreground rain point layer.
+  T.rainStreak = function () {
+    const W = 64, H = 256;
+    const c = makeCanvas(W, H);
+    const x = c.getContext('2d');
+    x.clearRect(0, 0, W, H);
+    const g = x.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, 'rgba(190,225,255,0)');
+    g.addColorStop(0.18, 'rgba(210,238,255,.9)');
+    g.addColorStop(0.72, 'rgba(170,220,255,.65)');
+    g.addColorStop(1, 'rgba(120,180,255,0)');
+    x.fillStyle = g;
+    x.fillRect(25, 0, 14, H);
+    x.globalCompositeOperation = 'lighter';
+    x.shadowColor = 'rgba(130,210,255,.85)'; x.shadowBlur = 14;
+    x.fillStyle = 'rgba(220,245,255,.55)'; x.fillRect(29, 0, 6, H);
+    return c;
+  };
+
   /* -----------------------------------------------------------------------
      Billboard artwork. Built around bold silhouettes and type so they read
      even after being blurred by bloom and rain.

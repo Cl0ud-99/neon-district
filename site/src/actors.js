@@ -43,8 +43,8 @@
       uniforms: {
         uTime: { value: 0 },
         uHeight: { value: 38 },
-        uColor: { value: new THREE.Color(0.30, 0.47, 0.78) },
-        uOpacity: { value: 0.20 }
+        uColor: { value: new THREE.Color(0.42, 0.62, 0.98) },
+        uOpacity: { value: 0.42 }
       },
       vertexShader: `
         uniform float uTime, uHeight;
@@ -81,6 +81,74 @@
     this.rain.layers.set(1);
     this.rain.renderOrder = 20;
     this.scene.add(this.rain);
+
+    // Foreground rain: camera-following point sprites with a soft vertical
+    // streak texture. These are much more legible than 1px lines in motion.
+    const nearCount = Math.max(360, Math.floor(count * 0.14));
+    const ngeo = new THREE.BufferGeometry();
+    const npos = new Float32Array(nearCount * 3);
+    const nspd = new Float32Array(nearCount);
+    const npha = new Float32Array(nearCount);
+    const nsiz = new Float32Array(nearCount);
+    const nrnd = ND.util.mulberry32(77113);
+    for (let i = 0; i < nearCount; i++) {
+      npos[i * 3] = (nrnd() - 0.5) * 44;
+      npos[i * 3 + 1] = nrnd() * 26;
+      npos[i * 3 + 2] = (nrnd() - 0.5) * 38;
+      nspd[i] = 22 + nrnd() * 34;
+      npha[i] = nrnd();
+      nsiz[i] = 0.55 + nrnd() * 1.1;
+    }
+    ngeo.setAttribute('position', new THREE.BufferAttribute(npos, 3));
+    ngeo.setAttribute('aSpeed', new THREE.BufferAttribute(nspd, 1));
+    ngeo.setAttribute('aPhase', new THREE.BufferAttribute(npha, 1));
+    ngeo.setAttribute('aSize', new THREE.BufferAttribute(nsiz, 1));
+    const rainDropTex = ND.Tex.canvasToTexture(ND.Tex.rainStreak());
+    const nearMat = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uHeight: { value: 26 },
+        uMap: { value: rainDropTex },
+        uColor: { value: new THREE.Color(0.62, 0.82, 1.0) },
+        uOpacity: { value: 0.58 }
+      },
+      vertexShader: `
+        uniform float uTime, uHeight;
+        attribute float aSpeed, aPhase, aSize;
+        varying float vAlpha;
+        void main() {
+          vec3 p = position;
+          p.y = mod(p.y - uTime * aSpeed + aPhase * uHeight * 2.0, uHeight);
+          p.x += sin(uTime * 0.23 + aPhase * 6.28) * 0.32;
+          p.z += cos(uTime * 0.19 + aPhase * 5.13) * 0.26;
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          gl_Position = projectionMatrix * mv;
+          gl_PointSize = clamp((10.0 + aSize * 10.0) * (12.0 / max(12.0, -mv.z)), 2.0, 22.0);
+          vAlpha = 0.35 + 0.65 * aPhase;
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D uMap;
+        uniform vec3 uColor;
+        uniform float uOpacity;
+        varying float vAlpha;
+        void main() {
+          vec4 t = texture2D(uMap, gl_PointCoord);
+          float a = t.a * uOpacity * vAlpha;
+          if (a < 0.003) discard;
+          gl_FragColor = vec4(uColor * (0.75 + 0.45 * t.r), a);
+        }
+      `,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
+    this.rainNearMat = nearMat;
+    this.rainNear = new THREE.Points(ngeo, nearMat);
+    this.rainNear.frustumCulled = false;
+    this.rainNear.layers.set(1);
+    this.rainNear.renderOrder = 21;
+    this.scene.add(this.rainNear);
   };
 
   /* ---------------------------------------------------------------------
