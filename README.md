@@ -4,7 +4,7 @@
 
 **DSH-PTC**
 
-**v0.1.1 · 1 scene · 100% procedural · 0 assets · single-file build 1.03 MB**
+**v0.1.2 · 1 scene · 100% procedural · 0 assets · single-file build 1.03 MB**
 
 [**Live preview**](https://cl0ud-99.github.io/neon-district/) — runs in the browser, nothing to install.
 
@@ -49,7 +49,7 @@ city / signs / rain (Three.js scene)
         │
         ├──> static shadow map (baked once)
         │
-        └──> HDR scene target (0.82× scene scale, TAA/FXAA upscale)
+        └──> HDR scene target (native 1.0× scene scale, TAA/FXAA)
                   │
              TAA resolve (Halton jitter + depth reprojection)
                   │

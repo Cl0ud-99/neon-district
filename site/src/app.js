@@ -13,9 +13,9 @@
   function tick() { return new Promise(r => requestAnimationFrame(() => setTimeout(r, 0))); }
 
   const QUALITY = {
-    high: { name: '高 / HIGH', dpr: 1.0, msaa: 0, sceneScale: 0.82, bloomLevels: 4, reflectionScale: 0.26, rainCount: 16000, rainNearCount: 1400, shadowSize: 2048 },
-    medium: { name: '中 / MEDIUM', dpr: 0.95, msaa: 0, sceneScale: 0.78, bloomLevels: 4, reflectionScale: 0.24, rainCount: 12000, rainNearCount: 1100, shadowSize: 1024 },
-    low: { name: '低 / LOW', dpr: 0.8, msaa: 0, sceneScale: 0.66, bloomLevels: 4, reflectionScale: 0.18, rainCount: 8000, rainNearCount: 800, shadowSize: 1024 }
+    high: { name: '高 / HIGH', dpr: 1.0, msaa: 0, sceneScale: 1.0, bloomLevels: 4, reflectionScale: 0.26, rainCount: 16000, rainNearCount: 1400, shadowSize: 2048 },
+    medium: { name: '中 / MEDIUM', dpr: 0.95, msaa: 0, sceneScale: 0.9, bloomLevels: 4, reflectionScale: 0.24, rainCount: 12000, rainNearCount: 1100, shadowSize: 1024 },
+    low: { name: '低 / LOW', dpr: 0.8, msaa: 0, sceneScale: 0.78, bloomLevels: 4, reflectionScale: 0.18, rainCount: 8000, rainNearCount: 800, shadowSize: 1024 }
   };
 
   class App {
