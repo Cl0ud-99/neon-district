@@ -428,6 +428,11 @@
       this.flash = 0;
       this.nextLightning = 7.5;
       this.lightningDecay = 0;
+      this.lightningActive = false;
+      this.lightningElapsed = 0;
+      this.lightningCameraPos = new V3();
+      this.cameraYaw = 0;
+      this.onLightning = null;
       this.random = ND.util.mulberry32(92731);
       this.fogColor = new THREE.Color(0x12081d);
       this.fogDensity = 0.0074;

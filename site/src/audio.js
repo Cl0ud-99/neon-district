@@ -12,6 +12,7 @@
       this.muted = false;
       this.nextThunder = 18 + Math.random() * 20;
       this.master = null;
+      this.captureDest = null;
       this.rainGain = null;
       this.padGain = null;
       this.humGain = null;
@@ -121,6 +122,15 @@
       src.buffer = buffer; src.loop = true;
       src.start();
       return src;
+    }
+
+    captureStream() {
+      if (!this.ctx || !this.master) return null;
+      if (!this.captureDest) {
+        this.captureDest = this.ctx.createMediaStreamDestination();
+        this.master.connect(this.captureDest);
+      }
+      return this.captureDest.stream;
     }
 
     setMuted(m) {

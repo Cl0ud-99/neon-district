@@ -51,6 +51,13 @@
       this.perfPanel = false;
       this.perfUpdateTimer = 0;
       this.rawDt = 0;
+      this.recordMode = this.params.get('record') === '1';
+      this.recordDuration = Math.max(2, parseFloat(this.params.get('recordsec')) || 67.7);
+      this.recording = false;
+      this.recordChunks = [];
+      this.recordRecorder = null;
+      this.recordCanvas = null;
+      this.recordCtx = null;
       const qualityParam = this.params.get('quality');
       this.qualityKey = QUALITY[qualityParam] ? qualityParam : (matchMedia('(pointer: coarse)').matches ? 'medium' : 'high');
       this.quality = QUALITY[this.qualityKey];
@@ -216,7 +223,7 @@
       requestAnimationFrame(this.loop);
       const rawDt = this.clock.getDelta();
       this.rawDt = rawDt;
-      const dt = Math.min(rawDt, 0.05);
+      const dt = this.recording ? Math.min(rawDt, 0.2) : Math.min(rawDt, 0.05);
       this.update(dt);
     }
 
@@ -256,7 +263,8 @@
         this.showMenu(true);
         $('menu').classList.add('visible');
       }
-      if (this.benchMode && this.state !== 'shot') this.startBenchmark();
+      if (this.recordMode) this.startTrailerRecording();
+      else if (this.benchMode && this.state !== 'shot') this.startBenchmark();
       else if (this.params.get('photo') === '1' && this.state !== 'shot') this.enterPhoto();
       if (this.params.get('lightning') === '1') this.world.nextLightning = 0.01;
       window.__NEON_READY = true;
@@ -420,6 +428,155 @@
       if (document.pointerLockElement) document.exitPointerLock();
       if (this.post) this.post.resetTAA();
       this.showMenu(false);
+    }
+
+    async startTrailerRecording() {
+      document.body.classList.add('record-mode');
+      try {
+        await this.audio.init();
+        if (this.audio.ctx && this.audio.ctx.state === 'suspended') await this.audio.ctx.resume();
+        this.audio.enterCue();
+      } catch (e) {}
+      this.state = 'cinematic';
+      this.stateTime = 0;
+      this.currentCaption = -1;
+      this.perfTimer = 0;
+      document.body.dataset.state = 'cinematic';
+      if (this.post) this.post.resetTAA();
+      this.updateCinematic(0);
+
+      // Record at 1:1 720p with TAA disabled: this keeps the trailer crisp
+      // and avoids temporal ghosting on the slow orbit shots.
+      this.quality.dpr = 1.0;
+      this.quality.sceneScale = 1.0;
+      this.renderScale = 1.0;
+      this.applySizes();
+      if (this.post) this.post.opts.taa = false;
+
+      this.recordCanvas = document.createElement('canvas');
+      this.recordCanvas.width = 1280;
+      this.recordCanvas.height = 720;
+      this.recordCtx = this.recordCanvas.getContext('2d');
+      const stream = new MediaStream();
+      const videoStream = this.recordCanvas.captureStream(30);
+      videoStream.getVideoTracks().forEach(t => stream.addTrack(t));
+      const audioStream = this.audio.captureStream ? this.audio.captureStream() : null;
+      if (audioStream) audioStream.getAudioTracks().forEach(t => stream.addTrack(t));
+      const candidates = [
+        'video/webm;codecs=vp9,opus',
+        'video/webm;codecs=vp8,opus',
+        'video/webm'
+      ];
+      const mime = candidates.find(m => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(m)) || 'video/webm';
+      this.recordMime = mime;
+      this.recordChunks = [];
+      this.recordRecorder = new MediaRecorder(stream, {
+        mimeType: mime,
+        videoBitsPerSecond: 7000000,
+        audioBitsPerSecond: 128000
+      });
+      this.recordRecorder.ondataavailable = (ev) => { if (ev.data && ev.data.size) this.recordChunks.push(ev.data); };
+      this.recordRecorder.onstop = () => this.finishTrailerRecording();
+      this.recording = true;
+      this.recordRecorder.start(1000);
+      this.drawTrailerFrame();
+    }
+
+    drawTrailerFrame() {
+      if (!this.recordCtx || !this.recordCanvas) return;
+      const ctx = this.recordCtx, w = this.recordCanvas.width, h = this.recordCanvas.height;
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, w, h);
+      try { ctx.drawImage(this.renderer.domElement, 0, 0, w, h); } catch (e) {}
+      const bar = 56;
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, w, bar);
+      ctx.fillRect(0, h - bar, w, bar);
+      // letterbox edge
+      ctx.fillStyle = 'rgba(255,255,255,.08)';
+      ctx.fillRect(0, bar, w, 1);
+      ctx.fillRect(0, h - bar - 1, w, 1);
+      const t = this.stateTime;
+      // Filmic location card
+      if (t > 0.8 && t < 7.5) {
+        ctx.globalAlpha = Math.min(1, (t - 0.8) / 0.4) * Math.min(1, (7.5 - t) / 0.5);
+        ctx.textAlign = 'left';
+        ctx.fillStyle = 'rgba(244,233,242,.72)';
+        ctx.font = '600 13px Bahnschrift, "Microsoft YaHei", sans-serif';
+        ctx.fillText('NEO-KYUSHU / 新九州', 44, 92);
+        ctx.fillStyle = 'rgba(68,231,255,.72)';
+        ctx.font = '400 9px "Cascadia Mono", Consolas, monospace';
+        ctx.fillText('SECTOR 07  ·  KOWLOON UNIT', 44, 109);
+        ctx.globalAlpha = 1;
+      }
+      // Top-right technical label
+      ctx.textAlign = 'right';
+      ctx.fillStyle = 'rgba(255,255,255,.32)';
+      ctx.font = '400 8px "Cascadia Mono", Consolas, monospace';
+      ctx.fillText('REAL-TIME PROCEDURAL DEMO  /  35MM', w - 42, 30);
+      // Captions
+      let cap = null;
+      for (const c of this.captions) if (t >= c.t) cap = c;
+      if (cap && t > cap.t + 0.2) {
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(244,233,242,.92)';
+        ctx.font = '600 21px "Microsoft YaHei", "PingFang SC", sans-serif';
+        ctx.fillText(cap.zh, w / 2, h - 96);
+        ctx.fillStyle = 'rgba(190,218,235,.58)';
+        ctx.font = '400 10px "Cascadia Mono", Consolas, monospace';
+        ctx.fillText(cap.en, w / 2, h - 76);
+      }
+      // Opening / closing title
+      let alpha = 0;
+      if (t < 3.6) alpha = Math.sin((t / 3.6) * Math.PI);
+      if (t > 63.2) alpha = Math.min(1, (t - 63.2) / 1.2);
+      if (alpha > 0) {
+        ctx.globalAlpha = alpha;
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#f4e9f2';
+        ctx.font = '900 52px Bahnschrift, "Arial Narrow", sans-serif';
+        ctx.fillText('NEON DISTRICT', w / 2, h / 2 - 4);
+        ctx.fillStyle = 'rgba(255,46,139,.85)';
+        ctx.font = '400 11px "Cascadia Mono", Consolas, monospace';
+        ctx.fillText('雨夜街区  ·  SECTOR 07', w / 2, h / 2 + 25);
+        ctx.globalAlpha = 1;
+      }
+      // Tiny frame counter / timecode
+      ctx.textAlign = 'left';
+      ctx.fillStyle = 'rgba(255,255,255,.22)';
+      ctx.font = '400 8px "Cascadia Mono", Consolas, monospace';
+      ctx.fillText('ND—07  ' + t.toFixed(2) + ' / ' + this.recordDuration.toFixed(1) + 'S', 44, h - 28);
+    }
+
+    stopTrailerRecording() {
+      if (!this.recording) return;
+      this.recording = false;
+      this.state = 'shot';
+      this.freeze = true;
+      document.body.dataset.state = 'shot';
+      try {
+        if (this.recordRecorder && this.recordRecorder.state !== 'inactive') this.recordRecorder.stop();
+      } catch (e) {}
+    }
+
+    finishTrailerRecording() {
+      const blob = new Blob(this.recordChunks, { type: this.recordMime || 'video/webm' });
+      this.recordChunks = [];
+      const name = 'neon-district-trailer.webm';
+      window.__TRAILER_BYTES = blob.size;
+      fetch('/save-trailer', { method: 'POST', headers: { 'Content-Type': this.recordMime || 'video/webm' }, body: blob })
+        .then(r => {
+          if (!r.ok) throw new Error('save failed');
+          window.__TRAILER_SAVED = true;
+          document.title = 'NEON DISTRICT — TRAILER SAVED';
+        })
+        .catch(() => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = name; a.click();
+          setTimeout(() => URL.revokeObjectURL(url), 3000);
+          window.__TRAILER_SAVED = false;
+        });
     }
 
     startBenchmark() {
@@ -920,6 +1077,10 @@
       if (this.state === 'photo') {
         look.uFocus.value = this.photo.focus;
         look.uDof.value = 0.18;
+      } else if (this.recording) {
+        // Keep the recorded trailer crisp; the cinematic still carries depth via framing.
+        look.uFocus.value = this.cineFocus || 28;
+        look.uDof.value = 0.03;
       } else if (this.state === 'cinematic') {
         look.uFocus.value = this.cineFocus || 28;
         look.uDof.value = this.cineDof || 0.45;
@@ -970,6 +1131,10 @@
       }
       this.updatePerf(dt);
       this.post.render(this.scene, this.camera, this.world, this.time, this.world.flash);
+      if (this.recording) {
+        this.drawTrailerFrame();
+        if (this.stateTime >= this.recordDuration) this.stopTrailerRecording();
+      }
     }
 
     updateHUD() {

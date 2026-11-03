@@ -4,7 +4,7 @@
 
 **DSH-PTC**
 
-**1 scene · 100% procedural · 0 assets · single-file build 0.96 MB**
+**1 scene · 100% procedural · 0 assets · single-file build 0.97 MB**
 
 [**Live preview**](https://cl0ud-99.github.io/neon-district/) — runs in the browser, nothing to install.
 
@@ -148,6 +148,20 @@ Press **P** from the menu, play or pause screen to enter Photo Mode. The scene f
 
 The frame is read directly from the composite render target, so it contains the live render without DOM UI. The 4K path temporarily rebuilds the post chain at 3840×2160, renders one frozen frame, reads it back, and restores the interactive targets. It is also available at boot with `?photo=1`.
 
+## Trailer recording
+
+The repository includes a local recorder harness:
+
+```bash
+node tools/record-server.mjs
+```
+
+Open `http://127.0.0.1:8765/?record=1&quality=low`. The 68-second cinematic is rendered at 1:1 1280×720 with TAA and DOF disabled for a clean single-frame path, composited with letterboxing, captions and titles, and recorded with stereo ambience. The server writes `docs/neon-district-trailer.webm`.
+
+The final 24 fps H.264/AAC cut is `docs/neon-district-trailer.mp4`.
+
+![NEON DISTRICT trailer](docs/neon-district-trailer-poster.jpg)
+
 ## URL parameters
 
 The look is tunable without a rebuild:
@@ -161,6 +175,7 @@ The look is tunable without a rebuild:
 ?photo=1             open Photo Mode on boot
 ?bench=20            run a fixed-view 20s performance benchmark
 ?lightning=1         trigger a lightning strike shortly after boot
+?record=1           run the trailer recorder (local server required)
 ```
 
 For example:
