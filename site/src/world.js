@@ -453,6 +453,9 @@
       this.laundryColors = [];
       this.facadeSillMatrices = [];
       this.facadeMullionMatrices = [];
+      this.windowFrameMatrices = [];
+      this.curtainMatrices = [];
+      this.curtainColors = [];
       this.neonBatches = { magenta: [], cyan: [], amber: [], violet: [] };
       this.neonSpills = [];
       this.roofTanks = [];
@@ -913,6 +916,43 @@
         this.facadeSillMatrices.push(dummy.matrix.clone());
       }
 
+      // Individual window reveals and occasional curtains make the
+      // near-field facade read as a wall with apertures, not a decal.
+      const curtainPalette = [0x6f5a52, 0x7a6a58, 0x3e5558, 0x713f50, 0x8a7a68];
+      for (let f = 0; f < floors; f++) {
+        const wy = 3.2 + f * 5.4 + 2.45;
+        if (wy + 0.9 > h - 0.25) continue;
+        for (let c = 0; c < cols; c++) {
+          const wz = z - len / 2 + (c + 0.5) * colStep;
+          if ((c + f) % 2 === 0) {
+            const bars = [
+              [0, 0.86, 0.07, 0.07, 1.32],
+              [0, -0.86, 0.07, 0.07, 1.32],
+              [-0.64, 0, 0.07, 1.58, 0.07],
+              [0.64, 0, 0.07, 1.58, 0.07]
+            ];
+            for (const [dz, dy, sx, sy, sz] of bars) {
+              const bar = new THREE.Object3D();
+              bar.position.set(side * (b.facadeX - 0.105), wy + dy, wz + dz);
+              bar.scale.set(sx, sy, sz);
+              bar.updateMatrix();
+              this.windowFrameMatrices.push(bar.matrix.clone());
+            }
+          }
+          if ((c * 11 + f * 7) % 9 === 0) {
+            for (const dz of [-0.46, 0.46]) {
+              const curtain = new THREE.Object3D();
+              curtain.position.set(side * (b.facadeX - 0.07), wy, wz + dz);
+              curtain.rotation.y = -side * Math.PI / 2;
+              curtain.scale.set(0.25, 1.28, 1);
+              curtain.updateMatrix();
+              this.curtainMatrices.push(curtain.matrix.clone());
+              this.curtainColors.push(new THREE.Color(curtainPalette[(c + f) % curtainPalette.length]));
+            }
+          }
+        }
+      }
+
       // side facade facing the nearest alley / cross street
       if (rnd() > 0.45) {
         const stex = tex.clone();
@@ -1317,6 +1357,30 @@
         this.facadeMullionMatrices.forEach((m, i) => mullionMesh.setMatrixAt(i, m));
         mullionMesh.instanceMatrix.needsUpdate = true;
         this.scene.add(mullionMesh);
+      }
+      if (this.windowFrameMatrices.length) {
+        const frameMesh = new THREE.InstancedMesh(
+          new THREE.BoxGeometry(1, 1, 1),
+          new THREE.MeshStandardMaterial({ color: 0x0b0c12, roughness: 0.36, metalness: 0.72 }),
+          this.windowFrameMatrices.length
+        );
+        this.windowFrameMatrices.forEach((m, i) => frameMesh.setMatrixAt(i, m));
+        frameMesh.instanceMatrix.needsUpdate = true;
+        this.scene.add(frameMesh);
+      }
+      if (this.curtainMatrices.length) {
+        const curtainMesh = new THREE.InstancedMesh(
+          new THREE.PlaneGeometry(1, 1),
+          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92, metalness: 0.01, side: THREE.DoubleSide }),
+          this.curtainMatrices.length
+        );
+        this.curtainMatrices.forEach((m, i) => {
+          curtainMesh.setMatrixAt(i, m);
+          curtainMesh.setColorAt(i, this.curtainColors[i]);
+        });
+        curtainMesh.instanceMatrix.needsUpdate = true;
+        if (curtainMesh.instanceColor) curtainMesh.instanceColor.needsUpdate = true;
+        this.scene.add(curtainMesh);
       }
       const ledMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }), this.acLedMatrices.length);
       this.acLedMatrices.forEach((m, i) => {
