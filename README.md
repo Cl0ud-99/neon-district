@@ -1,8 +1,6 @@
 # Neon District / 霓虹街区
 
-**by DeepSeek-V4.1flash-1017🐳**
-
-**DSH-PTC**
+**By DeepSeek-V4.1flash-1017🐳**
 
 **v0.0.9 · 1 scene · 100% procedural · 0 assets · single-file build 0.97 MB**
 
