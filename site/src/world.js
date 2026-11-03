@@ -39,8 +39,8 @@
     uniform float uTime;
     uniform float uFogDensity;
     uniform vec3 uFogColor;
-    uniform vec3 uLightPos[6];
-    uniform vec3 uLightColor[6];
+    uniform vec3 uLightPos[9];
+    uniform vec3 uLightColor[9];
     uniform float uKind;
     varying vec3 vWorld;
     varying vec3 vView;
@@ -144,7 +144,7 @@
 
       // street light spill, physically-ish inverse square
       vec3 spill = vec3(0.0);
-      for (int i = 0; i < 6; i++) {
+      for (int i = 0; i < 9; i++) {
         vec3 toL = uLightPos[i] - vWorld;
         float dist2 = dot(toL.xz, toL.xz);
         float att = 1.0 / (1.0 + dist2 * 0.11);
@@ -184,8 +184,8 @@
     uniform float uTime;
     uniform float uFogDensity;
     uniform vec3 uFogColor;
-    uniform vec3 uLightPos[6];
-    uniform vec3 uLightColor[6];
+    uniform vec3 uLightPos[9];
+    uniform vec3 uLightColor[9];
     varying vec3 vWorld;
     varying vec3 vView;
     varying vec4 vReflect;
@@ -239,7 +239,7 @@
 
       vec3 deep = vec3(0.003, 0.014, 0.021);
       vec3 col = deep;
-      for (int i = 0; i < 6; i++) {
+      for (int i = 0; i < 9; i++) {
         vec3 toL = uLightPos[i] - vWorld;
         float att = 1.0 / (1.0 + dot(toL.xz, toL.xz) * 0.12);
         vec3 L = normalize(toL);
@@ -399,22 +399,23 @@
     });
   }
 
-  function addFacadeWindowVariation(mat, seed) {
+  function addFacadeWindowVariation(mat) {
+    // One shared shader program for every facade: per-window variation comes
+    // from the UV cell itself, not a per-material uniform. This is important
+    // now that the street has twice as many buildings.
     mat.onBeforeCompile = (shader) => {
-      shader.uniforms.uFacadeSeed = { value: seed };
-      shader.fragmentShader = 'uniform float uFacadeSeed;\n' + shader.fragmentShader;
       shader.fragmentShader = shader.fragmentShader.replace(
         '#include <emissivemap_fragment>',
         `#include <emissivemap_fragment>
         vec2 cell = floor(vEmissiveMapUv * vec2(7.0, 17.0));
-        float winSeed = fract(sin(dot(cell, vec2(12.9898, 78.233)) + uFacadeSeed) * 43758.5453);
+        float winSeed = fract(sin(dot(cell, vec2(12.9898, 78.233)) + 19.7) * 43758.5453);
         float winLit = smoothstep(0.10, 0.90, winSeed);
         totalEmissiveRadiance *= mix(0.28, 1.28, winLit);
         float winLuma = dot(totalEmissiveRadiance, vec3(0.333));
         totalEmissiveRadiance *= mix(0.62, 1.0, smoothstep(0.008, 0.055, winLuma));`
       );
     };
-    mat.customProgramCacheKey = () => 'facade-window-variation-' + seed.toFixed(3);
+    mat.customProgramCacheKey = () => 'facade-window-variation';
   }
 
   class World {
@@ -455,7 +456,10 @@
         { p: new V3(0.0, 18.0, -76.0), c: new THREE.Color(0xff7a3b).multiplyScalar(2.3) },
         { p: new V3(-10.6, 7.5, -34.0), c: new THREE.Color(0x8a5bff).multiplyScalar(1.7) },
         { p: new V3(10.5, 8.6, -48.0), c: new THREE.Color(0xff4b9e).multiplyScalar(1.7) },
-        { p: new V3(0.0, 5.4, 27.0), c: new THREE.Color(0xffb15b).multiplyScalar(1.3) }
+        { p: new V3(0.0, 5.4, 27.0), c: new THREE.Color(0xffb15b).multiplyScalar(1.3) },
+        { p: new V3(-10.0, 4.2, 122.0), c: new THREE.Color(0xff9a4d).multiplyScalar(1.5) },
+        { p: new V3(11.2, 8.0, 152.0), c: new THREE.Color(0xff2d8e).multiplyScalar(1.7) },
+        { p: new V3(0.0, 10.0, 178.0), c: new THREE.Color(0x5ff4ff).multiplyScalar(1.8) }
       ];
 
       this.scene.fog = new THREE.FogExp2(this.fogColor, this.fogDensity);
@@ -574,16 +578,16 @@
     buildLights() {
       this.scene.add(new THREE.HemisphereLight(0x5b6fa8, 0x2b0a22, 1.22));
       this.keyLight = new THREE.DirectionalLight(0x9aabff, 0.9);
-      this.keyLight.position.set(44, 92, 64);
-      this.keyLight.target.position.set(0, 0, -28);
+      this.keyLight.position.set(44, 120, 118);
+      this.keyLight.target.position.set(0, 0, 48);
       this.keyLight.castShadow = true;
       this.keyLight.shadow.mapSize.set(this.quality.shadowSize || 4096, this.quality.shadowSize || 4096);
-      this.keyLight.shadow.camera.left = -70;
-      this.keyLight.shadow.camera.right = 70;
-      this.keyLight.shadow.camera.top = 92;
-      this.keyLight.shadow.camera.bottom = -92;
+      this.keyLight.shadow.camera.left = -86;
+      this.keyLight.shadow.camera.right = 86;
+      this.keyLight.shadow.camera.top = 160;
+      this.keyLight.shadow.camera.bottom = -160;
       this.keyLight.shadow.camera.near = 1;
-      this.keyLight.shadow.camera.far = 260;
+      this.keyLight.shadow.camera.far = 360;
       this.keyLight.shadow.bias = -0.00012;
       this.keyLight.shadow.normalBias = 0.035;
       this.scene.add(this.keyLight);
@@ -594,7 +598,10 @@
         { pos: [0, 24, -75], color: 0xff823c, intensity: 500, distance: 80 },
         { pos: [-11, 8, -35], color: 0x8a5bff, intensity: 170, distance: 40 },
         { pos: [11, 9, -50], color: 0xff4b9e, intensity: 170, distance: 42 },
-        { pos: [0, 6, 27], color: 0xffb15b, intensity: 90, distance: 28 }
+        { pos: [0, 6, 27], color: 0xffb15b, intensity: 90, distance: 28 },
+        { pos: [-10.0, 4.2, 122.0], color: 0xff9a4d, intensity: 100, distance: 24 },
+        { pos: [11.2, 8.0, 152.0], color: 0xff2d8e, intensity: 130, distance: 28 },
+        { pos: [0.0, 10.0, 178.0], color: 0x5ff4ff, intensity: 140, distance: 30 }
       ];
       this.pointLights = [];
       for (const p of points) {
@@ -623,7 +630,7 @@
     buildSide(side) {
       const rnd = this.random;
       const facadeX = 13.8;
-      let cursor = 57;
+      let cursor = 193;
       const buildings = [];
       while (cursor > -79) {
         let len = 8 + rnd() * 13;
@@ -667,7 +674,7 @@
         roughness: 0.32 + rnd() * 0.18,
         metalness: 0.28 + rnd() * 0.2
       });
-      addFacadeWindowVariation(mat, rnd() * 100);
+      addFacadeWindowVariation(mat);
       const bump = this.facadeBumpBase.clone();
       bump.needsUpdate = true;
       bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
@@ -708,7 +715,7 @@
         stex.repeat.set(Math.max(1, depth / 13.5), Math.max(1, h / 30.0));
         const smat = mat.clone();
         smat.map = stex; smat.emissiveMap = stex;
-        addFacadeWindowVariation(smat, rnd() * 100);
+        addFacadeWindowVariation(smat);
         const sbump = bump.clone();
         sbump.needsUpdate = true;
         sbump.wrapS = sbump.wrapT = THREE.RepeatWrapping;
@@ -1153,7 +1160,12 @@
         { side: -1, z: -47, y: 4.2, text: '夜雨旅館', sub: 'NIGHT RAIN HOTEL', a: '#ff65b8', b: '#30c9ff', w: 4.4 },
         { side: 1, z: -58, y: 4.3, text: '彈藥', sub: 'AMMO / 24H', a: '#ff413b', b: '#ffbd49', w: 2.4 },
         { side: -1, z: -66, y: 4.0, text: '龍城茶樓', sub: 'DRAGON CITY TEA', a: '#ffb84d', b: '#ff2d7e', w: 3.8 },
-        { side: 1, z: 40, y: 4.6, text: '未來光學', sub: 'FUTURE OPTICS', a: '#53efff', b: '#8f6cff', w: 4.0 }
+        { side: 1, z: 40, y: 4.6, text: '未來光學', sub: 'FUTURE OPTICS', a: '#53efff', b: '#8f6cff', w: 4.0 },
+        { side: -1, z: 172, y: 4.8, text: '九龍城寨', sub: 'WALLED CITY', a: '#ffca4e', b: '#ff2d8e', w: 4.8 },
+        { side: 1, z: 158, y: 4.5, text: '夜雨旅館', sub: 'NIGHT RAIN', a: '#ff2d8e', b: '#5cecff', w: 4.2 },
+        { side: -1, z: 128, y: 4.7, text: '九龍夜市', sub: 'NIGHT MARKET', a: '#ff8a4c', b: '#ff2d8e', w: 5.0 },
+        { side: 1, z: 96, y: 4.3, text: '地鐵九龍', sub: 'MTR KOWLOON', a: '#53efff', b: '#ffb04d', w: 4.1 },
+        { side: -1, z: 70, y: 4.4, text: '舊城電器', sub: 'OLD TOWN ELECTRIC', a: '#5d9cff', b: '#ff4c5e', w: 4.2 }
       ];
       for (const d of defs) {
         const tex = this.makeBannerTexture(d.text, d.sub, d.a, d.b);
@@ -1213,10 +1225,10 @@
         lights: true
       });
       mat.receiveShadow = true;
-      this.ground = new THREE.Mesh(new THREE.PlaneGeometry(46, 200, 1, 1), mat);
+      this.ground = new THREE.Mesh(new THREE.PlaneGeometry(46, 430, 1, 1), mat);
       this.ground.receiveShadow = true;
       this.ground.rotation.x = -Math.PI / 2;
-      this.ground.position.set(0, 0.015, -22);
+      this.ground.position.set(0, 0.015, 45);
       this.scene.add(this.ground);
       this.reflectionHidden.push(this.ground);
 
@@ -1240,14 +1252,14 @@
       });
       smat.receiveShadow = true;
       this.sidewalkMat = smat;
-      const swGeo = new THREE.PlaneGeometry(4.2, 150);
+      const swGeo = new THREE.PlaneGeometry(4.2, 340);
       const swL = new THREE.Mesh(swGeo, smat);
       swL.rotation.x = -Math.PI / 2;
-      swL.position.set(-11.6, 0.17, -17);
+      swL.position.set(-11.6, 0.17, 55);
       this.scene.add(swL);
       const swR = new THREE.Mesh(swGeo.clone(), smat);
       swR.rotation.x = -Math.PI / 2;
-      swR.position.set(11.6, 0.17, -17);
+      swR.position.set(11.6, 0.17, 55);
       this.scene.add(swR);
       swL.receiveShadow = true;
       swR.receiveShadow = true;

@@ -4,7 +4,7 @@
 
 **DSH-PTC**
 
-**1 scene · 100% procedural · 0 assets · single-file build 0.89 MB**
+**1 scene · 100% procedural · 0 assets · single-file build 0.91 MB**
 
 [**Live preview**](https://cl0ud-99.github.io/neon-district/) — runs in the browser, nothing to install.
 
@@ -21,16 +21,18 @@ A real-time cyberpunk rain street built entirely in code: wet asphalt, mirrored 
 | ![title](docs/shots/title.jpg) | ![detail](docs/shots/detail.jpg) |
 | ![street](docs/shots/street.jpg) | ![hud](docs/shots/hud.jpg) |
 
+![rear district](docs/shots/back.jpg)
+
 ## What it is
 
-A single-scene WebGL2 application. The deployable site is plain HTML plus classic scripts — no bundler, no server-side runtime, no asset pipeline. `site/index.html` loads `site/src/*.js` directly; `site/standalone.html` is the same scene inlined into one file for offline sharing.
+A single-scene WebGL2 application with a ~272 m canyon: a rear gate, night market, hotel and skybridge now extend the original street behind the spawn point. The deployable site is plain HTML plus classic scripts — no bundler, no server-side runtime, no asset pipeline. `site/index.html` loads `site/src/*.js` directly; `site/standalone.html` is the same scene inlined into one file for offline sharing.
 
 | File | Role |
 | --- | --- |
 | `src/tex.js` | Canvas 2D texture atelier: facade atlases and bump fields, windows, billboards, shopfronts, smoke, koi, reflection environment |
 | `src/post.js` | TAA, vertical-wall SSR, HDR target, five-level bloom, depth AO/DOF, FXAA, ACES grade, grain, lens droplets, super-sampling |
 | `src/world.js` | City generator, baked static shadow map sampled by wet ground, parallax hero windows, water, sky, planar mirror, lighting |
-| `src/props.js` | Storefronts, hero window bays/fire escapes, blade signs, cables, lanterns, volumetric shafts, steam, fog, hoverbike, gantry |
+| `src/props.js` | Storefronts, hero window bays/fire escapes, rear gate/night market/hotel/MTR/skybridge, blade signs, cables, lanterns, volumetric shafts, steam, fog, hoverbike, gantry |
 | `src/actors.js` | GPU rain (lines, foreground ribbons, lamp mist), fountain, six citizen archetypes with shared rigs and coat cloth, flying traffic, holographic koi, ripples |
 | `src/audio.js` | Procedural WebAudio rain, hum, synth pad and thunder |
 | `src/app.js` | Camera, state machine, title/cinematic UI, input, adaptive quality |
@@ -129,7 +131,7 @@ The look is tunable without a rebuild:
 
 ```
 ?shot=1              hide UI and freeze for a clean frame
-?cam=hero|street|plaza|water|aerial|close|low|menu
+?cam=hero|street|plaza|water|aerial|close|low|menu|back
 ?t=24                freeze time in seconds
 ?freeze=0            let the screenshot scene animate
 ?quality=high|medium|low

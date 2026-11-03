@@ -123,7 +123,7 @@
       },
       vertexShader: `
         uniform float uTime, uHeight;
-        uniform vec3 uLightPos[6], uLightColor[6];
+        uniform vec3 uLightPos[9], uLightColor[9];
         attribute vec3 aCenter;
         attribute float aSpeed, aPhase, aSize;
         varying vec2 vUv;
@@ -136,7 +136,7 @@
           p.z += cos(uTime * 0.19 + aPhase * 5.13) * 0.26;
           vec4 world = modelMatrix * vec4(p, 1.0);
           vec3 lit = vec3(0.04);
-          for (int i = 0; i < 6; i++) {
+          for (int i = 0; i < 9; i++) {
             vec3 d = uLightPos[i] - world.xyz;
             lit += uLightColor[i] / (1.0 + dot(d, d) * 0.08);
           }
@@ -187,7 +187,8 @@
     const msiz = new Float32Array(mistCount);
     const mrnd = ND.util.mulberry32(88117);
     const lamps = [
-      [-11, 8, 16], [11, 12, 0], [0, 6, 27], [-11, 8, -35], [11, 9, -50]
+      [-11, 8, 16], [11, 12, 0], [0, 6, 27], [-11, 8, -35], [11, 9, -50],
+      [-10, 4, 122], [11, 8, 152], [0, 10, 178]
     ];
     for (let i = 0; i < mistCount; i++) {
       const l = lamps[i % lamps.length];
@@ -261,7 +262,9 @@
       { x: -7.0, y: 0.15, z: -30, dir: 0.12 },
       { x: 10.1, y: 0.15, z: -47, dir: -0.15 },
       { x: 1.8, y: 0.15, z: -68, dir: 0.22 },
-      { x: -2.2, y: 0.15, z: -58, dir: -0.4 }
+      { x: -2.2, y: 0.15, z: -58, dir: -0.4 },
+      { x: -9.8, y: 0.15, z: 122, dir: 0.35 },
+      { x: 10.0, y: 0.15, z: 154, dir: -0.3 }
     ];
     this._steam = [];
     for (let i = 0; i < count; i++) {
@@ -655,6 +658,26 @@
       p.rotation.y = e.ry;
       p.scale.setScalar(e.sc);
       p.userData.speed = 0.12 + i * 0.035;
+      p.userData.dir = i % 2 ? 1 : -1;
+      this.scene.add(p);
+      this.pedestrians.push(p);
+    });
+
+    // Rear-district life: market browsers, hotel guests and gate watchers.
+    const rearPeople = [
+      { style: 'courier', x: 9.8, z: 70, ry: -0.9, sc: 0.96, speed: 0.05 },
+      { style: 'vendor', x: -9.2, z: 92, ry: 0.6, sc: 0.94, speed: 0.02 },
+      { style: 'punk', x: 9.0, z: 113, ry: -0.4, sc: 1.0, speed: 0.08 },
+      { style: 'elder', x: -9.0, z: 126, ry: 0.8, sc: 0.93, speed: 0.03 },
+      { style: 'droid', x: 9.4, z: 150, ry: -0.7, sc: 1.02, speed: 0.05 },
+      { style: 'commuter', x: -9.4, z: 172, ry: 0.2, sc: 0.97, speed: 0.06 }
+    ];
+    rearPeople.forEach((e, i) => {
+      const p = this._makeCitizen(320 + i, e.style);
+      p.position.set(e.x, 0.17, e.z);
+      p.rotation.y = e.ry;
+      p.scale.setScalar(e.sc);
+      p.userData.speed = e.speed;
       p.userData.dir = i % 2 ? 1 : -1;
       this.scene.add(p);
       this.pedestrians.push(p);

@@ -40,16 +40,18 @@
     // raised curbs, wet stone and gutter mouths
     const curbMat = new THREE.MeshStandardMaterial({ color: 0x181720, roughness: 0.32, metalness: 0.42 });
     for (const side of [-1, 1]) {
-      const curb = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.24, 152), curbMat);
-      curb.position.set(side * 9.72, 0.12, -17);
+      const curb = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.24, 360), curbMat);
+      curb.position.set(side * 9.72, 0.12, 55);
       g.add(curb);
-      const gutter = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.015, 152), new THREE.MeshStandardMaterial({ color: 0x06070b, roughness: 0.18, metalness: 0.8 }));
-      gutter.position.set(side * 9.4, 0.03, -17);
+      const gutter = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.015, 360), new THREE.MeshStandardMaterial({ color: 0x06070b, roughness: 0.18, metalness: 0.8 }));
+      gutter.position.set(side * 9.4, 0.03, 55);
       g.add(gutter);
     }
 
     // street lamps with drooping cables and cold sodium heads
     const lampPositions = [
+      [-10.7, 188], [10.8, 176], [-10.7, 158], [10.8, 145], [-10.7, 126], [10.8, 112],
+      [-10.7, 92], [10.8, 78], [-10.7, 58], [10.8, 40],
       [-10.7, 32], [10.8, 20], [-10.7, 2], [10.8, -12], [-10.7, -30], [10.8, -44], [-10.7, -61]
     ];
     this.lampLights = [];
@@ -75,7 +77,7 @@
 
     // long black cables sagging across the canyon
     const cableMat = new THREE.MeshStandardMaterial({ color: 0x05060a, roughness: 0.75, metalness: 0.4 });
-    const cableZs = [48, 36, 26, 14, 3, -9, -17, -31, -40, -53, -64, -73];
+    const cableZs = [188, 178, 168, 158, 148, 138, 128, 118, 108, 98, 88, 78, 68, 58, 48, 36, 26, 14, 3, -9, -17, -31, -40, -53, -64, -73];
     for (let i = 0; i < cableZs.length; i++) {
       const z = cableZs[i];
       const y = 10 + rnd() * 8;
@@ -106,7 +108,7 @@
     // festival lanterns strung across the lower street
     this.lanternGroups = [];
     const lanternColors = [0xff4b45, 0xffa844, 0xff4f8d];
-    for (const z of [39, 18, -4, -27, -51]) {
+    for (const z of [188, 172, 156, 140, 124, 108, 92, 76, 60, 39, 18, -4, -27, -51]) {
       const grp = new THREE.Group();
       const pts = [];
       for (let i = 0; i <= 12; i++) {
@@ -137,6 +139,9 @@
 
     // vending machines, reeking of cold fluorescent light
     const vendingSpots = [
+      [-11.9, 184, -0.1], [11.9, 170, 0.1], [-11.9, 156, -0.1], [11.9, 142, 0.1],
+      [-11.9, 126, -0.1], [11.9, 112, 0.1], [-11.9, 96, -0.1], [11.9, 82, 0.1],
+      [-11.9, 66, -0.1], [11.9, 52, 0.1],
       [-11.9, 21, -0.1], [11.9, 15, 0.1], [-11.9, -22, -0.1], [11.9, -38, 0.1], [-11.9, -57, -0.1]
     ];
     for (let i = 0; i < vendingSpots.length; i++) {
@@ -162,12 +167,12 @@
     // stacked crates, bins and gas canisters
     const crateMat = new THREE.MeshStandardMaterial({ color: 0x17182a, roughness: 0.62, metalness: 0.35 });
     const crateGeo = new THREE.BoxGeometry(1, 1, 1);
-    const crates = new THREE.InstancedMesh(crateGeo, crateMat, 70);
+    const crates = new THREE.InstancedMesh(crateGeo, crateMat, 150);
     const dummy = new THREE.Object3D();
-    for (let i = 0; i < 70; i++) {
+    for (let i = 0; i < 150; i++) {
       const side = rnd() > 0.5 ? 1 : -1;
       const x = side * (10.2 + rnd() * 3.1);
-      const z = -75 + rnd() * 125;
+      const z = -75 + rnd() * 260;
       const s = 0.3 + rnd() * 0.75;
       dummy.position.set(x, s * 0.5 + (rnd() > 0.75 ? s : 0), z);
       dummy.rotation.set(0, rnd() * TAU, 0);
@@ -213,6 +218,323 @@
     this._addStorefronts(g);
     this._addBladeSigns(g);
     this._addHoverbike(g);
+    this.buildRearDistrict(g);
+  };
+
+  /* ---------------------------------------------------------------------
+     Rear district: the doubled street behind the starting camera.
+     Landmarks are deliberately authored, while the surrounding blocks keep
+     the procedural rhythm of the original street.
+     --------------------------------------------------------------------- */
+  World.prototype._verticalSignTexture = function (text, sub, a, b) {
+    const w = 512, h = 2048;
+    const c = ND.util.makeCanvas(w, h);
+    const x = c.getContext('2d');
+    const g = x.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, 'rgba(22,6,18,.96)');
+    g.addColorStop(0.45, 'rgba(6,7,13,.98)');
+    g.addColorStop(1, 'rgba(15,5,22,.96)');
+    x.fillStyle = g; x.fillRect(0, 0, w, h);
+    x.strokeStyle = a; x.lineWidth = 4; x.shadowColor = a; x.shadowBlur = 24;
+    x.strokeRect(18, 18, w - 36, h - 36);
+    x.strokeStyle = b; x.globalAlpha = 0.6; x.lineWidth = 1.5;
+    x.strokeRect(34, 34, w - 68, h - 68);
+    x.globalAlpha = 1;
+    const chars = Array.from(text);
+    const step = (h - 260) / Math.max(1, chars.length);
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.font = '700 220px "Yu Gothic","Microsoft YaHei",serif';
+    for (let i = 0; i < chars.length; i++) {
+      const y = 150 + step * (i + 0.5);
+      x.shadowColor = i % 2 ? b : a; x.shadowBlur = 26;
+      x.fillStyle = '#fff7fd';
+      x.fillText(chars[i], w / 2, y);
+      x.shadowBlur = 0;
+      x.fillStyle = i % 2 ? b : a;
+      x.globalAlpha = 0.18; x.fillRect(64, y + step * 0.38, w - 128, 2); x.globalAlpha = 1;
+    }
+    x.font = '400 34px "Bahnschrift","Arial Narrow",sans-serif';
+    x.fillStyle = b; x.shadowColor = b; x.shadowBlur = 12;
+    x.fillText(sub, w / 2, h - 96);
+    x.font = '400 22px "Bahnschrift",sans-serif';
+    x.fillStyle = 'rgba(235,245,255,.55)'; x.shadowBlur = 0;
+    x.fillText('NEO-KOWLOON / 2099', w / 2, h - 52);
+    ND.util.noiseLayer(x, w, h, 881, 10, true);
+    return ND.Tex.canvasToTexture(c);
+  };
+
+  World.prototype._neonStrip = function (parent, x, y, z, w, h, d, color) {
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(w, h, d),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(2.0), toneMapped: false })
+    );
+    mesh.position.set(x, y, z);
+    parent.add(mesh);
+    return mesh;
+  };
+
+  World.prototype.buildRearDistrict = function (g) {
+    const rnd = ND.util.mulberry32(62017);
+    const metal = this.metalMat;
+    const glowTex = this._glowTex || (this._glowTex = ND.Tex.canvasToTexture(ND.Tex.glow(128)));
+    const addGlow = (x, y, z, color, sx, sy, opacity) => {
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, transparent: true, opacity: opacity == null ? 0.14 : opacity, blending: THREE.AdditiveBlending, depthWrite: false }));
+      s.position.set(x, y, z); s.scale.set(sx, sy, 1); g.add(s);
+      return s;
+    };
+
+    // ---- 1. rear gate / paifang at z=180 -------------------------------
+    const gateZ = 180;
+    const neonA = 0xff2d8e, neonB = 0x55ecff;
+    for (const side of [-1, 1]) {
+      const pillar = new THREE.Mesh(new THREE.BoxGeometry(2.5, 15.5, 2.7), metal);
+      pillar.position.set(side * 12.7, 7.75, gateZ);
+      g.add(pillar);
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.55, 3.5), this.roofMat);
+      cap.position.set(side * 12.7, 15.55, gateZ);
+      g.add(cap);
+      this._neonStrip(g, side * 11.35, 8.0, gateZ - 0.02, 0.08, 13.2, 0.08, side < 0 ? neonA : neonB);
+      this._neonStrip(g, side * 12.7, 12.8, gateZ - 1.38, 2.1, 0.08, 0.07, side < 0 ? neonB : neonA);
+      const contact = this.addContactShadow(g, 3.4, 3.4, 0.4, 0.014);
+      contact.position.set(side * 12.7, 0.014, gateZ);
+      for (let i = 0; i < 3; i++) {
+        const lan = new THREE.Mesh(new THREE.SphereGeometry(0.24, 8, 7), new THREE.MeshBasicMaterial({ color: new THREE.Color(i % 2 ? neonB : neonA).multiplyScalar(1.8), toneMapped: false }));
+        lan.position.set(side * (10.8 + i * 0.45), 11.5 - i * 0.45, gateZ - 1.5);
+        g.add(lan);
+        addGlow(lan.position.x, lan.position.y, lan.position.z, i % 2 ? neonB : neonA, 2.2, 2.2, 0.18);
+      }
+    }
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(27.5, 0.9, 2.3), metal);
+    beam.position.set(0, 14.1, gateZ); g.add(beam);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(29.5, 0.3, 3.7), this.roofMat);
+    roof.position.set(0, 14.85, gateZ); g.add(roof);
+    for (const side of [-1, 1]) {
+      const eave = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.22, 4.1), this.roofMat);
+      eave.position.set(side * 12.2, 15.15, gateZ);
+      eave.rotation.z = side * -0.16;
+      g.add(eave);
+    }
+    const gateTex = this.makeBannerTexture('九龍城寨', 'KOWLOON WALLED CITY', '#ff2d8e', '#5cecff');
+    const gateSign = new THREE.Mesh(new THREE.PlaneGeometry(11.5, 2.8), new THREE.MeshBasicMaterial({ map: gateTex, toneMapped: false, color: new THREE.Color(1.45, 1.45, 1.45), side: THREE.DoubleSide }));
+    gateSign.position.set(0, 10.6, gateZ - 1.65);
+    gateSign.rotation.y = Math.PI;
+    g.add(gateSign);
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(12.4, 3.4, 0.25), this.billboardFrameMat);
+    frame.position.set(0, 10.6, gateZ - 1.5); g.add(frame);
+    addGlow(0, 10.6, gateZ - 2.0, neonA, 16, 5.5, 0.16);
+    for (let i = -4; i <= 4; i++) {
+      const lan = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 7), new THREE.MeshBasicMaterial({ color: new THREE.Color(i % 2 ? 0xffb04d : 0xff345e).multiplyScalar(1.9), toneMapped: false }));
+      lan.position.set(i * 2.4, 12.55 - Math.cos(i * 0.5) * 0.25, gateZ - 1.1);
+      g.add(lan);
+      addGlow(lan.position.x, lan.position.y, lan.position.z, i % 2 ? 0xffb04d : 0xff345e, 1.9, 1.9, 0.14);
+    }
+
+    // ---- 1b. a dense, non-walkable skyline behind the gate -------------
+    const rearTowers = [
+      { x: -30, z: 214, w: 17, d: 20, h: 54, tex: 0, a: 0xff6a3d, b: 0x5cecff },
+      { x: -13, z: 226, w: 18, d: 18, h: 72, tex: 1, a: 0xff2d8e, b: 0x5cecff },
+      { x: 8, z: 218, w: 18, d: 21, h: 60, tex: 2, a: 0x5cecff, b: 0xffb04d },
+      { x: 29, z: 230, w: 16, d: 18, h: 46, tex: 3, a: 0xffb04d, b: 0xff2d8e },
+      { x: 0, z: 238, w: 26, d: 24, h: 94, tex: 4, a: 0xffca4e, b: 0xff2d8e },
+      { x: -22, z: 243, w: 14, d: 16, h: 38, tex: 5, a: 0x5cecff, b: 0xff2d8e },
+      { x: 21, z: 242, w: 14, d: 17, h: 42, tex: 6, a: 0xff2d8e, b: 0x5cecff }
+    ];
+    const makeRearTower = (t) => {
+      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x090b12, roughness: 0.8, metalness: 0.18 });
+      const body = new THREE.Mesh(new THREE.BoxGeometry(t.w, t.h, t.d), bodyMat);
+      body.position.set(t.x, t.h / 2, t.z);
+      g.add(body);
+      const tex = new THREE.CanvasTexture(this.facadeCanvases[t.tex % this.facadeCanvases.length]);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(Math.max(1, t.w / 13.5), Math.max(1, t.h / 30));
+      tex.anisotropy = 4;
+      const face = new THREE.Mesh(new THREE.PlaneGeometry(t.w, t.h), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, color: new THREE.Color(0.80, 0.78, 0.86) }));
+      face.position.set(t.x, t.h / 2, t.z - t.d / 2 - 0.03);
+      face.rotation.y = Math.PI;
+      g.add(face);
+      this._neonStrip(g, t.x - t.w / 2 + 0.08, t.h * 0.58, t.z - t.d / 2 - 0.1, 0.07, t.h * 0.62, 0.07, t.a);
+      this._neonStrip(g, t.x + t.w / 2 - 0.08, t.h * 0.48, t.z - t.d / 2 - 0.1, 0.07, t.h * 0.46, 0.07, t.b);
+      const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.2, 6, 6), new THREE.MeshBasicMaterial({ color: 0xff334d, toneMapped: false }));
+      beacon.position.set(t.x, t.h + 1.2, t.z);
+      beacon.userData.blink = rnd() * TAU;
+      g.add(beacon); this.dynamicGlow.push(beacon);
+      return face;
+    };
+    rearTowers.forEach(makeRearTower);
+    const rearTex = this.makeBannerTexture('九龍城寨', 'KOWLOON WALLED CITY', '#ffca4e', '#ff2d8e');
+    const rearSign = new THREE.Mesh(new THREE.PlaneGeometry(18, 5.2), new THREE.MeshBasicMaterial({ map: rearTex, toneMapped: false, color: new THREE.Color(1.35, 1.35, 1.35), side: THREE.DoubleSide }));
+    rearSign.position.set(0, 62, 225.8);
+    rearSign.rotation.y = Math.PI;
+    g.add(rearSign);
+    addGlow(0, 62, 224.8, 0xffca4e, 28, 10, 0.11);
+
+    // ---- 1c. elevated skybridge at z=164 -------------------------------
+    const bridgeZ = 164;
+    const bridge = new THREE.Mesh(new THREE.BoxGeometry(26.5, 1.45, 2.4), new THREE.MeshStandardMaterial({ color: 0x0c1119, roughness: 0.5, metalness: 0.6 }));
+    bridge.position.set(0, 12.4, bridgeZ); g.add(bridge);
+    for (const bz of [bridgeZ - 1.22, bridgeZ + 1.22]) {
+      const glass = new THREE.Mesh(new THREE.PlaneGeometry(25.4, 0.9), new THREE.MeshBasicMaterial({ color: new THREE.Color(0x14293a).multiplyScalar(0.55), toneMapped: false, side: THREE.DoubleSide }));
+      glass.position.set(0, 12.4, bz); g.add(glass);
+    }
+    const bridgeNeonMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x5cecff).multiplyScalar(1.0), toneMapped: false });
+    const bridgeNeon = new THREE.Mesh(new THREE.BoxGeometry(25.2, 0.035, 0.035), bridgeNeonMat);
+    bridgeNeon.position.set(0, 11.68, bridgeZ - 1.24); g.add(bridgeNeon);
+    for (let i = -8; i <= 8; i += 2) {
+      const lit = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.32), new THREE.MeshBasicMaterial({ color: new THREE.Color(i % 4 ? 0xffc07a : 0x7cefff).multiplyScalar(1.15), toneMapped: false }));
+      lit.position.set(i, 12.4, bridgeZ - 1.23); lit.rotation.y = Math.PI; g.add(lit);
+    }
+    for (const sx of [-1, 1]) {
+      const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 7.6, 4), this.metalMat);
+      cable.position.set(sx * 9.5, 15.2, bridgeZ); cable.rotation.z = sx * 0.7; g.add(cable);
+    }
+    const bridgeTex = this.makeBannerTexture('天橋', 'SKYWAY / SECTOR 08', '#5cecff', '#ff2d8e');
+    const bridgeSign = new THREE.Mesh(new THREE.PlaneGeometry(4.8, 1.15), new THREE.MeshBasicMaterial({ map: bridgeTex, toneMapped: false, color: new THREE.Color(1.35, 1.35, 1.35), side: THREE.DoubleSide }));
+    bridgeSign.position.set(0, 12.35, bridgeZ - 1.25); bridgeSign.rotation.y = Math.PI; g.add(bridgeSign);
+    addGlow(0, 12.4, bridgeZ - 1.8, 0x5cecff, 10, 3.2, 0.08);
+
+    // ---- 2. hotel vertical sign at z=152 --------------------------------
+    const hotelZ = 152;
+    const hotelTex = this._verticalSignTexture('夜雨旅館', 'NIGHT RAIN HOTEL', '#ff2d8e', '#5cecff');
+    const hotelSign = new THREE.Mesh(new THREE.PlaneGeometry(2.9, 11.5), new THREE.MeshBasicMaterial({ map: hotelTex, toneMapped: false, color: new THREE.Color(1.45, 1.45, 1.45), side: THREE.DoubleSide }));
+    hotelSign.position.set(12.45, 14.5, hotelZ);
+    hotelSign.rotation.y = -Math.PI / 2;
+    g.add(hotelSign);
+    for (const zz of [hotelZ - 1.6, hotelZ + 1.6]) {
+      const edge = new THREE.Mesh(new THREE.BoxGeometry(0.09, 11.8, 0.09), metal);
+      edge.position.set(12.55, 14.5, zz); g.add(edge);
+    }
+    const hotelCap = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.3, 3.5), this.roofMat);
+    hotelCap.position.set(12.55, 20.5, hotelZ); g.add(hotelCap);
+    addGlow(11.9, 14.5, hotelZ, neonA, 7, 18, 0.12);
+    const canopy = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.18, 5.2), this.bodyMat);
+    canopy.position.set(12.8, 3.35, hotelZ); g.add(canopy);
+    this._neonStrip(g, 12.2, 3.3, hotelZ, 0.05, 0.05, 4.6, neonA);
+    for (const zz of [hotelZ - 1.6, hotelZ + 1.6]) {
+      const door = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 2.8), new THREE.MeshBasicMaterial({ color: new THREE.Color(0x2a0b18).multiplyScalar(0.7), toneMapped: false }));
+      door.position.set(13.35, 1.55, zz); door.rotation.y = -Math.PI / 2; g.add(door);
+    }
+    const hotelContact = this.addContactShadow(g, 4.5, 3.6, 0.35, 0.014);
+    hotelContact.position.set(12.5, 0.014, hotelZ);
+    addGlow(12.2, 4.2, hotelZ, 0xff9a4d, 7, 5, 0.15);
+
+    // ---- 3. night market on the west sidewalk, z=112..132 --------------
+    const marketZ = 122;
+    const tarp = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.14, 21), new THREE.MeshStandardMaterial({ color: 0x14252a, roughness: 0.68, metalness: 0.24, side: THREE.DoubleSide }));
+    tarp.position.set(-10.9, 3.55, marketZ); g.add(tarp);
+    this._neonStrip(g, -8.52, 3.45, marketZ, 0.05, 0.06, 19.6, 0xffa04d);
+    for (let i = 0; i < 6; i++) {
+      const pz = 112 + i * 4;
+      const pole = new THREE.Mesh(new THREE.BoxGeometry(0.12, 3.4, 0.12), metal);
+      pole.position.set(-8.7, 1.7, pz); g.add(pole);
+    }
+    const marketTex = this.makeBannerTexture('九龍夜市', 'NIGHT MARKET / 24H', '#ffa04d', '#ff2d8e');
+    const marketSign = new THREE.Mesh(new THREE.PlaneGeometry(6.2, 1.55), new THREE.MeshBasicMaterial({ map: marketTex, toneMapped: false, color: new THREE.Color(1.5, 1.5, 1.5), side: THREE.DoubleSide }));
+    marketSign.position.set(-8.45, 4.55, marketZ); marketSign.rotation.y = Math.PI / 2; g.add(marketSign);
+    addGlow(-8.1, 4.5, marketZ, 0xffa04d, 9, 3.2, 0.14);
+    for (let i = 0; i < 4; i++) {
+      const sz = 113.5 + i * 5.5;
+      const stall = new THREE.Group();
+      const counter = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.9, 2.2), new THREE.MeshStandardMaterial({ color: 0x2b1710, roughness: 0.65, metalness: 0.2 }));
+      counter.position.set(-11.0, 0.62, sz); stall.add(counter);
+      const top = new THREE.Mesh(new THREE.BoxGeometry(1.85, 0.08, 2.45), new THREE.MeshStandardMaterial({ color: 0x5d3320, roughness: 0.48, metalness: 0.3 }));
+      top.position.set(-11.0, 1.08, sz); stall.add(top);
+      const awning = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.08, 2.5), new THREE.MeshStandardMaterial({ color: i % 2 ? 0x1d4b4b : 0x5a1520, roughness: 0.5, metalness: 0.25 }));
+      awning.position.set(-11.7, 2.3, sz); awning.rotation.z = 0.12; stall.add(awning);
+      this._neonStrip(stall, -11.7, 2.28, sz, 0.05, 0.04, 2.1, i % 2 ? 0x53efff : 0xffb34d);
+      g.add(stall);
+      addGlow(-10.8, 1.8, sz, i % 2 ? 0x53efff : 0xffb34d, 3.5, 2.4, 0.12);
+      const contact = this.addContactShadow(g, 3.4, 2.7, 0.3, 0.012);
+      contact.position.set(-11.0, 0.012, sz);
+      for (let k = 0; k < 2; k++) {
+        const crate = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.38, 0.55), new THREE.MeshStandardMaterial({ color: 0x221820, roughness: 0.7, metalness: 0.2 }));
+        crate.position.set(-12.0 + k * 0.65, 0.19, sz + 1.7);
+        crate.rotation.y = rnd() * TAU; g.add(crate);
+      }
+    }
+    for (let i = 0; i < 7; i++) {
+      const lan = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 7), new THREE.MeshBasicMaterial({ color: new THREE.Color(i % 2 ? 0xff5a4d : 0xffb34d).multiplyScalar(1.9), toneMapped: false }));
+      lan.position.set(-8.8, 3.1 - Math.sin(i) * 0.2, 114 + i * 2.5);
+      g.add(lan);
+      addGlow(lan.position.x, lan.position.y, lan.position.z, i % 2 ? 0xff5a4d : 0xffb34d, 1.6, 1.6, 0.13);
+    }
+
+    // ---- 4. MTR entrance, west sidewalk at z=76 ------------------------
+    const mtrZ = 76;
+    const recess = new THREE.Mesh(new THREE.PlaneGeometry(3.8, 5.4), new THREE.MeshBasicMaterial({ color: 0x02050a }));
+    recess.rotation.x = -Math.PI / 2;
+    recess.position.set(-11.35, 0.19, mtrZ); g.add(recess);
+    for (let i = 0; i < 5; i++) {
+      const step = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.06, 0.52), metal);
+      step.position.set(-11.35, 0.18 - i * 0.025, mtrZ - 2.1 + i * 0.48); g.add(step);
+    }
+    for (const side of [-1, 1]) {
+      for (let i = 0; i < 4; i++) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.07, 1.05, 0.07), metal);
+        post.position.set(-11.35 + side * 1.75, 0.7, mtrZ - 2.2 + i * 1.4); g.add(post);
+      }
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 5.3), metal);
+      rail.position.set(-11.35 + side * 1.75, 1.2, mtrZ); g.add(rail);
+    }
+    const mtrCanopy = new THREE.Mesh(new THREE.BoxGeometry(4.9, 0.2, 6.1), new THREE.MeshStandardMaterial({ color: 0x0b1a22, roughness: 0.35, metalness: 0.7 }));
+    mtrCanopy.position.set(-11.35, 3.25, mtrZ); g.add(mtrCanopy);
+    this._neonStrip(g, -11.35, 3.18, mtrZ - 3.0, 4.4, 0.05, 0.05, 0x53efff);
+    const mtrTex = this.makeBannerTexture('九龍站', 'MTR / KOWLOON STATION', '#53efff', '#ff2d8e');
+    const mtrSign = new THREE.Mesh(new THREE.PlaneGeometry(4.5, 1.25), new THREE.MeshBasicMaterial({ map: mtrTex, toneMapped: false, color: new THREE.Color(1.5, 1.5, 1.5), side: THREE.DoubleSide }));
+    mtrSign.position.set(-8.72, 3.9, mtrZ); mtrSign.rotation.y = Math.PI / 2; g.add(mtrSign);
+    addGlow(-9.2, 2.4, mtrZ, 0x53efff, 7, 5, 0.15);
+
+    // ---- 5. service alley alcove at z=104 ------------------------------
+    const alleyZ = 104;
+    const dark = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 7.2), new THREE.MeshBasicMaterial({ color: 0x03050a, side: THREE.DoubleSide }));
+    dark.position.set(-13.45, 3.6, alleyZ); dark.rotation.y = Math.PI / 2; g.add(dark);
+    for (const dz of [-2.2, 2.2]) {
+      const edge = new THREE.Mesh(new THREE.BoxGeometry(0.22, 7.4, 0.2), metal);
+      edge.position.set(-13.25, 3.6, alleyZ + dz); g.add(edge);
+    }
+    const alleyTop = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.2, 4.8), metal);
+    alleyTop.position.set(-13.25, 7.2, alleyZ); g.add(alleyTop);
+    const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 6.4, 6), this.rustMat);
+    pipe.position.set(-13.0, 3.5, alleyZ - 1.8); g.add(pipe);
+    this._neonStrip(g, -13.1, 5.8, alleyZ + 2.1, 0.05, 1.7, 0.05, 0xff345e);
+    addGlow(-12.8, 3.0, alleyZ, 0xff345e, 4.5, 4.0, 0.12);
+
+    // ---- 6. two landmark billboards ------------------------------------
+    const bb1Tex = this.makeBannerTexture('舊城', 'OLD TOWN / SECTOR 08', '#ff6a3d', '#5cecff');
+    const bb1 = new THREE.Mesh(new THREE.PlaneGeometry(6.8, 2.6), new THREE.MeshBasicMaterial({ map: bb1Tex, toneMapped: false, color: new THREE.Color(1.55, 1.55, 1.55), side: THREE.DoubleSide }));
+    bb1.position.set(-13.42, 9.5, 88); bb1.rotation.y = Math.PI / 2; g.add(bb1);
+    addGlow(-12.8, 9.5, 88, 0xff6a3d, 10, 4.5, 0.12);
+    const bb2Tex = this.makeBannerTexture('極樂', 'PARADISE / HOTEL', '#ff2d8e', '#ffb34d');
+    const bb2 = new THREE.Mesh(new THREE.PlaneGeometry(6.2, 2.5), new THREE.MeshBasicMaterial({ map: bb2Tex, toneMapped: false, color: new THREE.Color(1.55, 1.55, 1.55), side: THREE.DoubleSide }));
+    bb2.position.set(13.42, 13.0, 166); bb2.rotation.y = -Math.PI / 2; g.add(bb2);
+    addGlow(12.8, 13, 166, 0xff2d8e, 9, 4.2, 0.12);
+
+    // ---- 7. cluttered rear sidewalks -----------------------------------
+    const binMat = new THREE.MeshStandardMaterial({ color: 0x11161b, roughness: 0.5, metalness: 0.45 });
+    const bagMat = new THREE.MeshStandardMaterial({ color: 0x07090d, roughness: 0.82, metalness: 0.08 });
+    const spots = [[-11.6, 166], [11.2, 160], [-10.7, 146], [10.8, 136], [-11.9, 128], [11.4, 108], [-11.2, 96], [10.6, 86], [-11.0, 68], [11.5, 62]];
+    for (let i = 0; i < spots.length; i++) {
+      const x = spots[i][0], z = spots[i][1];
+      if (i % 3 === 0) {
+        const bin = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.36, 0.9, 8), binMat);
+        bin.position.set(x, 0.62, z); bin.rotation.z = (rnd() - 0.5) * 0.15; g.add(bin);
+      } else {
+        for (let k = 0; k < 3; k++) {
+          const bag = new THREE.Mesh(new THREE.SphereGeometry(0.22 + rnd() * 0.12, 7, 5), bagMat);
+          bag.scale.y = 0.8; bag.position.set(x + (rnd() - 0.5) * 0.8, 0.2, z + (rnd() - 0.5) * 1.2); g.add(bag);
+        }
+      }
+      const contact = this.addContactShadow(g, 1.7, 1.7, 0.25, 0.012);
+      contact.position.set(x, 0.012, z);
+    }
+    for (let i = 0; i < 5; i++) {
+      const x = i % 2 ? 10.5 : -10.8;
+      const z = 156 - i * 9;
+      const pallet = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.12, 0.9), new THREE.MeshStandardMaterial({ color: 0x2a1b12, roughness: 0.9, metalness: 0.04 }));
+      pallet.position.set(x, 0.2, z); pallet.rotation.y = rnd() * 0.4; g.add(pallet);
+      const crate = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.55, 0.65), new THREE.MeshStandardMaterial({ color: 0x1b2220, roughness: 0.78, metalness: 0.18 }));
+      crate.position.set(x + 0.15, 0.48, z); crate.rotation.y = rnd() * 0.5; g.add(crate);
+    }
   };
 
   World.prototype._addHoverbike = function (g) {
@@ -402,7 +724,7 @@
     const awningMats = awningColors.map(c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.38, metalness: 0.5 }));
     const rnd = ND.util.mulberry32(314159);
     for (const side of [-1, 1]) {
-      let z = 50 - rnd() * 2;
+      let z = 186 - rnd() * 2;
       while (z > -78) {
         const width = 3.4 + rnd() * 2.4;
         const variant = Math.floor(rnd() * 6);
@@ -483,16 +805,20 @@
 
   World.prototype._addBladeSigns = function (g) {
     const defs = [
-      ['ホテル', 'HOTEL', 0xff4da4], ['電脳', 'CYBER', 0x3ee8ff], ['拉麺', 'RAMEN', 0xffb04d],
-      ['薬', 'PHARMA', 0x9eff83], ['酒', 'SAKE', 0xff4c5e], ['未来', 'FUTURE', 0x5d9cff],
-      ['質', 'PAWN', 0xffca4e], ['龍', 'DRAGON', 0xff2c98], ['カラオケ', 'KARAOKE', 0xd25dff],
-      ['24H', 'OPEN', 0xff8a4c], ['義体', 'AUGMENT', 0x4ff1ff], ['夜', 'NIGHT', 0xff445f]
+      ['城', 'CITY', 0xffca4e], ['夜市', 'MARKET', 0xff8a4c], ['宿', 'INN', 0xff4da4],
+      ['電脳', 'CYBER', 0x3ee8ff], ['龍城', 'DRAGON', 0xff2c98], ['茶', 'TEA', 0xffb04d],
+      ['ホテル', 'HOTEL', 0xff4da4], ['拉麺', 'RAMEN', 0xffb04d], ['薬', 'PHARMA', 0x9eff83],
+      ['酒', 'SAKE', 0xff4c5e], ['未来', 'FUTURE', 0x5d9cff], ['質', 'PAWN', 0xffca4e],
+      ['義体', 'AUGMENT', 0x4ff1ff], ['夜', 'NIGHT', 0xff445f], ['カラオケ', 'KARAOKE', 0xd25dff],
+      ['24H', 'OPEN', 0xff8a4c], ['MTR', 'TRANSIT', 0x53efff], ['極', 'PARADISE', 0xff2d8e],
+      ['楽', 'CLUB', 0xd25dff], ['光', 'LIGHT', 0x5d9cff], ['雨', 'RAIN', 0x5cecff],
+      ['九龍', 'KOWLOON', 0xff345e], ['網', 'NET', 0x5d9cff], ['市', 'MARKET', 0xffb04d]
     ];
     const rnd = ND.util.mulberry32(88221);
     for (let i = 0; i < defs.length; i++) {
       const [txt, sub, color] = defs[i];
       const side = i % 2 ? 1 : -1;
-      const z = 48 - i * 10.2 - rnd() * 3.2;
+      const z = 184 - i * 10.2 - rnd() * 3.2;
       if (z < -74) continue;
       const y = 5.0 + (i % 4) * 2.7 + rnd() * 1.2;
       const w = 1.1 + rnd() * 0.35;
@@ -727,7 +1053,9 @@
     const beams = [
       { x: -8.0, z: 17, y: 11.8, h: 18, r: 5.2, color: 0xff2d91, opacity: 0.115, rz: 0.10 },
       { x: 7.9, z: 5, y: 13.5, h: 20, r: 5.8, color: 0x2bdcff, opacity: 0.10, rz: -0.13 },
-      { x: -4.5, z: -33, y: 13, h: 17, r: 4.2, color: 0xb060ff, opacity: 0.055, rz: 0.06 }
+      { x: -4.5, z: -33, y: 13, h: 17, r: 4.2, color: 0xb060ff, opacity: 0.055, rz: 0.06 },
+      { x: -6.4, z: 124, y: 14.5, h: 20, r: 5.0, color: 0xff9a4d, opacity: 0.065, rz: 0.09 },
+      { x: 6.0, z: 154, y: 17.5, h: 23, r: 5.4, color: 0xff2d8e, opacity: 0.055, rz: -0.1 }
     ];
     this.beams = [];
     for (const b of beams) {

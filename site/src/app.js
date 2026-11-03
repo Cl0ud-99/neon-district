@@ -433,6 +433,7 @@
         aerial: { p: [0, 27, 42], l: [0, 8, -72], fov: 58 },
         close: { p: [4.5, 4.4, 7], l: [-3, 12, -60], fov: 60 },
         low: { p: [0, 0.55, 21], l: [0, 15, -80], fov: 62 },
+        back: { p: [0, 2.1, 102], l: [0, 10.5, 196], fov: 56 },
         menu: { p: [0, 2.2, 29], l: [0, 11, -77], fov: 52 }
       };
       const p = presets[name] || presets.hero;
@@ -525,7 +526,7 @@
         let nx = this.player.pos.x + dx;
         let nz = this.player.pos.z + dz;
         nx = Math.max(-11.8, Math.min(11.8, nx));
-        nz = Math.max(-78.5, Math.min(48, nz));
+        nz = Math.max(-78.5, Math.min(188, nz));
         // pool basin collision, leave walkway on both sides
         if (nz < -55.8 && nz > -67.2 && Math.abs(nx) < 8.9) {
           const oldInside = this.player.pos.z < -55.8 && this.player.pos.z > -67.2 && Math.abs(this.player.pos.x) < 8.9;
@@ -635,7 +636,15 @@
         clock.textContent = hh + ':' + mm + ':' + ss;
       }
       const zone = $('zone-status');
-      if (zone) zone.textContent = this.player.pos.z < -45 ? 'KIRIN PLAZA / 麒麟广场' : 'RAIN MARKET / 雨市';
+      if (zone) {
+        const pz = this.player.pos.z;
+        zone.textContent = pz > 174 ? 'KOWLOON GATE / 九龙城门'
+          : pz > 140 ? 'NIGHT RAIN HOTEL / 夜雨旅馆'
+          : pz > 100 ? 'NIGHT MARKET / 九龙夜市'
+          : pz > 52 ? 'OLD TOWN / 旧城'
+          : pz < -45 ? 'KIRIN PLAZA / 麒麟广场'
+          : 'RAIN MARKET / 雨市';
+      }
       const prog = $('mission-progress');
       if (prog) {
         const p = Math.max(0, Math.min(1, (29 - this.player.pos.z) / 90));
