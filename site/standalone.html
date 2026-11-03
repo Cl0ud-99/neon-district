@@ -2519,6 +2519,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.railMatrices = [];
       this.pipeMatrices = [];
       this.ledgeMatrices = [];
+      this.laundryMatrices = [];
+      this.laundryColors = [];
       this.facadeSillMatrices = [];
       this.facadeMullionMatrices = [];
       this.neonBatches = { magenta: [], cyan: [], amber: [], violet: [] };
@@ -2618,6 +2620,12 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.rustMat = new THREE.MeshStandardMaterial({ color: 0x2a1712, roughness: 0.55, metalness: 0.6 });
       this.glowingWindowMat = new THREE.MeshBasicMaterial({ color: 0xffd19a, toneMapped: false });
       this.billboardFrameMat = new THREE.MeshStandardMaterial({ color: 0x08090e, roughness: 0.35, metalness: 0.85 });
+      this.wetStreakMat = new THREE.MeshBasicMaterial({
+        map: ND.Tex.canvasToTexture(ND.Tex.rainStreak(), true),
+        color: 0x7898b5, transparent: true, opacity: 0.22,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+        toneMapped: false, side: THREE.DoubleSide
+      });
     }
 
     buildSky() {
@@ -2823,6 +2831,16 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       facade.position.set(side * (b.facadeX - 0.02), h / 2, z);
       facade.rotation.y = -side * Math.PI / 2;
       group.add(facade);
+      if (rnd() > 0.48 && h > 9) {
+        const streakCount = 1 + Math.floor(rnd() * 2);
+        for (let i = 0; i < streakCount; i++) {
+          const wetH = Math.max(2.5, h * (0.22 + rnd() * 0.48));
+          const wet = new THREE.Mesh(new THREE.PlaneGeometry(0.18 + rnd() * 0.22, wetH), this.wetStreakMat);
+          wet.position.set(side * (b.facadeX - 0.055), 3 + rnd() * Math.max(1, h - wetH - 4), z + (rnd() - 0.5) * len * 0.86);
+          wet.rotation.y = -side * Math.PI / 2;
+          group.add(wet);
+        }
+      }
 
       // Real facade relief for mid-ground buildings: thin floor sills and
       // window mullions break the single-plane texture silhouette.
@@ -3042,6 +3060,16 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
           }
         }
         if (h > 12) {
+          const clothColors = [0x55636b, 0x8a3f55, 0xa47a3a, 0x3f6b62, 0x8a8878, 0x6b4a72];
+          for (let k = 0; k < 2; k++) {
+            const cloth = new THREE.Object3D();
+            cloth.position.set(side * (b.facadeX - 0.92), 6 + rnd() * Math.max(2, h - 9), z + (rnd() - 0.5) * len * 0.75);
+            cloth.rotation.y = -side * Math.PI / 2;
+            cloth.scale.set(0.45 + rnd() * 0.5, 0.35 + rnd() * 0.45, 1);
+            cloth.updateMatrix();
+            this.laundryMatrices.push(cloth.matrix.clone());
+            this.laundryColors.push(new THREE.Color(clothColors[Math.floor(rnd() * clothColors.length)]));
+          }
           for (let k = 0; k < 2; k++) {
             const line = new THREE.Object3D();
             line.position.set(side * (b.facadeX - 0.84), 5 + rnd() * Math.max(2, h - 8), z + (rnd() - 0.5) * len * 0.8);
@@ -3205,6 +3233,20 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.railMatrices.forEach((m, i) => railMesh.setMatrixAt(i, m));
       railMesh.instanceMatrix.needsUpdate = true;
       this.scene.add(railMesh);
+      if (this.laundryMatrices.length) {
+        const clothMesh = new THREE.InstancedMesh(
+          new THREE.PlaneGeometry(1, 1),
+          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92, metalness: 0.02, side: THREE.DoubleSide }),
+          this.laundryMatrices.length
+        );
+        this.laundryMatrices.forEach((m, i) => {
+          clothMesh.setMatrixAt(i, m);
+          clothMesh.setColorAt(i, this.laundryColors[i]);
+        });
+        clothMesh.instanceMatrix.needsUpdate = true;
+        if (clothMesh.instanceColor) clothMesh.instanceColor.needsUpdate = true;
+        this.scene.add(clothMesh);
+      }
       const pipeMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1, 1, 6), this.rustMat, this.pipeMatrices.length);
       this.pipeMatrices.forEach((m, i) => pipeMesh.setMatrixAt(i, m));
       pipeMesh.instanceMatrix.needsUpdate = true;

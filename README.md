@@ -4,7 +4,7 @@
 
 **DSH-PTC**
 
-**1 scene · 100% procedural · 0 assets · single-file build 0.95 MB**
+**1 scene · 100% procedural · 0 assets · single-file build 0.96 MB**
 
 [**Live preview**](https://cl0ud-99.github.io/neon-district/) — runs in the browser, nothing to install.
 
@@ -90,9 +90,9 @@ Details worth reading:
 
 - **V1 final grade** — local contrast, halation-tinted bloom, slightly reduced exposure/glow, satin shadows and controlled grain.
 - **V2 rain and air** — wind gusts, lightning response on rain alpha/colour, neon-tinted foreground ribbons and lamp-local mist.
-- **V3 wet reflections** — stronger puddle/stone reflection mix and tuned vertical-wall SSR.
+- **V3 wet reflections** — stronger puddle/stone reflection mix, tuned vertical-wall SSR and thin rain streaks running down selected facades.
 - **V4 character close-ups** — courier visors, vendor breathing masks, existing coat cloth and umbrella articulation.
-- **V5 hero storefronts** — metal lintels and door sills give the shop line a recessed frame instead of a flat cut-out.
+- **V5 hero storefronts** — metal lintels and door sills give the shop line a recessed frame instead of a flat cut-out; rear facades add overhanging floors, steel service towers and hanging laundry.
 - **V6 distant city** — the authored rear skyline, gate and far towers provide the depth layer behind the doubled street.
 - **V7 micro particles** — slow additive dust motes follow the camera; steam and lamp mist fill the remaining air.
 
