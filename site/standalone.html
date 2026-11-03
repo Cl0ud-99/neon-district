@@ -5422,6 +5422,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.fpsFrames = 0;
       this.lastHUD = 0;
       this.perfTimer = 0;
+      this.renderScale = 1.0;
+      this.autoScaleTimer = 0;
+      this.autoScaleCooldown = 0;
       this.mouseDown = false;
       this.audio = new ND.AudioEngine();
       this.params = new URLSearchParams(location.search);
@@ -5753,6 +5756,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       const idx = order.indexOf(this.qualityKey);
       this.qualityKey = order[(idx + 1) % order.length];
       this.quality = QUALITY[this.qualityKey];
+      this.renderScale = 1.0;
+      this.autoScaleTimer = 0;
+      this.autoScaleCooldown = 0;
       if (this.post) {
         this.post.opts.sceneScale = this.quality.sceneScale;
         this.post.opts.msaa = this.quality.msaa;
@@ -5795,7 +5801,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 
     applySizes() {
       if (!this.renderer) return;
-      const dpr = Math.min(window.devicePixelRatio || 1, this.quality.dpr);
+      const area = window.innerWidth * window.innerHeight;
+      // Cap DPR more aggressively on 4K panels; the HDR chain is expensive.
+      const cap = area > 3800 * 2100 ? Math.min(this.quality.dpr, 1.05) : this.quality.dpr;
+      const dpr = Math.max(0.55, Math.min(2.0, Math.min(window.devicePixelRatio || 1, cap) * this.renderScale));
       this.dpr = dpr;
       this.renderer.setPixelRatio(dpr);
       this.renderer.setSize(window.innerWidth, window.innerHeight, false);
@@ -5970,7 +5979,27 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         this.updateHUD();
         if (this.state === 'play' || this.state === 'cinematic') {
           this.perfTimer += dt;
-          if (this.perfTimer > 6 && this.fps < 24 && this.qualityKey !== 'low') {
+          if (this.fps < 47 && this.renderScale > 0.62) {
+            this.autoScaleCooldown += 0.6;
+            if (this.autoScaleCooldown > 2.4) {
+              this.autoScaleCooldown = 0;
+              this.renderScale = Math.max(0.62, this.renderScale - 0.08);
+              this.applySizes();
+              this.showToast('分辨率自适应 // DYNAMIC RESOLUTION');
+              setTimeout(() => this.showToast(''), 2200);
+            }
+          } else if (this.fps > 57 && this.renderScale < 1.0) {
+            this.autoScaleTimer += 0.6;
+            if (this.autoScaleTimer > 5.0) {
+              this.autoScaleTimer = 0;
+              this.renderScale = Math.min(1.0, this.renderScale + 0.04);
+              this.applySizes();
+            }
+          } else {
+            this.autoScaleCooldown = 0;
+            this.autoScaleTimer = 0;
+          }
+          if (this.perfTimer > 8 && this.fps < 24 && this.renderScale <= 0.66 && this.qualityKey !== 'low') {
             this.perfTimer = 0;
             this.cycleQuality();
             this.showToast('自动降低画质 // AUTO QUALITY');
@@ -5978,6 +6007,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
           }
         } else {
           this.perfTimer = 0;
+          this.autoScaleTimer = 0;
+          this.autoScaleCooldown = 0;
         }
       }
       this.post.render(this.scene, this.camera, this.world, this.time, this.world.flash);
