@@ -138,6 +138,10 @@ The local preview server does not need any npm packages; `npm install` is only f
 | H | Toggle controls panel |
 | ESC | Pause / back |
 
+## Performance diagnostics
+
+Press **F3** in play to toggle a live panel with average FPS, 1% low, backing resolution, active quality/render scale, draw calls and triangles. Add `?bench=20` to boot into a fixed rear-district view and write a 20-second benchmark result to the panel and console. Use it at 1080p, 1440p and 4K on the target GPU; dynamic resolution is intentionally held during the benchmark.
+
 ## Photo Mode
 
 Press **P** from the menu, play or pause screen to enter Photo Mode. The scene freezes, HUD disappears and the camera becomes free: WASD moves, Q/E raises/lowers, mouse looks, the wheel changes FOV, **[** / **]** adjusts focus, **F** saves the current frame as a PNG, **Shift+F** renders a one-off 4K frame, and **R** resets FOV/focus. P or Esc returns to the previous state.
@@ -154,7 +158,8 @@ The look is tunable without a rebuild:
 ?t=24                freeze time in seconds
 ?freeze=0            let the screenshot scene animate
 ?quality=high|medium|low
-?photo=1            open Photo Mode on boot
+?photo=1             open Photo Mode on boot
+?bench=20            run a fixed-view 20s performance benchmark
 ```
 
 For example:

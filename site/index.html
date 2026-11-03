@@ -166,6 +166,17 @@
   .hud-bottom-left span{color:rgba(255,46,139,.4);margin:0 4px}
 
   /* ---------------------------------------------------------------------
+     performance diagnostics
+     --------------------------------------------------------------------- */
+  #perf-panel{position:fixed;right:clamp(18px,2.4vw,36px);bottom:clamp(18px,2.6vw,34px);z-index:82;width:214px;padding:12px 14px;background:rgba(3,2,8,.82);border:1px solid rgba(68,231,255,.28);backdrop-filter:blur(9px);font:400 8px/1.85 var(--mono);letter-spacing:.12em;color:rgba(255,255,255,.52);opacity:0;visibility:hidden;transition:opacity .25s,visibility .25s;pointer-events:none}
+  #perf-panel.visible{opacity:1;visibility:visible}
+  #perf-panel .perf-head{display:flex;justify-content:space-between;color:rgba(68,231,255,.8);margin-bottom:7px;letter-spacing:.18em}
+  #perf-panel .perf-row{display:flex;justify-content:space-between;gap:12px}
+  #perf-panel .perf-row b{font-weight:400;color:rgba(255,255,255,.88)}
+  #perf-detail{margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,.1);color:var(--pink);letter-spacing:.12em}
+  body.bench-mode #hud,body.bench-mode #menu,body.bench-mode #pause,body.bench-mode #help,body.bench-mode #photo-ui{opacity:0!important;visibility:hidden!important;pointer-events:none!important}
+
+  /* ---------------------------------------------------------------------
      photo mode
      --------------------------------------------------------------------- */
   #photo-ui{position:fixed;inset:0;z-index:70;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .45s ease,visibility .45s}
@@ -333,6 +344,17 @@
     <div class="mission-bar"><i id="mission-progress"></i></div>
   </div>
   <div class="hud-bottom-left"><kbd>WASD</kbd> MOVE <span>·</span> <kbd>MOUSE</kbd> LOOK <span>·</span> <kbd>SHIFT</kbd> RUN <span>·</span> <kbd>C</kbd> CINEMA <span>·</span> <kbd>P</kbd> PHOTO <span>·</span> <kbd>ESC</kbd> PAUSE</div>
+</div>
+
+<div id="perf-panel">
+  <div class="perf-head"><span>PERFORMANCE</span><span>F3</span></div>
+  <div class="perf-row"><span>FPS</span><b id="perf-fps">--</b></div>
+  <div class="perf-row"><span>1% LOW</span><b id="perf-low">--</b></div>
+  <div class="perf-row"><span>RES</span><b id="perf-res">--</b></div>
+  <div class="perf-row"><span>QUALITY</span><b id="perf-quality">--</b></div>
+  <div class="perf-row"><span>DRAW</span><b id="perf-draw">--</b></div>
+  <div class="perf-row"><span>TRIS</span><b id="perf-tris">--</b></div>
+  <div id="perf-detail">F3 TOGGLE · ?bench=20</div>
 </div>
 
 <div id="photo-ui">

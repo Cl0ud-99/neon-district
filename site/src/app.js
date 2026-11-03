@@ -41,6 +41,16 @@
       this.mouseDown = false;
       this.audio = new ND.AudioEngine();
       this.params = new URLSearchParams(location.search);
+      const benchParam = this.params.get('bench');
+      this.benchMode = benchParam !== null;
+      this.benchDuration = Math.max(8, parseFloat(benchParam) || 20);
+      this.benchElapsed = 0;
+      this.benchDone = false;
+      this.benchTimes = [];
+      this.frameTimes = [];
+      this.perfPanel = false;
+      this.perfUpdateTimer = 0;
+      this.rawDt = 0;
       const qualityParam = this.params.get('quality');
       this.qualityKey = QUALITY[qualityParam] ? qualityParam : (matchMedia('(pointer: coarse)').matches ? 'medium' : 'high');
       this.quality = QUALITY[this.qualityKey];
@@ -179,7 +189,9 @@
 
     loop() {
       requestAnimationFrame(this.loop);
-      const dt = Math.min(this.clock.getDelta(), 0.05);
+      const rawDt = this.clock.getDelta();
+      this.rawDt = rawDt;
+      const dt = Math.min(rawDt, 0.05);
       this.update(dt);
     }
 
@@ -219,7 +231,8 @@
         this.showMenu(true);
         $('menu').classList.add('visible');
       }
-      if (this.params.get('photo') === '1' && this.state !== 'shot') this.enterPhoto();
+      if (this.benchMode && this.state !== 'shot') this.startBenchmark();
+      else if (this.params.get('photo') === '1' && this.state !== 'shot') this.enterPhoto();
       window.__NEON_READY = true;
     }
 
@@ -264,6 +277,12 @@
       window.addEventListener('keydown', e => {
         if (['KeyW','KeyA','KeyS','KeyD','ShiftLeft','ShiftRight','Space'].includes(e.code)) e.preventDefault();
         this.keys[e.code] = true;
+        if (e.code === 'F3') {
+          e.preventDefault();
+          this.perfPanel = !this.perfPanel;
+          $('perf-panel').classList.toggle('visible', this.perfPanel);
+          return;
+        }
         if (e.code === 'KeyP' && (this.state === 'play' || this.state === 'pause' || this.state === 'menu' || this.state === 'photo')) {
           e.preventDefault();
           this.togglePhoto();
@@ -375,6 +394,94 @@
       if (document.pointerLockElement) document.exitPointerLock();
       if (this.post) this.post.resetTAA();
       this.showMenu(false);
+    }
+
+    startBenchmark() {
+      if (!this.post) return;
+      this.state = 'play';
+      this.stateTime = 0;
+      this.freeze = false;
+      document.body.dataset.state = 'play';
+      document.body.classList.add('bench-mode');
+      $('menu').classList.remove('visible');
+      $('hud').classList.remove('visible');
+      $('pause').classList.remove('visible');
+      this.player.pos.set(0, 0, 96);
+      this.player.yaw = 0;
+      this.player.pitch = 0.055;
+      this.player.bob = 0;
+      this.keys = {};
+      this.benchMode = true;
+      this.benchDone = false;
+      this.benchElapsed = 0;
+      this.benchTimes = [];
+      this.frameTimes = [];
+      this.perfPanel = true;
+      $('perf-panel').classList.add('visible');
+      $('perf-detail').textContent = 'BENCH START · ' + this.benchDuration + 'S';
+      this.post.resetTAA();
+      this.updatePlayer(0);
+    }
+
+    finishBenchmark() {
+      const times = this.benchTimes;
+      if (!times.length) return;
+      const sorted = times.slice().sort((a, b) => a - b);
+      const slowCount = Math.max(1, Math.round(sorted.length * 0.01));
+      const slow = sorted.slice(-slowCount);
+      const slowMean = slow.reduce((s, v) => s + v, 0) / slow.length;
+      const mean = times.reduce((s, v) => s + v, 0) / times.length;
+      const avgFps = 1000 / mean;
+      const lowFps = 1000 / slowMean;
+      this.benchResult = {
+        duration: this.benchDuration,
+        quality: this.qualityKey,
+        resolution: this.renderer.domElement.width + 'x' + this.renderer.domElement.height,
+        avgFps: +avgFps.toFixed(1),
+        low1Fps: +lowFps.toFixed(1),
+        frames: times.length
+      };
+      this.benchDone = true;
+      this.benchMode = false;
+      $('perf-detail').textContent = 'COMPLETE · AVG ' + avgFps.toFixed(1) + ' / 1% ' + lowFps.toFixed(1);
+      console.log('NEON DISTRICT BENCH', JSON.stringify(this.benchResult));
+    }
+
+    updatePerf(dt) {
+      const ms = Math.max(0.1, (this.rawDt || dt) * 1000);
+      this.frameTimes.push(ms);
+      if (this.frameTimes.length > 240) this.frameTimes.shift();
+      if (this.benchMode && !this.benchDone) {
+        this.benchTimes.push(ms);
+        this.benchElapsed += ms / 1000;
+        if (this.benchElapsed >= this.benchDuration) this.finishBenchmark();
+      }
+      if (!this.perfPanel && !this.benchMode) return;
+      this.perfUpdateTimer += dt;
+      if (this.perfUpdateTimer < 0.25 && !this.benchDone) return;
+      this.perfUpdateTimer = 0;
+      const times = (this.benchDone ? this.benchTimes : this.frameTimes);
+      if (!times.length) return;
+      const sorted = times.slice().sort((a, b) => a - b);
+      const slowCount = Math.max(1, Math.round(sorted.length * 0.01));
+      const slow = sorted.slice(-slowCount);
+      const slowMean = slow.reduce((s, v) => s + v, 0) / slow.length;
+      const mean = times.reduce((s, v) => s + v, 0) / times.length;
+      const fps = 1000 / mean;
+      const low = 1000 / slowMean;
+      const dom = this.renderer.domElement;
+      const info = this.renderer.info.render;
+      $('perf-fps').textContent = fps.toFixed(1);
+      $('perf-low').textContent = low.toFixed(1);
+      $('perf-res').textContent = dom.width + '×' + dom.height;
+      $('perf-quality').textContent = this.qualityKey.toUpperCase() + ' / ' + this.renderScale.toFixed(2);
+      $('perf-draw').textContent = info.calls;
+      $('perf-tris').textContent = (info.triangles / 1000).toFixed(0) + 'K';
+      if (this.benchMode && !this.benchDone) {
+        $('perf-detail').textContent = 'RUNNING · ' + this.benchElapsed.toFixed(1) + ' / ' + this.benchDuration + 'S';
+      } else if (this.benchDone) {
+        $('perf-detail').textContent = 'COMPLETE · AVG ' + (this.benchResult ? this.benchResult.avgFps.toFixed(1) : fps.toFixed(1)) + ' / 1% ' + (this.benchResult ? this.benchResult.low1Fps.toFixed(1) : low.toFixed(1));
+      }
     }
 
     togglePhoto() {
@@ -797,7 +904,7 @@
         this.fps = this.fpsFrames / this.fpsAccum;
         this.fpsAccum = 0; this.fpsFrames = 0;
         this.updateHUD();
-        if (this.state === 'play' || this.state === 'cinematic') {
+        if ((this.state === 'play' || this.state === 'cinematic') && !this.benchMode) {
           this.perfTimer += dt;
           if (this.fps < 47 && this.renderScale > 0.62) {
             this.autoScaleCooldown += 0.6;
@@ -831,6 +938,7 @@
           this.autoScaleCooldown = 0;
         }
       }
+      this.updatePerf(dt);
       this.post.render(this.scene, this.camera, this.world, this.time, this.world.flash);
     }
 
