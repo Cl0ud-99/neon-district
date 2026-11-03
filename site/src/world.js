@@ -442,6 +442,7 @@
       this.lightningCameraPos = new V3();
       this.cameraYaw = 0;
       this.onLightning = null;
+      this.onLifeEvent = null;
       this.random = ND.util.mulberry32(92731);
       this.fogColor = new THREE.Color(0x12081d);
       this.fogDensity = 0.0074;
@@ -472,6 +473,10 @@
       this.reflectionHidden = [];
       this.dynamicGlow = [];
       this.colliders = [];
+      this.lifeSigns = [];
+      this.lifeSways = [];
+      this.vendingMats = [];
+      this.dripSpots = [];
       this.groundLights = [
         { p: new V3(-10.7, 8.2, 15.0), c: new THREE.Color(0xff2d8f).multiplyScalar(2.0) },
         { p: new V3(10.8, 11.0, 1.5), c: new THREE.Color(0x23d7ff).multiplyScalar(1.8) },
@@ -502,6 +507,7 @@
       this.buildCharacters();
       this.buildVehicles();
       this.buildHologram();
+      this.buildLife();
       this.buildReflection();
       this.applyEnvironmentIntensity();
     }
@@ -1728,8 +1734,9 @@
       this.reflectionRT.setSize(rw, rh);
     }
 
-    update(dt, time) {
+    update(dt, time, camera) {
       this.time = time;
+      this.activeCamera = camera || this.activeCamera || null;
       this.skyUniforms.uTime.value = time;
       this.groundUniforms.uTime.value = time;
       if (this.waterMat) this.waterMat.uniforms.uTime.value = time;
@@ -1764,6 +1771,7 @@
       }
       if (this.updateProps) this.updateProps(dt, time);
       if (this.updateActors) this.updateActors(dt, time);
+      if (this.updateLife) this.updateLife(dt, time);
       this.updateLightning(dt, time);
     }
 

@@ -11,6 +11,7 @@ const scripts = [
   'src/world.js',
   'src/props.js',
   'src/actors.js',
+  'src/life.js',
   'src/audio.js',
   'src/app.js'
 ];

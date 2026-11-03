@@ -192,6 +192,9 @@
         const delayMs = Math.max(0, ev.delay) * 1000;
         setTimeout(() => { if (this.audio) this.audio.thunder(ev); }, delayMs);
       };
+      this.world.onLifeEvent = (ev) => {
+        if (this.audio) this.audio.lifeEvent(ev);
+      };
       this.bootStep('LIGHTING SIGNS // 点亮招牌', 52);
       await tick();
       this.post = new ND.PostFX(this.renderer, {
@@ -208,7 +211,7 @@
       this.bootStep('SEEDING RAIN // 落雨', 74);
       await tick();
       // pre-warm the shader compiler before the title card
-      this.world.update(0.016, 0);
+      this.world.update(0.016, 0, this.camera);
       this.camera.position.set(0, 2.2, 28);
       this.camera.lookAt(0, 10, -70);
       this.post.render(this.scene, this.camera, this.world, 0, 0);
@@ -1041,7 +1044,14 @@
         this.player.walkTime += dt * (speed > 4 ? 1.35 : 1.0);
         this.player.bob = Math.sin(this.player.walkTime * 11.0) * (speed > 4 ? 0.055 : 0.035);
         this.player.stepTimer -= dt;
-        if (this.player.stepTimer <= 0) { this.player.stepTimer = speed > 4 ? 0.27 : 0.43; this.audio.step(); }
+        if (this.player.stepTimer <= 0) {
+          this.player.stepTimer = speed > 4 ? 0.27 : 0.43;
+          this.audio.step();
+          if (this.world.spawnSplash) {
+            const sy = Math.abs(this.player.pos.x) > 9.5 ? 0.18 : 0.02;
+            this.world.spawnSplash(this.player.pos.x + (Math.random() - 0.5) * 0.16, sy, this.player.pos.z + (Math.random() - 0.5) * 0.16, 0.055 + Math.random() * 0.025, 0.32, [0.55, 0.72, 0.88]);
+          }
+        }
       } else {
         this.player.bob *= Math.max(0, 1 - dt * 6);
       }
@@ -1062,7 +1072,7 @@
         this.world.lightningCameraPos.copy(this.camera.position);
       }
       const worldDt = this.state === 'photo' ? 0 : dt;
-      this.world.update(worldDt, this.time);
+      this.world.update(worldDt, this.time, this.camera);
       if (this.world.rain) this.world.rain.position.set(this.camera.position.x, 0, this.camera.position.z);
       if (this.world.rainNear) this.world.rainNear.position.set(this.camera.position.x, 0, this.camera.position.z);
       if (this.world.airDust) this.world.airDust.position.set(this.camera.position.x, 0, this.camera.position.z);
@@ -1095,7 +1105,7 @@
         look.uFocus.value = this.state === 'menu' ? 24 : 20;
         look.uDof.value = this.state === 'shot' ? 0.0 : 0.12;
       }
-      this.audio.update(dt);
+      this.audio.update(dt, this.camera, this.world);
       // FPS instrumentation
       this.fpsAccum += dt; this.fpsFrames++;
       if (this.fpsAccum > 0.6) {

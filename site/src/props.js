@@ -175,6 +175,7 @@
       const [x, z, rot] = vendingSpots[i];
       const tex = this._vendingTexture(i);
       const mat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, color: new THREE.Color(1.45, 1.45, 1.45) });
+      this.vendingMats.push({ mat, base: 1.45, phase: i * 1.37, next: 4 + i * 0.83, flicker: 0 });
       const body = new THREE.Mesh(new THREE.BoxGeometry(1.25, 2.0, 0.76), new THREE.MeshStandardMaterial({ color: 0x121620, roughness: 0.28, metalness: 0.55 }));
       body.position.set(x, 1.16, z);
       body.rotation.y = rot;
@@ -957,6 +958,10 @@
       cx.font = '400 18px "Bahnschrift", "Arial Narrow", sans-serif'; cx.fillStyle = '#' + d.color.toString(16).padStart(6, '0'); cx.fillText(d.sub, 256, 118);
       const sign = new THREE.Mesh(new THREE.PlaneGeometry(width * 0.94, 0.52), new THREE.MeshBasicMaterial({ map: ND.Tex.canvasToTexture(c), toneMapped: false, color: new THREE.Color(1.0, 1.0, 1.0) }));
       sign.position.set(side * 13.0, 3.42, 0); sign.rotation.y = -side * Math.PI / 2; root.add(sign);
+      this.dripSpots.push({ x: side * 12.96, y: 3.08, z: d.z, side });
+      if (d.z === 0.0 || d.z === -8.0) {
+        this.lifeSigns.push({ mat: sign.material, base: 1.0, phase: d.z * 0.7, next: 3.5 + Math.abs(d.z) * 0.12, flicker: 0, x: side * 13.0, z: d.z, side });
+      }
       const signGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: d.color, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false }));
       signGlow.position.set(side * 12.88, 3.42, 0); signGlow.scale.set(4.2, 1.5, 1); root.add(signGlow);
       for (const sz of [-0.6, 0.6]) {
@@ -1019,7 +1024,8 @@
   World.prototype._addSimpleShops = function (g) {
     const defs = PHYSICAL_SHOPS.filter(d => !d.hero);
     const glowTex = this._glowTex || (this._glowTex = ND.Tex.canvasToTexture(ND.Tex.glow(128)));
-    for (const d of defs) {
+    for (let di = 0; di < defs.length; di++) {
+      const d = defs[di];
       const width = 3.5;
       const depth = 0.55;
       const side = d.side;
@@ -1048,6 +1054,10 @@
       }
       const sign = new THREE.Mesh(new THREE.PlaneGeometry(width * 0.94, 0.52), new THREE.MeshBasicMaterial({ map: this._simpleShopSignTexture(d), toneMapped: false, color: new THREE.Color(1.0, 1.0, 1.0) }));
       sign.position.set(side * 13.0, 3.42, 0); sign.rotation.y = -side * Math.PI / 2; root.add(sign);
+      this.dripSpots.push({ x: side * 12.96, y: 3.08, z: d.z, side });
+      if (di % 5 === 2) {
+        this.lifeSigns.push({ mat: sign.material, base: 1.0, phase: di * 1.31, next: 4 + di * 0.61, flicker: 0, x: side * 13.0, z: d.z, side });
+      }
       const signGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: d.color, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false }));
       signGlow.position.set(side * 12.88, 3.42, 0); signGlow.scale.set(4.2, 1.5, 1); root.add(signGlow);
       for (const sz of [-0.6, 0.6]) {
@@ -1188,6 +1198,10 @@
       panel.position.set(side * (11.9 + (i % 2) * 0.4), y, z);
       panel.rotation.y = (i % 3 === 0) ? side * 0.12 : 0;
       g.add(panel);
+      this.lifeSways.push({ obj: panel, phase: i * 0.93, amp: 0.006 + (i % 3) * 0.002 });
+      if (i % 5 === 2) {
+        this.lifeSigns.push({ mat, base: 1.55, phase: i * 1.17, next: 3 + i * 0.47, flicker: 0, x: side * 11.9, z, side });
+      }
       const bracket = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.07, 0.07), this.metalMat);
       bracket.position.set(side * 12.9, y + h / 2 + 0.08, z);
       g.add(bracket);
@@ -1216,6 +1230,7 @@
       panel.position.set(d.side * 13.1, d.y, d.z);
       panel.rotation.y = -d.side * 0.18;
       g.add(panel);
+      this.lifeSways.push({ obj: panel, phase: d.z * 0.11, amp: 0.007 });
       const bracket = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.08, 0.08), this.metalMat);
       bracket.position.set(d.side * 12.6, d.y + d.h / 2 + 0.1, d.z);
       g.add(bracket);

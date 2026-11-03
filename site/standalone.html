@@ -2609,6 +2609,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.lightningCameraPos = new V3();
       this.cameraYaw = 0;
       this.onLightning = null;
+      this.onLifeEvent = null;
       this.random = ND.util.mulberry32(92731);
       this.fogColor = new THREE.Color(0x12081d);
       this.fogDensity = 0.0074;
@@ -2639,6 +2640,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.reflectionHidden = [];
       this.dynamicGlow = [];
       this.colliders = [];
+      this.lifeSigns = [];
+      this.lifeSways = [];
+      this.vendingMats = [];
+      this.dripSpots = [];
       this.groundLights = [
         { p: new V3(-10.7, 8.2, 15.0), c: new THREE.Color(0xff2d8f).multiplyScalar(2.0) },
         { p: new V3(10.8, 11.0, 1.5), c: new THREE.Color(0x23d7ff).multiplyScalar(1.8) },
@@ -2669,6 +2674,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.buildCharacters();
       this.buildVehicles();
       this.buildHologram();
+      this.buildLife();
       this.buildReflection();
       this.applyEnvironmentIntensity();
     }
@@ -3895,8 +3901,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.reflectionRT.setSize(rw, rh);
     }
 
-    update(dt, time) {
+    update(dt, time, camera) {
       this.time = time;
+      this.activeCamera = camera || this.activeCamera || null;
       this.skyUniforms.uTime.value = time;
       this.groundUniforms.uTime.value = time;
       if (this.waterMat) this.waterMat.uniforms.uTime.value = time;
@@ -3931,6 +3938,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       }
       if (this.updateProps) this.updateProps(dt, time);
       if (this.updateActors) this.updateActors(dt, time);
+      if (this.updateLife) this.updateLife(dt, time);
       this.updateLightning(dt, time);
     }
 
@@ -4215,6 +4223,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       const [x, z, rot] = vendingSpots[i];
       const tex = this._vendingTexture(i);
       const mat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, color: new THREE.Color(1.45, 1.45, 1.45) });
+      this.vendingMats.push({ mat, base: 1.45, phase: i * 1.37, next: 4 + i * 0.83, flicker: 0 });
       const body = new THREE.Mesh(new THREE.BoxGeometry(1.25, 2.0, 0.76), new THREE.MeshStandardMaterial({ color: 0x121620, roughness: 0.28, metalness: 0.55 }));
       body.position.set(x, 1.16, z);
       body.rotation.y = rot;
@@ -4997,6 +5006,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       cx.font = '400 18px "Bahnschrift", "Arial Narrow", sans-serif'; cx.fillStyle = '#' + d.color.toString(16).padStart(6, '0'); cx.fillText(d.sub, 256, 118);
       const sign = new THREE.Mesh(new THREE.PlaneGeometry(width * 0.94, 0.52), new THREE.MeshBasicMaterial({ map: ND.Tex.canvasToTexture(c), toneMapped: false, color: new THREE.Color(1.0, 1.0, 1.0) }));
       sign.position.set(side * 13.0, 3.42, 0); sign.rotation.y = -side * Math.PI / 2; root.add(sign);
+      this.dripSpots.push({ x: side * 12.96, y: 3.08, z: d.z, side });
+      if (d.z === 0.0 || d.z === -8.0) {
+        this.lifeSigns.push({ mat: sign.material, base: 1.0, phase: d.z * 0.7, next: 3.5 + Math.abs(d.z) * 0.12, flicker: 0, x: side * 13.0, z: d.z, side });
+      }
       const signGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: d.color, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false }));
       signGlow.position.set(side * 12.88, 3.42, 0); signGlow.scale.set(4.2, 1.5, 1); root.add(signGlow);
       for (const sz of [-0.6, 0.6]) {
@@ -5059,7 +5072,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   World.prototype._addSimpleShops = function (g) {
     const defs = PHYSICAL_SHOPS.filter(d => !d.hero);
     const glowTex = this._glowTex || (this._glowTex = ND.Tex.canvasToTexture(ND.Tex.glow(128)));
-    for (const d of defs) {
+    for (let di = 0; di < defs.length; di++) {
+      const d = defs[di];
       const width = 3.5;
       const depth = 0.55;
       const side = d.side;
@@ -5088,6 +5102,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       }
       const sign = new THREE.Mesh(new THREE.PlaneGeometry(width * 0.94, 0.52), new THREE.MeshBasicMaterial({ map: this._simpleShopSignTexture(d), toneMapped: false, color: new THREE.Color(1.0, 1.0, 1.0) }));
       sign.position.set(side * 13.0, 3.42, 0); sign.rotation.y = -side * Math.PI / 2; root.add(sign);
+      this.dripSpots.push({ x: side * 12.96, y: 3.08, z: d.z, side });
+      if (di % 5 === 2) {
+        this.lifeSigns.push({ mat: sign.material, base: 1.0, phase: di * 1.31, next: 4 + di * 0.61, flicker: 0, x: side * 13.0, z: d.z, side });
+      }
       const signGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: d.color, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false }));
       signGlow.position.set(side * 12.88, 3.42, 0); signGlow.scale.set(4.2, 1.5, 1); root.add(signGlow);
       for (const sz of [-0.6, 0.6]) {
@@ -5228,6 +5246,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       panel.position.set(side * (11.9 + (i % 2) * 0.4), y, z);
       panel.rotation.y = (i % 3 === 0) ? side * 0.12 : 0;
       g.add(panel);
+      this.lifeSways.push({ obj: panel, phase: i * 0.93, amp: 0.006 + (i % 3) * 0.002 });
+      if (i % 5 === 2) {
+        this.lifeSigns.push({ mat, base: 1.55, phase: i * 1.17, next: 3 + i * 0.47, flicker: 0, x: side * 11.9, z, side });
+      }
       const bracket = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.07, 0.07), this.metalMat);
       bracket.position.set(side * 12.9, y + h / 2 + 0.08, z);
       g.add(bracket);
@@ -5256,6 +5278,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       panel.position.set(d.side * 13.1, d.y, d.z);
       panel.rotation.y = -d.side * 0.18;
       g.add(panel);
+      this.lifeSways.push({ obj: panel, phase: d.z * 0.11, amp: 0.007 });
       const bracket = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.08, 0.08), this.metalMat);
       bracket.position.set(d.side * 12.6, d.y + d.h / 2 + 0.1, d.z);
       g.add(bracket);
@@ -6158,7 +6181,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 
     this.addContactShadow(group, 1.15, 0.72, 0.5, 0.008);
     this.addCollider({ type: 'circle', obj: group, r: 0.34 });
-    group.userData = { style, legs, knees, arms, hem, tail, tailBase, umbrella, phase: rnd() * TAU, speed: 0.45 + rnd() * 0.6, dir: rnd() > 0.5 ? 1 : -1 };
+    group.userData = { style, head, legs, knees, arms, hem, tail, tailBase, umbrella, phase: rnd() * TAU, speed: 0.45 + rnd() * 0.6, dir: rnd() > 0.5 ? 1 : -1, splashClock: rnd() * 0.4 };
     return group;
   };
 
@@ -6402,6 +6425,16 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     trail.position.set(-3.4, 0, 0);
     trail.scale.set(8.5, 0.7, 1);
     g.add(trail);
+    // port/starboard navigation strobes; tiny but they sell scale at distance
+    const navMats = [];
+    for (let szi = 0; szi < 2; szi++) {
+      const sz = szi === 0 ? -1 : 1;
+      const navMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(sz < 0 ? 0xff2d3d : 0x38ff9a).multiplyScalar(2.2), toneMapped: false });
+      const nav = new THREE.Mesh(new THREE.SphereGeometry(0.055, 5, 4), navMat);
+      nav.position.set(-1.25, 0.32, sz * 0.52);
+      g.add(nav);
+      navMats.push(navMat);
+    }
     g.userData = {
       speed: 4.5 + rnd() * 5,
       y: 16 + rnd() * 20,
@@ -6409,7 +6442,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       x: -80 + rnd() * 160,
       dir: rnd() > 0.5 ? 1 : -1,
       bobbing: rnd() * TAU,
-      shipStyle: style
+      shipStyle: style,
+      navMats,
+      under,
+      trail
     };
     return g;
   };
@@ -6705,6 +6741,17 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       u.arms[0].rotation.x = gait * 0.26;
       u.arms[1].rotation.x = -gait * 0.26;
       u.hem.rotation.z = Math.sin(time * 1.7 + u.phase) * 0.018;
+      u.head.rotation.y = Math.sin(time * 0.43 + u.phase) * 0.28;
+      u.head.rotation.x = Math.sin(time * 0.27 + u.phase * 2.1) * 0.06;
+      u.splashClock -= dt;
+      if (u.splashClock <= 0 && this.activeCamera) {
+        u.splashClock = 0.34 + Math.random() * 0.22;
+        const dx = p.position.x - this.activeCamera.position.x;
+        const dz = p.position.z - this.activeCamera.position.z;
+        if (dx * dx + dz * dz < 18 * 18) {
+          this.spawnSplash(p.position.x + (Math.random() - 0.5) * 0.18, p.position.y - 0.03, p.position.z + (Math.random() - 0.5) * 0.18, 0.035 + Math.random() * 0.03, 0.28 + Math.random() * 0.16, [0.4, 0.62, 0.8]);
+        }
+      }
       if (u.tail) {
         const arr = u.tail.geometry.attributes.position.array;
         for (let i = 0; i < arr.length; i += 3) {
@@ -6725,10 +6772,27 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       f.position.set(u.x, u.y + Math.sin(time * 0.55 + u.bobbing) * 0.3, u.z);
       f.rotation.z = Math.sin(time * 0.4 + u.bobbing) * 0.035;
       f.rotation.y = u.dir > 0 ? 0 : Math.PI;
+      if (u.navMats) {
+        const navOn = Math.sin(time * 5.6 + u.bobbing) > 0.15 ? 1 : 0.08;
+        u.navMats[0].color.setRGB(2.4 * navOn, 0.12 * navOn, 0.16 * navOn);
+        u.navMats[1].color.setRGB(0.1 * navOn, 2.2 * navOn, 0.45 * navOn);
+      }
+      if (u.under) u.under.material.opacity = 0.28 + 0.10 * Math.sin(time * 3.1 + u.bobbing);
+      if (u.trail) u.trail.material.opacity = 0.09 + 0.05 * Math.sin(time * 2.3 + u.bobbing);
     }
-    // ground-projected whale
+    // sky-projected whale
     if (this.whaleMat) {
-      this.whaleMat.opacity = 0.96 + 0.02 * Math.sin(time * 1.8);
+      const bob = Math.sin(time * 0.32) * 0.22;
+      const drift = Math.sin(time * 0.21 + 0.8) * 0.16;
+      if (this.whalePlane) {
+        this.whalePlane.position.y = 16.0 + bob;
+        this.whalePlane.position.x = drift;
+        this.whaleMat.rotation = Math.sin(time * 0.24) * 0.012;
+      }
+      if (this.whaleBack) { this.whaleBack.position.y = 16.0 + bob; this.whaleBack.position.x = drift; }
+      if (this.whaleHalo) { this.whaleHalo.position.y = 16.0 + bob; this.whaleHalo.position.x = drift; }
+      const glitch = (time % 9.2) > 8.98;
+      this.whaleMat.opacity = glitch ? 0.48 : 0.96 + 0.02 * Math.sin(time * 1.8);
       if (this.whaleHalo) this.whaleHalo.material.opacity = 0.055 + 0.025 * Math.sin(time * 1.4);
       this.whaleRingMat.opacity = 0.34 + 0.16 * Math.sin(time * 1.4);
       this.whaleRing.scale.setScalar(1.0 + 0.006 * Math.sin(time * 2.1));
@@ -6795,6 +6859,376 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 })();
 
 
+/* ---- src/life.js ---- */
+/* =========================================================================
+   NEON DISTRICT — small life: rain impacts, awning drips, sign stutter,
+   metro pulses, flyer strobes and the cat that owns the cyber pawn shop.
+   ========================================================================= */
+(function () {
+  'use strict';
+  const ND = window.ND;
+  const World = ND.World;
+  const TAU = Math.PI * 2;
+
+  const _dummy = new THREE.Object3D();
+  const _color = new THREE.Color();
+  const _v = new THREE.Vector3();
+
+  World.prototype.emitLife = function (type, data) {
+    if (!this.onLifeEvent) return;
+    const ev = data || {};
+    ev.type = type;
+    this.onLifeEvent(ev);
+  };
+
+  World.prototype.buildLife = function () {
+    this._lifeRnd = ND.util.mulberry32(20250308);
+    this._splashCursor = 0;
+    this._splashAccum = 0;
+    this._dripAccum = 0;
+    this._lifeClock = 0;
+
+    // ---- expanding rain-impact rings -------------------------------------
+    const splashCount = 120;
+    const sgeo = new THREE.RingGeometry(0.55, 0.9, 12, 1);
+    sgeo.rotateX(-Math.PI / 2);
+    const smat = new THREE.MeshBasicMaterial({
+      color: 0xffffff, transparent: true, opacity: 1.0,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+      side: THREE.DoubleSide, toneMapped: false
+    });
+    const smesh = new THREE.InstancedMesh(sgeo, smat, splashCount);
+    smesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    smesh.frustumCulled = false;
+    smesh.renderOrder = 3;
+    this._splashes = [];
+    for (let i = 0; i < splashCount; i++) {
+      this._splashes.push({ active: false, life: 0, max: 1, x: 0, y: -100, z: 0, size: 0.1, r: 1, g: 1, b: 1 });
+      _dummy.position.set(0, -100, 0);
+      _dummy.scale.setScalar(0.001);
+      _dummy.updateMatrix();
+      smesh.setMatrixAt(i, _dummy.matrix);
+      smesh.setColorAt(i, _color.setRGB(0, 0, 0));
+    }
+    smesh.instanceMatrix.needsUpdate = true;
+    if (smesh.instanceColor) smesh.instanceColor.needsUpdate = true;
+    this.splashMesh = smesh;
+    this.scene.add(smesh);
+
+    // ---- slow drips from awnings and sign brackets ------------------------
+    const dripCount = 72;
+    const dgeo = new THREE.BufferGeometry();
+    const dpos = new Float32Array(dripCount * 3);
+    const dalpha = new Float32Array(dripCount);
+    const dsize = new Float32Array(dripCount);
+    for (let i = 0; i < dripCount; i++) {
+      dpos[i * 3 + 1] = -100;
+      dalpha[i] = 0;
+      dsize[i] = 0.05;
+    }
+    dgeo.setAttribute('position', new THREE.BufferAttribute(dpos, 3));
+    dgeo.setAttribute('aAlpha', new THREE.BufferAttribute(dalpha, 1));
+    dgeo.setAttribute('aSize', new THREE.BufferAttribute(dsize, 1));
+    const dmat = new THREE.ShaderMaterial({
+      uniforms: { uMap: { value: this._glowTex }, uColor: { value: new THREE.Color(0.52, 0.78, 0.92) } },
+      vertexShader: `
+        attribute float aAlpha, aSize;
+        varying float vAlpha;
+        void main() {
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = clamp(aSize * (210.0 / max(1.0, -mv.z)), 1.0, 18.0);
+          vAlpha = aAlpha;
+          gl_Position = projectionMatrix * mv;
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D uMap;
+        uniform vec3 uColor;
+        varying float vAlpha;
+        void main() {
+          vec4 t = texture2D(uMap, gl_PointCoord);
+          float a = t.a * vAlpha;
+          if (a < 0.004) discard;
+          gl_FragColor = vec4(uColor * (0.7 + 0.6 * t.r), a);
+        }
+      `,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
+    this.dripPoints = new THREE.Points(dgeo, dmat);
+    this.dripPoints.frustumCulled = false;
+    this.dripPoints.renderOrder = 8;
+    this.scene.add(this.dripPoints);
+    this._drips = [];
+    for (let i = 0; i < dripCount; i++) {
+      this._drips.push({ active: false, x: 0, y: -100, z: 0, vy: -6, size: 0.05 });
+    }
+    this._dripCursor = 0;
+
+    // ---- metro entrance activity lights ----------------------------------
+    const mLights = [];
+    for (let i = 0; i < 7; i++) {
+      const mMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0x2bd9ff).multiplyScalar(1.6), toneMapped: false, transparent: true, opacity: 0.8 });
+      const bulb = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.045, 0.32), mMat);
+      bulb.position.set(-11.35, 2.42, 73.5 + i * 0.82);
+      this.scene.add(bulb);
+      mLights.push(mMat);
+    }
+    this.metroLights = mLights;
+
+    // ---- the alley cat at the cyber pawn shop ---------------------------
+    this.buildAlleyCat();
+  };
+
+  World.prototype.buildAlleyCat = function () {
+    const g = new THREE.Group();
+    const fur = new THREE.MeshStandardMaterial({ color: 0x06070a, roughness: 0.5, metalness: 0.12 });
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), fur);
+    body.scale.set(1.75, 0.8, 0.78);
+    body.position.y = 0.24;
+    g.add(body);
+    const chest = new THREE.Mesh(new THREE.SphereGeometry(0.13, 9, 7), fur);
+    chest.position.set(-0.20, 0.29, 0);
+    chest.scale.set(0.9, 1.0, 0.86);
+    g.add(chest);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 11, 9), fur);
+    head.position.set(-0.36, 0.37, 0);
+    head.scale.set(1.05, 0.94, 0.92);
+    g.add(head);
+    for (const sz of [-1, 1]) {
+      const ear = new THREE.Mesh(new THREE.ConeGeometry(0.048, 0.1, 4), fur);
+      ear.position.set(-0.39, 0.47, sz * 0.07);
+      ear.rotation.z = sz * 0.12;
+      g.add(ear);
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.017, 6, 5), new THREE.MeshBasicMaterial({ color: new THREE.Color(0x8dffbb).multiplyScalar(2.2), toneMapped: false, transparent: true, opacity: 1 }));
+      eye.position.set(-0.46, 0.39, sz * 0.052);
+      g.add(eye);
+      this.catEyeMats = this.catEyeMats || [];
+      this.catEyeMats.push(eye.material);
+    }
+    for (const sx of [-1, 1]) {
+      for (const sz of [-1, 1]) {
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.026, 0.16, 5), fur);
+        leg.position.set(sx * 0.16, 0.08, sz * 0.075);
+        g.add(leg);
+      }
+    }
+    const tail = new THREE.Group();
+    tail.position.set(0.27, 0.3, 0);
+    let parent = tail;
+    for (let i = 0; i < 3; i++) {
+      const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.022 - i * 0.004, 0.026 - i * 0.004, 0.18, 5), fur);
+      seg.position.y = 0.09;
+      seg.rotation.z = -0.55 - i * 0.18;
+      const pivot = new THREE.Group();
+      pivot.position.y = i === 0 ? 0 : 0.15;
+      pivot.add(seg);
+      parent.add(pivot);
+      parent = pivot;
+    }
+    g.add(tail);
+    this.catTail = tail;
+    // thin red collar catches the shop light and keeps the silhouette readable
+    const collar = new THREE.Mesh(new THREE.TorusGeometry(0.105, 0.009, 4, 14), new THREE.MeshBasicMaterial({ color: new THREE.Color(0xff3b6b).multiplyScalar(1.25), toneMapped: false }));
+    collar.rotation.y = Math.PI / 2;
+    collar.position.set(-0.27, 0.36, 0);
+    g.add(collar);
+    g.position.set(12.24, 0.17, -4.55);
+    g.rotation.y = 0.08;
+    this.scene.add(g);
+    const shadow = this.addContactShadow(this.scene, 0.8, 0.5, 0.5, 0.013);
+    shadow.position.set(12.24, 0.013, -4.55);
+    this.cat = g;
+  };
+
+  World.prototype.spawnSplash = function (x, y, z, size, max, color) {
+    if (!this._splashes) return;
+    const s = this._splashes[this._splashCursor++ % this._splashes.length];
+    s.active = true;
+    s.life = 0;
+    s.max = max || 0.6;
+    s.x = x; s.y = y; s.z = z;
+    s.size = size || 0.1;
+    const c = color || [0.58, 0.78, 0.92];
+    s.r = c[0]; s.g = c[1]; s.b = c[2];
+  };
+
+  World.prototype.updateSplashes = function (dt) {
+    const mesh = this.splashMesh;
+    if (!mesh) return;
+    let dirty = false;
+    for (let i = 0; i < this._splashes.length; i++) {
+      const s = this._splashes[i];
+      if (!s.active) continue;
+      s.life += dt;
+      const t = s.life / s.max;
+      if (t >= 1) {
+        s.active = false;
+        _dummy.position.set(0, -100, 0);
+        _dummy.scale.setScalar(0.001);
+        _dummy.updateMatrix();
+        mesh.setMatrixAt(i, _dummy.matrix);
+        mesh.setColorAt(i, _color.setRGB(0, 0, 0));
+        dirty = true;
+        continue;
+      }
+      const sc = s.size * (0.4 + t * 2.7);
+      _dummy.position.set(s.x, s.y + 0.012, s.z);
+      _dummy.scale.set(sc, 1, sc);
+      _dummy.updateMatrix();
+      mesh.setMatrixAt(i, _dummy.matrix);
+      const fade = (1 - t) * (0.55 + 0.45 * (1 - t));
+      mesh.setColorAt(i, _color.setRGB(s.r * fade, s.g * fade, s.b * fade));
+      dirty = true;
+    }
+    if (dirty) {
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    }
+  };
+
+  World.prototype._spawnRainSplashes = function (dt, camera) {
+    if (!camera) return;
+    this._splashAccum += dt * 48;
+    let guard = 0;
+    while (this._splashAccum >= 1 && guard++ < 4) {
+      this._splashAccum -= 1;
+      const a = this._lifeRnd() * TAU;
+      const r = 1.8 + this._lifeRnd() * 14.5;
+      const x = camera.position.x + Math.cos(a) * r;
+      const z = camera.position.z + Math.sin(a) * r;
+      if (Math.abs(x) > 13.2 || z > 188.5 || z < -79.5) continue;
+      const y = Math.abs(x) > 9.5 ? 0.177 : 0.012;
+      this.spawnSplash(x, y, z, 0.075 + this._lifeRnd() * 0.16, 0.42 + this._lifeRnd() * 0.42, [0.72, 0.9, 1.0]);
+    }
+  };
+
+  World.prototype._spawnDrip = function (x, y, z) {
+    if (!this._drips) return;
+    const d = this._drips[this._dripCursor++ % this._drips.length];
+    d.active = true;
+    d.x = x + (this._lifeRnd() - 0.5) * 0.06;
+    d.y = y;
+    d.z = z;
+    d.vy = -(4.2 + this._lifeRnd() * 2.8);
+    d.size = 0.035 + this._lifeRnd() * 0.035;
+  };
+
+  World.prototype._updateDrips = function (dt, camera) {
+    if (!this._drips) return;
+    this._dripAccum += dt * 16;
+    let guard = 0;
+    while (this._dripAccum >= 1 && guard++ < 3 && camera) {
+      this._dripAccum -= 1;
+      const spots = this.dripSpots || [];
+      if (!spots.length) break;
+      const near = [];
+      for (const s of spots) {
+        if (Math.abs(s.z - camera.position.z) < 26) near.push(s);
+      }
+      if (!near.length) continue;
+      const spot = near[Math.floor(this._lifeRnd() * near.length)];
+      this._spawnDrip(spot.x, spot.y, spot.z);
+    }
+    const pos = this.dripPoints.geometry.attributes.position.array;
+    const alpha = this.dripPoints.geometry.attributes.aAlpha.array;
+    const size = this.dripPoints.geometry.attributes.aSize.array;
+    for (let i = 0; i < this._drips.length; i++) {
+      const d = this._drips[i];
+      if (!d.active) {
+        alpha[i] = 0;
+        pos[i * 3 + 1] = -100;
+        continue;
+      }
+      d.y += d.vy * dt;
+      d.vy -= 2.0 * dt;
+      const ground = Math.abs(d.x) > 9.5 ? 0.177 : 0.012;
+      if (d.y <= ground + 0.02) {
+        if (camera && Math.abs(d.z - camera.position.z) < 30) {
+          this.spawnSplash(d.x, ground, d.z, 0.045 + this._lifeRnd() * 0.055, 0.35 + this._lifeRnd() * 0.25, [0.45, 0.68, 0.86]);
+        }
+        d.active = false;
+        alpha[i] = 0;
+        pos[i * 3 + 1] = -100;
+        continue;
+      }
+      pos[i * 3] = d.x;
+      pos[i * 3 + 1] = d.y;
+      pos[i * 3 + 2] = d.z;
+      alpha[i] = 0.55;
+      size[i] = d.size;
+    }
+    this.dripPoints.geometry.attributes.position.needsUpdate = true;
+    this.dripPoints.geometry.attributes.aAlpha.needsUpdate = true;
+    this.dripPoints.geometry.attributes.aSize.needsUpdate = true;
+  };
+
+  World.prototype.updateLife = function (dt, time) {
+    const camera = this.activeCamera;
+    this._spawnRainSplashes(dt, camera);
+    this._updateDrips(dt, camera);
+    this.updateSplashes(dt);
+
+    // irregular practical-sign stutter, never a global sine loop
+    for (const s of this.lifeSigns || []) {
+      if (s.flicker <= 0 && time > s.next) {
+        s.flicker = 0.14 + this._lifeRnd() * 0.5;
+        s.seed = this._lifeRnd() * 100;
+        s.next = time + 4.0 + this._lifeRnd() * 11.0;
+        this.emitLife('neon', { x: s.x, z: s.z, side: s.side });
+      }
+      let k;
+      if (s.flicker > 0) {
+        s.flicker -= dt;
+        const n = Math.sin(time * 67 + s.seed) * Math.sin(time * 39 + s.seed * 1.7);
+        k = n > -0.12 ? 0.1 : 1.0;
+      } else {
+        k = 0.97 + 0.03 * Math.sin(time * 1.55 + (s.phase || 0));
+      }
+      s.mat.color.setScalar(s.base * k);
+    }
+
+    // vending-machine ballasts
+    for (const v of this.vendingMats || []) {
+      if (v.flicker <= 0 && time > v.next) {
+        v.flicker = 0.08 + this._lifeRnd() * 0.22;
+        v.next = time + 5 + this._lifeRnd() * 14;
+      }
+      let k = 0.96 + 0.04 * Math.sin(time * 2.1 + v.phase);
+      if (v.flicker > 0) {
+        v.flicker -= dt;
+        k = Math.sin(time * 88 + v.phase) > 0 ? 1.0 : 0.35;
+      }
+      v.mat.color.setScalar(v.base * k);
+    }
+
+    // barely-there cable sway on blade signage
+    for (const s of this.lifeSways || []) {
+      s.obj.rotation.z = Math.sin(time * 0.72 + s.phase) * s.amp;
+    }
+
+    // metro strip breathing, with a tiny chase
+    for (let i = 0; i < (this.metroLights || []).length; i++) {
+      const m = this.metroLights[i];
+      const wave = Math.max(0, Math.sin(time * 2.2 - i * 0.55));
+      m.opacity = 0.18 + 0.82 * wave;
+      m.color.setRGB(0.12 + wave * 0.5, 0.55 + wave * 0.65, 0.75 + wave * 0.55);
+    }
+
+    // cat: tail flicks, head tracks the street, eyes blink
+    if (this.cat) {
+      const flick = Math.sin(time * 1.45) * 0.16 + (Math.sin(time * 0.23 + 1.7) > 0.94 ? Math.sin(time * 13) * 0.5 : 0);
+      this.catTail.rotation.y = flick;
+      this.catTail.rotation.z = 0.12 + Math.sin(time * 1.9) * 0.05;
+      this.cat.rotation.y = 0.08 + Math.sin(time * 0.31) * 0.16;
+      const blink = Math.sin(time * 0.83) > 0.985 ? 0.12 : 1;
+      for (const m of this.catEyeMats || []) m.opacity = blink;
+    }
+  };
+})();
+
+
 /* ---- src/audio.js ---- */
 /* =========================================================================
    NEON DISTRICT — procedural ambience. No audio files, only rain and voltage.
@@ -6814,6 +7248,14 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.rainGain = null;
       this.padGain = null;
       this.humGain = null;
+      this.neonBuzzGain = null;
+      this.ambient = null;
+      this.ambientClock = 0;
+      this.detailClock = 2.4;
+      this.trainClock = 26 + Math.random() * 30;
+      this.flybyClock = 14 + Math.random() * 18;
+      this.sirenClock = 55 + Math.random() * 70;
+      this.lastCamera = null;
     }
 
     async init() {
@@ -6908,8 +7350,11 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       // neon transformer buzz
       const buzz = ctx.createOscillator(); buzz.type = 'square'; buzz.frequency.value = 119.7;
       const bf = ctx.createBiquadFilter(); bf.type = 'bandpass'; bf.frequency.value = 420; bf.Q.value = 12;
-      const bg = ctx.createGain(); bg.gain.value = 0.006;
+      const bg = ctx.createGain(); bg.gain.value = 0.003;
       buzz.connect(bf).connect(bg).connect(master); buzz.start();
+      this.neonBuzzGain = bg;
+
+      this._buildAmbient();
 
       master.gain.setTargetAtTime(this.muted ? 0 : 0.55, ctx.currentTime, 1.2);
       this.ready = true;
@@ -6920,6 +7365,293 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       src.buffer = buffer; src.loop = true;
       src.start();
       return src;
+    }
+
+    _buildAmbient() {
+      const ctx = this.ctx;
+      const makePanner = () => {
+        if (!ctx.createStereoPanner) return null;
+        const p = ctx.createStereoPanner();
+        p.pan.value = 0;
+        p.connect(this.master);
+        return p;
+      };
+      const makeBus = (panner) => {
+        const g = ctx.createGain();
+        g.gain.value = 0;
+        g.connect(panner || this.master);
+        return g;
+      };
+      const noiseLayer = (bus, type, freq, q, level) => {
+        const src = this._loopNoise(this.noiseBuf);
+        const f = ctx.createBiquadFilter();
+        f.type = type; f.frequency.value = freq; f.Q.value = q;
+        const g = ctx.createGain(); g.gain.value = level;
+        src.connect(f).connect(g).connect(bus);
+        return { src, f, g };
+      };
+
+      // night-market crowd: two bands of body noise, slowly breathing
+      const crowdP = makePanner();
+      const crowdG = makeBus(crowdP);
+      noiseLayer(crowdG, 'bandpass', 430, 0.55, 0.55);
+      noiseLayer(crowdG, 'bandpass', 1180, 0.9, 0.22);
+      const crowdLfo = ctx.createOscillator(); crowdLfo.frequency.value = 0.09;
+      const crowdLfoGain = ctx.createGain(); crowdLfoGain.gain.value = 0.22;
+      const crowdMod = ctx.createGain(); crowdMod.gain.value = 1.0;
+      crowdG.disconnect(); crowdG.connect(crowdMod).connect(crowdP || this.master);
+      crowdLfo.connect(crowdLfoGain).connect(crowdMod.gain); crowdLfo.start();
+
+      // fountain / pool water
+      const waterP = makePanner();
+      const waterG = makeBus(waterP);
+      noiseLayer(waterG, 'highpass', 1700, 0.55, 0.5);
+      noiseLayer(waterG, 'bandpass', 420, 1.1, 0.25);
+
+      // hologram whale: sub-bass pressure + a glassy carrier
+      const whaleP = makePanner();
+      const whaleG = makeBus(whaleP);
+      const whaleNotes = [[37.5, 0.55, 'sine'], [56.25, 0.3, 'sine'], [112.5, 0.13, 'triangle']];
+      for (const [freq, level, type] of whaleNotes) {
+        const o = ctx.createOscillator(); o.type = type; o.frequency.value = freq; o.detune.value = (Math.random() - 0.5) * 7;
+        const g = ctx.createGain(); g.gain.value = level;
+        o.connect(g).connect(whaleG); o.start();
+      }
+      noiseLayer(whaleG, 'bandpass', 2600, 1.4, 0.035);
+      const whaleLfo = ctx.createOscillator(); whaleLfo.frequency.value = 0.07;
+      const whaleLfoGain = ctx.createGain(); whaleLfoGain.gain.value = 0.18;
+      const whaleMod = ctx.createGain(); whaleMod.gain.value = 1.0;
+      whaleG.disconnect(); whaleG.connect(whaleMod).connect(whaleP || this.master);
+      whaleLfo.connect(whaleLfoGain).connect(whaleMod.gain); whaleLfo.start();
+
+      // steam / vent hiss
+      const steamP = makePanner();
+      const steamG = makeBus(steamP);
+      noiseLayer(steamG, 'highpass', 2400, 0.45, 0.6);
+      noiseLayer(steamG, 'bandpass', 5200, 0.8, 0.2);
+
+      this.ambient = {
+        crowd: { g: crowdG, p: crowdP, mod: crowdMod },
+        water: { g: waterG, p: waterP },
+        whale: { g: whaleG, p: whaleP, mod: whaleMod },
+        steam: { g: steamG, p: steamP }
+      };
+    }
+
+    _spatial(x, z, camera, minDist, maxDist, y) {
+      const dx = x - camera.position.x;
+      const dy = (y == null ? 1.1 : y) - camera.position.y;
+      const dz = z - camera.position.z;
+      const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      const t = Math.max(0, Math.min(1, (d - minDist) / Math.max(0.001, maxDist - minDist)));
+      const fade = 1 - t * t * (3 - 2 * t);
+      const fwd = new THREE.Vector3();
+      const right = new THREE.Vector3();
+      const to = new THREE.Vector3(dx, 0, dz).normalize();
+      camera.getWorldDirection(fwd);
+      right.crossVectors(fwd, camera.up).normalize();
+      return { gain: fade * fade, pan: Math.max(-0.82, Math.min(0.82, to.dot(right))), dist: d };
+    }
+
+    _setBus(loop, level, sp) {
+      if (!loop) return;
+      const t = this.ctx.currentTime;
+      loop.g.gain.setTargetAtTime(Math.max(0, level * sp.gain), t, 0.22);
+      if (loop.p) loop.p.pan.setTargetAtTime(sp.pan, t, 0.28);
+    }
+
+    updateAmbient(dt, camera, world) {
+      if (!this.ambient || !camera) return;
+      this.ambientClock -= dt;
+      if (this.ambientClock <= 0) {
+        this.ambientClock = 0.14;
+        const t = this.ctx.currentTime;
+        this._setBus(this.ambient.crowd, 0.022 * (0.82 + 0.18 * Math.sin(t * 0.12)), this._spatial(0, 124, camera, 9, 58, 2.0));
+        this._setBus(this.ambient.water, 0.020, this._spatial(0, -61.5, camera, 3, 36, 0.7));
+        this._setBus(this.ambient.whale, 0.055, this._spatial(0, -61.5, camera, 5, 54, 16));
+        let steam = null, sd = 1e9;
+        for (const v of (world && world._steamVents) || []) {
+          const dx = v.x - camera.position.x, dz = v.z - camera.position.z;
+          const d = dx * dx + dz * dz;
+          if (d < sd) { sd = d; steam = v; }
+        }
+        if (steam) this._setBus(this.ambient.steam, 0.013, this._spatial(steam.x, steam.z, camera, 2, 22, 0.4));
+        let nd = 1e9;
+        for (const s of (world && world.lifeSigns) || []) {
+          const dx = s.x - camera.position.x, dz = s.z - camera.position.z;
+          const d = Math.sqrt(dx * dx + dz * dz);
+          if (d < nd) nd = d;
+        }
+        if (this.neonBuzzGain) {
+          const near = nd < 18 ? 0.0045 * (1 - nd / 18) : 0;
+          this.neonBuzzGain.gain.setTargetAtTime(0.0022 + near, t, 0.3);
+        }
+        if (this.rainGain) {
+          this.rainGain.gain.setTargetAtTime(0.135 + 0.018 * Math.sin(t * 0.16) + 0.008 * Math.sin(t * 0.53), t, 0.8);
+        }
+      }
+
+      this.detailClock -= dt;
+      if (this.detailClock <= 0) {
+        this.detailClock = 0.95 + Math.random() * 3.2;
+        this._randomDetail(camera, world);
+      }
+      this.trainClock -= dt;
+      if (this.trainClock <= 0) { this.train(); this.trainClock = 58 + Math.random() * 52; }
+      this.flybyClock -= dt;
+      if (this.flybyClock <= 0) { this.flyby(); this.flybyClock = 26 + Math.random() * 30; }
+      this.sirenClock -= dt;
+      if (this.sirenClock <= 0) { this.siren(); this.sirenClock = 75 + Math.random() * 80; }
+    }
+
+    _randomDetail(camera, world) {
+      const x = camera.position.x, z = camera.position.z;
+      let nearShop = false;
+      for (const s of (world && world.lifeSigns) || []) {
+        if (Math.abs(s.z - z) < 20) { nearShop = true; break; }
+      }
+      const r = Math.random();
+      if (nearShop && r < 0.46) {
+        const s = world.lifeSigns[Math.floor(Math.random() * world.lifeSigns.length)];
+        const sp = this._spatial(s.x, s.z, camera, 1.5, 24, 2.8);
+        this.neonTick(sp.pan, 0.004 + 0.008 * sp.gain);
+      } else if (Math.abs(z + 61.5) < 34 && r < 0.58) {
+        const pan = (x - 0) / 30;
+        this.waterPlink(Math.max(-0.7, Math.min(0.7, pan)), 0.008);
+      } else {
+        this.drip(Math.random() * 1.6 - 0.8, 0.006 + Math.random() * 0.006);
+      }
+    }
+
+    lifeEvent(ev) {
+      if (!this.ready || !ev || !this.lastCamera) return;
+      if (ev.type === 'neon') {
+        const sp = this._spatial(ev.x || 0, ev.z || 0, this.lastCamera, 2, 26, 3.0);
+        this.neonTick(sp.pan, 0.004 + 0.010 * sp.gain);
+      }
+    }
+
+    _panner(pan) {
+      if (!this.ctx.createStereoPanner) return null;
+      const p = this.ctx.createStereoPanner();
+      p.pan.value = Math.max(-1, Math.min(1, pan || 0));
+      p.connect(this.master);
+      return p;
+    }
+
+    drip(pan, vol) {
+      if (!this.ctx) return;
+      const ctx = this.ctx, t = ctx.currentTime;
+      const out = this._panner(pan) || this.master;
+      const o = ctx.createOscillator(); o.type = 'sine';
+      const f0 = 1400 + Math.random() * 1200;
+      o.frequency.setValueAtTime(f0, t);
+      o.frequency.exponentialRampToValueAtTime(f0 * 0.42, t + 0.055);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(vol, t + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+      o.connect(g).connect(out); o.start(t); o.stop(t + 0.14);
+    }
+
+    waterPlink(pan, vol) {
+      if (!this.ctx) return;
+      const ctx = this.ctx, t = ctx.currentTime;
+      const out = this._panner(pan) || this.master;
+      const o = ctx.createOscillator(); o.type = 'sine';
+      o.frequency.setValueAtTime(620 + Math.random() * 220, t);
+      o.frequency.exponentialRampToValueAtTime(280, t + 0.09);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(vol, t + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+      o.connect(g).connect(out); o.start(t); o.stop(t + 0.22);
+      if (this.verb) { const s = ctx.createGain(); s.gain.value = 0.1; g.connect(s).connect(this.verb); }
+    }
+
+    neonTick(pan, vol) {
+      if (!this.ctx) return;
+      const ctx = this.ctx, t = ctx.currentTime;
+      const out = this._panner(pan) || this.master;
+      const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = 118 + Math.random() * 10;
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 360; bp.Q.value = 7;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(vol, t + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.065);
+      o.connect(bp).connect(g).connect(out); o.start(t); o.stop(t + 0.08);
+      const ns = ctx.createBufferSource(); ns.buffer = this.noiseBuf;
+      const nf = ctx.createBiquadFilter(); nf.type = 'highpass'; nf.frequency.value = 2600;
+      const ng = ctx.createGain(); ng.gain.setValueAtTime(vol * 0.8, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
+      ns.connect(nf).connect(ng).connect(out); ns.start(t); ns.stop(t + 0.04);
+    }
+
+    train() {
+      if (!this.ctx) return;
+      const ctx = this.ctx, t = ctx.currentTime;
+      const pan = Math.random() * 1.2 - 0.6;
+      const out = this._panner(pan) || this.master;
+      const dist = this.lastCamera ? Math.abs(this.lastCamera.position.z - 76) : 50;
+      const att = Math.max(0.2, Math.min(1, 1 - dist / 170));
+      const src = ctx.createBufferSource(); src.buffer = this.noiseBuf; src.loop = true;
+      const f = ctx.createBiquadFilter(); f.type = 'lowpass';
+      f.frequency.setValueAtTime(140, t); f.frequency.exponentialRampToValueAtTime(72, t + 8);
+      f.Q.value = 1.1;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(0.026 * att, t + 2.2);
+      g.gain.linearRampToValueAtTime(0.032 * att, t + 4.8);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 9.0);
+      src.connect(f).connect(g).connect(out); src.start(t); src.stop(t + 9.2);
+      const o = ctx.createOscillator(); o.type = 'sine';
+      o.frequency.setValueAtTime(34, t); o.frequency.linearRampToValueAtTime(27, t + 7);
+      const og = ctx.createGain(); og.gain.setValueAtTime(0.0001, t); og.gain.linearRampToValueAtTime(0.020 * att, t + 2.5); og.gain.exponentialRampToValueAtTime(0.0001, t + 8.4);
+      o.connect(og).connect(out); o.start(t); o.stop(t + 8.6);
+      // brake squeal at the far end
+      const sq = ctx.createBufferSource(); sq.buffer = this.noiseBuf; sq.loop = true;
+      const sf = ctx.createBiquadFilter(); sf.type = 'bandpass'; sf.frequency.value = 980; sf.Q.value = 16;
+      const sg = ctx.createGain(); sg.gain.setValueAtTime(0.0001, t + 5.2); sg.gain.linearRampToValueAtTime(0.0035 * att, t + 6.1); sg.gain.exponentialRampToValueAtTime(0.0001, t + 8.2);
+      sq.connect(sf).connect(sg).connect(out); sq.start(t + 5.0); sq.stop(t + 8.4);
+    }
+
+    flyby() {
+      if (!this.ctx) return;
+      const ctx = this.ctx, t = ctx.currentTime;
+      const pan = Math.random() * 1.5 - 0.75;
+      const out = this._panner(pan) || this.master;
+      const src = ctx.createBufferSource(); src.buffer = this.noiseBuf; src.loop = true;
+      const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 0.8;
+      f.frequency.setValueAtTime(280, t);
+      f.frequency.exponentialRampToValueAtTime(1900, t + 1.1);
+      f.frequency.exponentialRampToValueAtTime(320, t + 3.0);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(0.026, t + 0.9);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 3.2);
+      src.connect(f).connect(g).connect(out); src.start(t); src.stop(t + 3.3);
+      const o = ctx.createOscillator(); o.type = 'sawtooth';
+      o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(66, t + 2.6);
+      const of = ctx.createBiquadFilter(); of.type = 'lowpass'; of.frequency.value = 420;
+      const og = ctx.createGain(); og.gain.setValueAtTime(0.0001, t); og.gain.linearRampToValueAtTime(0.010, t + 0.7); og.gain.exponentialRampToValueAtTime(0.0001, t + 2.9);
+      o.connect(of).connect(og).connect(out); o.start(t); o.stop(t + 3.0);
+    }
+
+    siren() {
+      if (!this.ctx) return;
+      const ctx = this.ctx, t = ctx.currentTime;
+      const out = this._panner(Math.random() * 1.4 - 0.7) || this.master;
+      const o = ctx.createOscillator(); o.type = 'triangle';
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(0.008, t + 0.8);
+      g.gain.linearRampToValueAtTime(0.0001, t + 5.0);
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;
+      for (let i = 0; i < 4; i++) {
+        o.frequency.setValueAtTime(440 + (i % 2) * 110, t + i * 1.15);
+        o.frequency.linearRampToValueAtTime(560 - (i % 2) * 40, t + i * 1.15 + 0.55);
+      }
+      o.connect(lp).connect(g).connect(out); o.start(t); o.stop(t + 5.0);
+      if (this.verb) { const s = ctx.createGain(); s.gain.value = 0.2; g.connect(s).connect(this.verb); }
     }
 
     captureStream() {
@@ -6938,10 +7670,14 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 
     toggleMute() { this.setMuted(!this.muted); return this.muted; }
 
-    update(dt) {
+    update(dt, camera, world) {
       if (!this.ready) return;
       if (this.padFilter) {
         this.padFilter.frequency.value = 620 + Math.sin(this.ctx.currentTime * 0.05) * 220;
+      }
+      if (camera) {
+        this.lastCamera = camera;
+        this.updateAmbient(dt, camera, world);
       }
     }
 
@@ -7232,6 +7968,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         const delayMs = Math.max(0, ev.delay) * 1000;
         setTimeout(() => { if (this.audio) this.audio.thunder(ev); }, delayMs);
       };
+      this.world.onLifeEvent = (ev) => {
+        if (this.audio) this.audio.lifeEvent(ev);
+      };
       this.bootStep('LIGHTING SIGNS // 点亮招牌', 52);
       await tick();
       this.post = new ND.PostFX(this.renderer, {
@@ -7248,7 +7987,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.bootStep('SEEDING RAIN // 落雨', 74);
       await tick();
       // pre-warm the shader compiler before the title card
-      this.world.update(0.016, 0);
+      this.world.update(0.016, 0, this.camera);
       this.camera.position.set(0, 2.2, 28);
       this.camera.lookAt(0, 10, -70);
       this.post.render(this.scene, this.camera, this.world, 0, 0);
@@ -8081,7 +8820,14 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         this.player.walkTime += dt * (speed > 4 ? 1.35 : 1.0);
         this.player.bob = Math.sin(this.player.walkTime * 11.0) * (speed > 4 ? 0.055 : 0.035);
         this.player.stepTimer -= dt;
-        if (this.player.stepTimer <= 0) { this.player.stepTimer = speed > 4 ? 0.27 : 0.43; this.audio.step(); }
+        if (this.player.stepTimer <= 0) {
+          this.player.stepTimer = speed > 4 ? 0.27 : 0.43;
+          this.audio.step();
+          if (this.world.spawnSplash) {
+            const sy = Math.abs(this.player.pos.x) > 9.5 ? 0.18 : 0.02;
+            this.world.spawnSplash(this.player.pos.x + (Math.random() - 0.5) * 0.16, sy, this.player.pos.z + (Math.random() - 0.5) * 0.16, 0.055 + Math.random() * 0.025, 0.32, [0.55, 0.72, 0.88]);
+          }
+        }
       } else {
         this.player.bob *= Math.max(0, 1 - dt * 6);
       }
@@ -8102,7 +8848,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         this.world.lightningCameraPos.copy(this.camera.position);
       }
       const worldDt = this.state === 'photo' ? 0 : dt;
-      this.world.update(worldDt, this.time);
+      this.world.update(worldDt, this.time, this.camera);
       if (this.world.rain) this.world.rain.position.set(this.camera.position.x, 0, this.camera.position.z);
       if (this.world.rainNear) this.world.rainNear.position.set(this.camera.position.x, 0, this.camera.position.z);
       if (this.world.airDust) this.world.airDust.position.set(this.camera.position.x, 0, this.camera.position.z);
@@ -8135,7 +8881,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         look.uFocus.value = this.state === 'menu' ? 24 : 20;
         look.uDof.value = this.state === 'shot' ? 0.0 : 0.12;
       }
-      this.audio.update(dt);
+      this.audio.update(dt, this.camera, this.world);
       // FPS instrumentation
       this.fpsAccum += dt; this.fpsFrames++;
       if (this.fpsAccum > 0.6) {

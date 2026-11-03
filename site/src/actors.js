@@ -523,7 +523,7 @@
 
     this.addContactShadow(group, 1.15, 0.72, 0.5, 0.008);
     this.addCollider({ type: 'circle', obj: group, r: 0.34 });
-    group.userData = { style, legs, knees, arms, hem, tail, tailBase, umbrella, phase: rnd() * TAU, speed: 0.45 + rnd() * 0.6, dir: rnd() > 0.5 ? 1 : -1 };
+    group.userData = { style, head, legs, knees, arms, hem, tail, tailBase, umbrella, phase: rnd() * TAU, speed: 0.45 + rnd() * 0.6, dir: rnd() > 0.5 ? 1 : -1, splashClock: rnd() * 0.4 };
     return group;
   };
 
@@ -767,6 +767,16 @@
     trail.position.set(-3.4, 0, 0);
     trail.scale.set(8.5, 0.7, 1);
     g.add(trail);
+    // port/starboard navigation strobes; tiny but they sell scale at distance
+    const navMats = [];
+    for (let szi = 0; szi < 2; szi++) {
+      const sz = szi === 0 ? -1 : 1;
+      const navMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(sz < 0 ? 0xff2d3d : 0x38ff9a).multiplyScalar(2.2), toneMapped: false });
+      const nav = new THREE.Mesh(new THREE.SphereGeometry(0.055, 5, 4), navMat);
+      nav.position.set(-1.25, 0.32, sz * 0.52);
+      g.add(nav);
+      navMats.push(navMat);
+    }
     g.userData = {
       speed: 4.5 + rnd() * 5,
       y: 16 + rnd() * 20,
@@ -774,7 +784,10 @@
       x: -80 + rnd() * 160,
       dir: rnd() > 0.5 ? 1 : -1,
       bobbing: rnd() * TAU,
-      shipStyle: style
+      shipStyle: style,
+      navMats,
+      under,
+      trail
     };
     return g;
   };
@@ -1070,6 +1083,17 @@
       u.arms[0].rotation.x = gait * 0.26;
       u.arms[1].rotation.x = -gait * 0.26;
       u.hem.rotation.z = Math.sin(time * 1.7 + u.phase) * 0.018;
+      u.head.rotation.y = Math.sin(time * 0.43 + u.phase) * 0.28;
+      u.head.rotation.x = Math.sin(time * 0.27 + u.phase * 2.1) * 0.06;
+      u.splashClock -= dt;
+      if (u.splashClock <= 0 && this.activeCamera) {
+        u.splashClock = 0.34 + Math.random() * 0.22;
+        const dx = p.position.x - this.activeCamera.position.x;
+        const dz = p.position.z - this.activeCamera.position.z;
+        if (dx * dx + dz * dz < 18 * 18) {
+          this.spawnSplash(p.position.x + (Math.random() - 0.5) * 0.18, p.position.y - 0.03, p.position.z + (Math.random() - 0.5) * 0.18, 0.035 + Math.random() * 0.03, 0.28 + Math.random() * 0.16, [0.4, 0.62, 0.8]);
+        }
+      }
       if (u.tail) {
         const arr = u.tail.geometry.attributes.position.array;
         for (let i = 0; i < arr.length; i += 3) {
@@ -1090,10 +1114,27 @@
       f.position.set(u.x, u.y + Math.sin(time * 0.55 + u.bobbing) * 0.3, u.z);
       f.rotation.z = Math.sin(time * 0.4 + u.bobbing) * 0.035;
       f.rotation.y = u.dir > 0 ? 0 : Math.PI;
+      if (u.navMats) {
+        const navOn = Math.sin(time * 5.6 + u.bobbing) > 0.15 ? 1 : 0.08;
+        u.navMats[0].color.setRGB(2.4 * navOn, 0.12 * navOn, 0.16 * navOn);
+        u.navMats[1].color.setRGB(0.1 * navOn, 2.2 * navOn, 0.45 * navOn);
+      }
+      if (u.under) u.under.material.opacity = 0.28 + 0.10 * Math.sin(time * 3.1 + u.bobbing);
+      if (u.trail) u.trail.material.opacity = 0.09 + 0.05 * Math.sin(time * 2.3 + u.bobbing);
     }
-    // ground-projected whale
+    // sky-projected whale
     if (this.whaleMat) {
-      this.whaleMat.opacity = 0.96 + 0.02 * Math.sin(time * 1.8);
+      const bob = Math.sin(time * 0.32) * 0.22;
+      const drift = Math.sin(time * 0.21 + 0.8) * 0.16;
+      if (this.whalePlane) {
+        this.whalePlane.position.y = 16.0 + bob;
+        this.whalePlane.position.x = drift;
+        this.whaleMat.rotation = Math.sin(time * 0.24) * 0.012;
+      }
+      if (this.whaleBack) { this.whaleBack.position.y = 16.0 + bob; this.whaleBack.position.x = drift; }
+      if (this.whaleHalo) { this.whaleHalo.position.y = 16.0 + bob; this.whaleHalo.position.x = drift; }
+      const glitch = (time % 9.2) > 8.98;
+      this.whaleMat.opacity = glitch ? 0.48 : 0.96 + 0.02 * Math.sin(time * 1.8);
       if (this.whaleHalo) this.whaleHalo.material.opacity = 0.055 + 0.025 * Math.sin(time * 1.4);
       this.whaleRingMat.opacity = 0.34 + 0.16 * Math.sin(time * 1.4);
       this.whaleRing.scale.setScalar(1.0 + 0.006 * Math.sin(time * 2.1));
