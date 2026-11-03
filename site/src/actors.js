@@ -23,7 +23,7 @@
       const x = (rnd() - 0.5) * 64;
       const y = rnd() * 38;
       const z = (rnd() - 0.5) * 90;
-      const s = 18 + rnd() * 26;
+      const s = 22 + rnd() * 30;
       const p = rnd();
       for (let e = 0; e < 2; e++) {
         const idx = i * 2 + e;
@@ -44,7 +44,7 @@
         uTime: { value: 0 },
         uHeight: { value: 38 },
         uColor: { value: new THREE.Color(0.46, 0.66, 1.0) },
-        uOpacity: { value: 0.46 },
+        uOpacity: { value: 0.40 },
         uFlash: { value: 0 }
       },
       vertexShader: `
@@ -57,7 +57,7 @@
           p.y = y;
           p.x += sin(uTime * 0.23 + aPhase * 6.28) * 0.60;
           p.z += cos(uTime * 0.19 + aPhase * 5.13) * 0.35;
-          float len = 0.15 + aSpeed * 0.017;
+          float len = 0.12 + aSpeed * 0.015;
           p.y += aEnd * len;
           p.x += p.y * 0.055;
           vAlpha = mix(0.85, 0.06, aEnd) * (0.62 + 0.38 * aPhase);
@@ -87,7 +87,7 @@
     // Foreground rain ribbons. Each instance is a camera-facing quad with a
     // soft streak texture: thin at distance, longer near the lens, and less
     // like glowing point sprites than the first pass.
-    const nearCount = Math.max(900, Math.floor(count * 0.20));
+    const nearCount = this.quality.rainNearCount || Math.max(900, Math.floor(count * 0.20));
     const ngeo = new THREE.InstancedBufferGeometry();
     const nverts = [-1,-1,0, 1,-1,0, 1,1,0, -1,-1,0, 1,1,0, -1,1,0];
     const nuvs = [0,0, 1,0, 1,1, 0,0, 1,1, 0,1];
@@ -120,7 +120,7 @@
         uColor: { value: new THREE.Color(0.56, 0.74, 0.97) },
         uLightPos: { value: this.groundLights.map(l => l.p) },
         uLightColor: { value: this.groundLights.map(l => l.c) },
-        uOpacity: { value: 0.34 },
+        uOpacity: { value: 0.30 },
         uFlash: { value: 0 }
       },
       vertexShader: `
@@ -182,7 +182,7 @@
 
     // Soft motes under the main neon/point lights: a local rain veil rather
     // than a uniform fog layer. The glows bloom naturally with the signs.
-    const mistCount = Math.max(140, Math.floor(count * 0.045));
+    const mistCount = Math.max(140, Math.floor(count * 0.0225));
     const mgeo = new THREE.BufferGeometry();
     const mpos = new Float32Array(mistCount * 3);
     const mpha = new Float32Array(mistCount);
