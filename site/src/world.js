@@ -77,18 +77,25 @@
       return (vnoise(p * 17.0 + vec2(t * 2.7, -t * 1.9)) - 0.5) * 0.0175;
     }
     float groundRing(vec2 p, float t, float scale, float seed, float density) {
-      vec2 q = p * scale + vec2(t * 0.55, t * 0.32);
+      float speed = 0.6 + fract(seed * 0.173) * 0.45;
+      vec2 q = p * scale + vec2(t * 0.55 * speed, t * 0.32 * speed) + vec2(seed * 1.7, seed * 2.3);
       vec2 id = floor(q), f = fract(q) - 0.5;
       float phase = hash21(id);
-      float cycle = fract(t * 0.8 + phase);
-      float mask = smoothstep(0.48, 0.72, hash21(id + seed));
+      float cycle = fract(t * 0.65 * speed + phase);
+      float seedShift = fract(seed * 0.137) * 0.14;
+      float mask = smoothstep(0.55 + seedShift, 0.78 + seedShift, hash21(id + seed));
       // Dry ground keeps 50% of the ring cells; wet ground keeps all of them.
       mask *= step(hash21(id + seed + 33.3), density);
+      mask *= mix(0.55, 1.0, hash21(id + seed + 91.1));
       return smoothstep(0.16, 0.0, abs(length(f) - cycle * 0.5)) * (1.0 - cycle) * mask;
     }
     float rainRings(vec2 p, float t, float density) {
-      // Two scales: dense ~12 cm dimples plus sparse ~45 cm impacts.
-      return groundRing(p, t, 6.0, 9.1, density) + groundRing(p, t, 2.2, 41.7, density) * 0.9;
+      // Five independent sizes, randomly distributed per cell.
+      return groundRing(p, t, 9.0, 3.1, density) * 0.55
+        + groundRing(p, t, 6.4, 13.7, density) * 0.70
+        + groundRing(p, t, 4.4, 29.3, density) * 0.85
+        + groundRing(p, t, 3.0, 47.1, density) * 1.00
+        + groundRing(p, t, 2.0, 68.9, density) * 1.10;
     }
 
     void main() {
@@ -137,7 +144,7 @@
       float rx = rainRings(p + vec2(0.055, 0.0), uTime, ringDensity);
       float rz = rainRings(p + vec2(0.0, 0.055), uTime, ringDensity);
       vec2 ringGrad = vec2(rx - r0, rz - r0) / 0.055;
-      ringGrad *= 0.00200;
+      ringGrad *= 0.00140;
       vec2 ruv = vReflect.xy / max(vReflect.w, 0.0001);
       ruv += grad * 0.0018 + ringGrad + (vec2(vnoise(p * 9.0), vnoise(p * 8.0 + 9.0)) - 0.5) * 0.0004;
       float spread = 0.0065 + (1.0 - puddle) * 0.013;
@@ -157,7 +164,7 @@
       reflAmount *= mix(0.45, 1.0, wetMask);
       float gutterFlow = smoothstep(0.075, 0.0, abs(abs(p.x) - 8.9));
       float flowPulse = sin(p.y * 3.8 - uTime * 2.1 + vnoise(p * 4.0) * 3.0) * 0.5 + 0.5;
-      reflAmount = clamp(reflAmount + gutterFlow * (0.16 + 0.22 * flowPulse) + r0 * 0.012, 0.0, 0.98);
+      reflAmount = clamp(reflAmount + gutterFlow * (0.16 + 0.22 * flowPulse) + r0 * 0.009, 0.0, 0.98);
       vec3 col = stone * (0.34 + 0.66 * (1.0 - puddle));
       col += vec3(0.035, 0.075, 0.11) * gutterFlow * (0.25 + 0.75 * flowPulse);
 
