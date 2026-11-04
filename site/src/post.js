@@ -232,6 +232,7 @@
           uBloomStrength: { value: this.opts.bloomStrength },
           uFlash: { value: 0 },
           uContrast: { value: 1.04 },
+          uSoftMist: { value: 0.055 },
           uFade: { value: 1 },
           uLetterbox: { value: 0 },
           uNear: { value: 0.08 },
@@ -247,7 +248,7 @@
           uniform sampler2D tBloom0, tBloom1, tBloom2, tBloom3, tBloom4;
           uniform sampler2D tStreak;
           uniform vec2 uResolution;
-          uniform float uTime, uExposure, uBloomStrength, uFlash, uContrast, uFade;
+          uniform float uTime, uExposure, uBloomStrength, uFlash, uContrast, uSoftMist, uFade;
           uniform float uNear, uFar, uFocus, uDof, uAO;
           varying vec2 vUv;
 
@@ -351,6 +352,14 @@
             c *= mix(vec3(1.0), highTint, smoothstep(0.3, 1.0, l));
             c = mix(vec3(l), c, 1.12);
             c = (c - 0.5) * uContrast + 0.5;
+
+            // White pro-mist: a wide, low-opacity highlight veil. It is screen-
+            // blended so the blacks stay black, and only bright neon blooms.
+            vec3 wideMist = texture2D(tBloom2, uv).rgb * 0.62 + texture2D(tBloom3, uv).rgb * 0.38;
+            float mistLuma = dot(wideMist, vec3(0.2126, 0.7152, 0.0722));
+            float mistMask = smoothstep(0.025, 0.48, mistLuma) * uSoftMist;
+            c = 1.0 - (1.0 - clamp(c, 0.0, 1.0)) * (1.0 - vec3(0.94, 0.97, 1.0) * mistMask);
+            c = mix(c, vec3(dot(c, vec3(0.2126, 0.7152, 0.0722))), 0.018);
             c = pow(clamp(c, 0.0, 1.0), vec3(0.96, 1.0, 1.025));
 
             // vignette + gate weave
