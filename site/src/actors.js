@@ -535,9 +535,13 @@
     const siz = new Float32Array(count);
     const rnd = ND.util.mulberry32(61411);
     this._fountainData = [];
-    const emitters = [
-      { x: -5.8, z: -63.1 }, { x: 5.8, z: -63.1 }, { x: -4.4, z: -58.3 }, { x: 4.4, z: -58.3 }
-    ];
+    // Fountain nozzles also sit on a circle; the plaza should not mix a
+    // circular hologram footprint with a square four-nozzle layout.
+    const emitters = [];
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * TAU;
+      emitters.push({ x: Math.cos(a) * 3.7, z: -61.5 + Math.sin(a) * 3.7 });
+    }
     for (let i = 0; i < count; i++) {
       const e = emitters[i % emitters.length];
       const d = {

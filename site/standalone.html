@@ -297,7 +297,7 @@
     <div class="boot-sub">霓虹街区 · 雨夜叙事场景<br>PROCEDURAL CITY / HDR / PLANAR REFLECTIONS / VOLUMETRIC RAIN</div>
     <div class="boot-bar-wrap"><div id="boot-bar"></div></div>
     <div id="boot-status">BOOTING CITY // 初始化城市</div>
-    <div class="boot-meta"><span>WEBGL2 RENDERER</span><span>BUILD 0.5.2</span><span>SECTOR 07</span></div>
+    <div class="boot-meta"><span>WEBGL2 RENDERER</span><span>BUILD 0.5.3</span><span>SECTOR 07</span></div>
   </div>
   <div class="boot-corners"></div>
 </div>
@@ -6104,9 +6104,13 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     const siz = new Float32Array(count);
     const rnd = ND.util.mulberry32(61411);
     this._fountainData = [];
-    const emitters = [
-      { x: -5.8, z: -63.1 }, { x: 5.8, z: -63.1 }, { x: -4.4, z: -58.3 }, { x: 4.4, z: -58.3 }
-    ];
+    // Fountain nozzles also sit on a circle; the plaza should not mix a
+    // circular hologram footprint with a square four-nozzle layout.
+    const emitters = [];
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * TAU;
+      emitters.push({ x: Math.cos(a) * 3.7, z: -61.5 + Math.sin(a) * 3.7 });
+    }
     for (let i = 0; i < count; i++) {
       const e = emitters[i % emitters.length];
       const d = {
@@ -7646,7 +7650,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         sceneScale: this.quality.sceneScale,
         reflectionScale: this.quality.reflectionScale,
         exposure: 1.34,
-        bloomStrength: 1.08,
+        bloomStrength: 1.404,
         ssr: this.qualityKey !== 'low'
       });
       this.post.finalMat.uniforms.uContrast.value = this.contrast;

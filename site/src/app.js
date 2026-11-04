@@ -211,7 +211,7 @@
         sceneScale: this.quality.sceneScale,
         reflectionScale: this.quality.reflectionScale,
         exposure: 1.34,
-        bloomStrength: 1.08,
+        bloomStrength: 1.404,
         ssr: this.qualityKey !== 'low'
       });
       this.post.finalMat.uniforms.uContrast.value = this.contrast;
