@@ -201,12 +201,20 @@
       return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
     }
     float waveHeight(vec2 p, float t) {
-      // Broad wind waves only; no rain-drop rings in the plaza water.
+      // Broad wind waves plus sparse, low-amplitude rain rings. The rings only
+      // perturb the normal/reflection, so they read as water tension rather
+      // than white circles drawn on the surface.
       float h = 0.0;
       h += sin(p.x * 2.7 + t * 1.45) * 0.040;
       h += sin(p.y * 3.9 - t * 1.9 + p.x * 0.7) * 0.030;
       h += sin((p.x + p.y) * 6.2 + t * 2.7) * 0.012;
-      return h;
+      vec2 q = p * 2.4 + t * 0.45;
+      vec2 id = floor(q), f = fract(q) - 0.5;
+      float phase = hash21(id);
+      float cycle = fract(t * 0.65 + phase);
+      float ringMask = smoothstep(0.58, 0.76, hash21(id + 17.3));
+      float ring = smoothstep(0.10, 0.0, abs(length(f) - cycle * 0.55)) * (1.0 - cycle) * ringMask;
+      return h + ring * 0.250;
     }
 
     void main() {
@@ -221,7 +229,7 @@
       float fresnel = 0.03 + 0.97 * pow(1.0 - ndv, 4.2);
 
       vec2 ruv = vReflect.xy / max(vReflect.w, 0.0001);
-      ruv += grad * 0.020;
+      ruv += grad * 0.075;
       vec3 refl = texture2D(tReflection, ruv).rgb * 0.52;
       refl += texture2D(tReflection, ruv + vec2(0.0022, 0.0)).rgb * 0.12;
       refl += texture2D(tReflection, ruv - vec2(0.0022, 0.0)).rgb * 0.12;
