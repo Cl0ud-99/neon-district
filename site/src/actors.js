@@ -912,8 +912,8 @@
       emitters.push(e);
     }
     this.whaleEmitters = emitters;
-    // a faint cone volume tying the emitters to the projection surface
-    const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 8.2, 17.2, 32, 1, true), beamMat);
+    // Projection volume: narrow at the ground, widening toward the whale.
+    const cone = new THREE.Mesh(new THREE.CylinderGeometry(8.2, 0.18, 17.2, 32, 1, true), beamMat);
     cone.position.y = 8.95;
     group.add(cone);
     this.whaleCone = cone;
