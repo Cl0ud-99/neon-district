@@ -297,7 +297,7 @@
     <div class="boot-sub">霓虹街区 · 雨夜叙事场景<br>PROCEDURAL CITY / HDR / PLANAR REFLECTIONS / VOLUMETRIC RAIN</div>
     <div class="boot-bar-wrap"><div id="boot-bar"></div></div>
     <div id="boot-status">BOOTING CITY // 初始化城市</div>
-    <div class="boot-meta"><span>WEBGL2 RENDERER</span><span>BUILD 0.5.1</span><span>SECTOR 07</span></div>
+    <div class="boot-meta"><span>WEBGL2 RENDERER</span><span>BUILD 0.5.2</span><span>SECTOR 07</span></div>
   </div>
   <div class="boot-corners"></div>
 </div>
@@ -2147,8 +2147,17 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       return v;
     }
     float rippleHeight(vec2 p, float t) {
-      // Micro-normal noise only: no expanding rain rings on the pavement.
+      // Micro-normal noise only; rings are added separately to the reflection.
       return (vnoise(p * 17.0 + vec2(t * 2.7, -t * 1.9)) - 0.5) * 0.0175;
+    }
+    float groundRing(vec2 p, float t) {
+      // Small, dense rain dimples: cells are ~12 cm across, not puddle-sized arcs.
+      vec2 q = p * 6.0 + vec2(t * 0.55, t * 0.32);
+      vec2 id = floor(q), f = fract(q) - 0.5;
+      float phase = hash21(id);
+      float cycle = fract(t * 0.8 + phase);
+      float mask = smoothstep(0.48, 0.72, hash21(id + 9.1));
+      return smoothstep(0.16, 0.0, abs(length(f) - cycle * 0.5)) * (1.0 - cycle) * mask;
     }
 
     void main() {
@@ -2190,8 +2199,15 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       float ndv = clamp(dot(N, V), 0.0, 1.0);
       float fresnel = 0.035 + 0.965 * pow(1.0 - ndv, 5.0);
 
+      // Sparse rain rings warp the reflection only; no white surface decal and
+      // no ring normal on the light specular.
+      float r0 = groundRing(p, uTime);
+      float rx = groundRing(p + vec2(0.055, 0.0), uTime);
+      float rz = groundRing(p + vec2(0.0, 0.055), uTime);
+      vec2 ringGrad = vec2(rx - r0, rz - r0) / 0.055;
+      ringGrad *= smoothstep(0.18, 0.65, puddle) * wetMask * 0.00250;
       vec2 ruv = vReflect.xy / max(vReflect.w, 0.0001);
-      ruv += grad * 0.0018 + (vec2(vnoise(p * 9.0), vnoise(p * 8.0 + 9.0)) - 0.5) * 0.0004;
+      ruv += grad * 0.0018 + ringGrad + (vec2(vnoise(p * 9.0), vnoise(p * 8.0 + 9.0)) - 0.5) * 0.0004;
       float spread = 0.0065 + (1.0 - puddle) * 0.013;
       vec3 refl = texture2D(tReflection, ruv).rgb * 0.16;
       float reflWeight = 0.16;
@@ -2209,7 +2225,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       reflAmount *= mix(0.45, 1.0, wetMask);
       float gutterFlow = smoothstep(0.075, 0.0, abs(abs(p.x) - 8.9));
       float flowPulse = sin(p.y * 3.8 - uTime * 2.1 + vnoise(p * 4.0) * 3.0) * 0.5 + 0.5;
-      reflAmount = clamp(reflAmount + gutterFlow * (0.16 + 0.22 * flowPulse), 0.0, 0.98);
+      reflAmount = clamp(reflAmount + gutterFlow * (0.16 + 0.22 * flowPulse) + r0 * 0.018 * wetMask, 0.0, 0.98);
       vec3 col = stone * (0.34 + 0.66 * (1.0 - puddle));
       col += vec3(0.035, 0.075, 0.11) * gutterFlow * (0.25 + 0.75 * flowPulse);
 
