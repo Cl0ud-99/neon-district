@@ -1200,8 +1200,8 @@
       if (i % 5 === 2) {
         this.lifeSigns.push({ mat, base: 1.55, phase: i * 1.17, next: 3 + i * 0.47, flicker: 0, x: side * 11.9, z, side });
       }
-      const bracket = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.07, 0.07), this.metalMat);
-      bracket.position.set(side * 12.9, y + h / 2 + 0.08, z);
+      const bracket = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.07, 0.07), this.metalMat);
+      bracket.position.set(side * 12.8, y + h / 2 + 0.08, z);
       g.add(bracket);
       const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: this._glowTex, color, transparent: true, opacity: 0.14, blending: THREE.AdditiveBlending, depthWrite: false }));
       glow.position.set(side * 11.8, y, z + 0.4);
@@ -1225,7 +1225,9 @@
       const tex = this._bladeTexture(d.txt, d.sub, '#' + d.color.toString(16).padStart(6, '0'), Math.floor(d.z + 99));
       const mat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, color: new THREE.Color(1.15, 1.15, 1.15), side: THREE.DoubleSide });
       const panel = new THREE.Mesh(new THREE.PlaneGeometry(d.w, d.h), mat);
-      panel.position.set(d.side * 13.1, d.y, d.z);
+      // Keep the full banner in front of the 13.7 m facade instead of letting
+      // its back half intersect the wall.
+      panel.position.set(d.side * (13.7 - d.w * 0.5 - 0.12), d.y, d.z);
       panel.rotation.y = -d.side * 0.18;
       g.add(panel);
       this.lifeSways.push({ obj: panel, phase: d.z * 0.11, amp: 0.007 });

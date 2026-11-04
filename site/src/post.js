@@ -232,7 +232,8 @@
           uBloomStrength: { value: this.opts.bloomStrength },
           uFlash: { value: 0 },
           uContrast: { value: 1.04 },
-          uSoftMist: { value: 0.11 },
+          uSoftMist: { value: 0.22 },
+          uSoftFocus: { value: 0.16 },
           uFade: { value: 1 },
           uLetterbox: { value: 0 },
           uNear: { value: 0.08 },
@@ -248,7 +249,7 @@
           uniform sampler2D tBloom0, tBloom1, tBloom2, tBloom3, tBloom4;
           uniform sampler2D tStreak;
           uniform vec2 uResolution;
-          uniform float uTime, uExposure, uBloomStrength, uFlash, uContrast, uSoftMist, uFade;
+          uniform float uTime, uExposure, uBloomStrength, uFlash, uContrast, uSoftMist, uSoftFocus, uFade;
           uniform float uNear, uFar, uFocus, uDof, uAO;
           varying vec2 vUv;
 
@@ -331,6 +332,20 @@
             soft += texture2D(tScene, uv + vec2( 0.0,-1.0) * spx * 1.4).rgb * 0.16;
             scene = max(scene + (scene - soft) * 0.095, vec3(0.0));
 
+            // Soft-focus diffusion. Bloom alone only scatters highlights; this
+            // broad 8-tap HDR blur gives the whole image the dreamy lift.
+            float dr = max(4.0, uResolution.y * 0.005);
+            vec3 dreamSoft = scene * 0.20;
+            dreamSoft += texture2D(tScene, uv + vec2( 1.0, 0.0) * spx * dr).rgb * 0.10;
+            dreamSoft += texture2D(tScene, uv + vec2(-1.0, 0.0) * spx * dr).rgb * 0.10;
+            dreamSoft += texture2D(tScene, uv + vec2( 0.0, 1.0) * spx * dr).rgb * 0.10;
+            dreamSoft += texture2D(tScene, uv + vec2( 0.0,-1.0) * spx * dr).rgb * 0.10;
+            dreamSoft += texture2D(tScene, uv + vec2( 0.7, 0.7) * spx * dr).rgb * 0.10;
+            dreamSoft += texture2D(tScene, uv + vec2(-0.7, 0.7) * spx * dr).rgb * 0.10;
+            dreamSoft += texture2D(tScene, uv + vec2( 0.7,-0.7) * spx * dr).rgb * 0.10;
+            dreamSoft += texture2D(tScene, uv + vec2(-0.7,-0.7) * spx * dr).rgb * 0.10;
+            scene = mix(scene, dreamSoft, uSoftFocus);
+
             vec3 bloom = texture2D(tBloom0, uv).rgb * 1.00;
             bloom += texture2D(tBloom1, uv).rgb * 0.78;
             bloom += texture2D(tBloom2, uv).rgb * 0.58;
@@ -353,12 +368,18 @@
             c = mix(vec3(l), c, 1.12);
             c = (c - 0.5) * uContrast + 0.5;
 
-            // White pro-mist: a wide, low-opacity highlight veil. It is screen-
-            // blended so the blacks stay black, and only bright neon blooms.
-            vec3 wideMist = texture2D(tBloom2, uv).rgb * 0.62 + texture2D(tBloom3, uv).rgb * 0.38;
+            // White pro-mist: wide halation sampled from the two largest bloom
+            // mips. Additive, because screen-blending white into already-bright
+            // neon barely changes it; this is what makes the veil visible.
+            vec3 wideMist = texture2D(tBloom2, uv).rgb * 0.40
+                          + texture2D(tBloom3, uv).rgb * 0.68
+                          + texture2D(tBloom4, uv).rgb * 0.92;
             float mistLuma = dot(wideMist, vec3(0.2126, 0.7152, 0.0722));
-            float mistMask = smoothstep(0.025, 0.48, mistLuma) * uSoftMist;
-            c = 1.0 - (1.0 - clamp(c, 0.0, 1.0)) * (1.0 - vec3(0.94, 0.97, 1.0) * mistMask);
+            float mistMask = smoothstep(0.006, 0.30, mistLuma) * uSoftMist;
+            c += vec3(0.93, 0.96, 1.0) * mistMask * 1.35;
+            float veilLuma = dot(dreamSoft, vec3(0.2126, 0.7152, 0.0722));
+            c += vec3(0.94, 0.97, 1.0) * smoothstep(0.08, 0.65, veilLuma) * uSoftMist * 0.22;
+            c = mix(c, vec3(1.0), mistMask * 0.075);
             c = mix(c, vec3(dot(c, vec3(0.2126, 0.7152, 0.0722))), 0.018);
             c = pow(clamp(c, 0.0, 1.0), vec3(0.96, 1.0, 1.025));
 

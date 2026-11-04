@@ -1497,9 +1497,12 @@
       const boost = 1.02;
       const mat = this.makeScreenMaterial(tex, d.seed, d.intensity * boost, 1);
       const grp = new THREE.Group();
-      // cant the panel a little toward the camera axis: blade signage, not wallpaper
-      grp.position.set(side * 13.05, y, z);
-      grp.rotation.y = -side * (Math.PI / 2 - 0.38);
+      // Cant the panel toward the street, but keep the whole frame outside the
+      // 13.7 m facade. Large canted signs used to bury their back edge in it.
+      const cant = Math.PI / 2 - 0.38;
+      const xExtent = (w + 0.7) * 0.5 * Math.abs(Math.cos(cant));
+      grp.position.set(side * (13.7 - xExtent - 0.12), y, z);
+      grp.rotation.y = -side * cant;
       this.scene.add(grp);
       const billboardColor = new THREE.Color(kind === 'axiom' || kind === 'void' ? 0x38e6ff : 0xff3b9d);
       this.addNeonSpill('ground', side * 8.8, 0.04, z, w * 1.35, 8.5, billboardColor, 0.66);

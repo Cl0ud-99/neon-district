@@ -297,7 +297,7 @@
     <div class="boot-sub">霓虹街区 · 雨夜叙事场景<br>PROCEDURAL CITY / HDR / PLANAR REFLECTIONS / VOLUMETRIC RAIN</div>
     <div class="boot-bar-wrap"><div id="boot-bar"></div></div>
     <div id="boot-status">BOOTING CITY // 初始化城市</div>
-    <div class="boot-meta"><span>WEBGL2 RENDERER</span><span>BUILD 0.5.9</span><span>SECTOR 07</span></div>
+    <div class="boot-meta"><span>WEBGL2 RENDERER</span><span>BUILD 0.6.0</span><span>SECTOR 07</span></div>
   </div>
   <div class="boot-corners"></div>
 </div>
@@ -1596,7 +1596,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
           uBloomStrength: { value: this.opts.bloomStrength },
           uFlash: { value: 0 },
           uContrast: { value: 1.04 },
-          uSoftMist: { value: 0.11 },
+          uSoftMist: { value: 0.22 },
+          uSoftFocus: { value: 0.16 },
           uFade: { value: 1 },
           uLetterbox: { value: 0 },
           uNear: { value: 0.08 },
@@ -1612,7 +1613,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
           uniform sampler2D tBloom0, tBloom1, tBloom2, tBloom3, tBloom4;
           uniform sampler2D tStreak;
           uniform vec2 uResolution;
-          uniform float uTime, uExposure, uBloomStrength, uFlash, uContrast, uSoftMist, uFade;
+          uniform float uTime, uExposure, uBloomStrength, uFlash, uContrast, uSoftMist, uSoftFocus, uFade;
           uniform float uNear, uFar, uFocus, uDof, uAO;
           varying vec2 vUv;
 
@@ -1695,6 +1696,20 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
             soft += texture2D(tScene, uv + vec2( 0.0,-1.0) * spx * 1.4).rgb * 0.16;
             scene = max(scene + (scene - soft) * 0.095, vec3(0.0));
 
+            // Soft-focus diffusion. Bloom alone only scatters highlights; this
+            // broad 8-tap HDR blur gives the whole image the dreamy lift.
+            float dr = max(4.0, uResolution.y * 0.005);
+            vec3 dreamSoft = scene * 0.20;
+            dreamSoft += texture2D(tScene, uv + vec2( 1.0, 0.0) * spx * dr).rgb * 0.10;
+            dreamSoft += texture2D(tScene, uv + vec2(-1.0, 0.0) * spx * dr).rgb * 0.10;
+            dreamSoft += texture2D(tScene, uv + vec2( 0.0, 1.0) * spx * dr).rgb * 0.10;
+            dreamSoft += texture2D(tScene, uv + vec2( 0.0,-1.0) * spx * dr).rgb * 0.10;
+            dreamSoft += texture2D(tScene, uv + vec2( 0.7, 0.7) * spx * dr).rgb * 0.10;
+            dreamSoft += texture2D(tScene, uv + vec2(-0.7, 0.7) * spx * dr).rgb * 0.10;
+            dreamSoft += texture2D(tScene, uv + vec2( 0.7,-0.7) * spx * dr).rgb * 0.10;
+            dreamSoft += texture2D(tScene, uv + vec2(-0.7,-0.7) * spx * dr).rgb * 0.10;
+            scene = mix(scene, dreamSoft, uSoftFocus);
+
             vec3 bloom = texture2D(tBloom0, uv).rgb * 1.00;
             bloom += texture2D(tBloom1, uv).rgb * 0.78;
             bloom += texture2D(tBloom2, uv).rgb * 0.58;
@@ -1717,12 +1732,18 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
             c = mix(vec3(l), c, 1.12);
             c = (c - 0.5) * uContrast + 0.5;
 
-            // White pro-mist: a wide, low-opacity highlight veil. It is screen-
-            // blended so the blacks stay black, and only bright neon blooms.
-            vec3 wideMist = texture2D(tBloom2, uv).rgb * 0.62 + texture2D(tBloom3, uv).rgb * 0.38;
+            // White pro-mist: wide halation sampled from the two largest bloom
+            // mips. Additive, because screen-blending white into already-bright
+            // neon barely changes it; this is what makes the veil visible.
+            vec3 wideMist = texture2D(tBloom2, uv).rgb * 0.40
+                          + texture2D(tBloom3, uv).rgb * 0.68
+                          + texture2D(tBloom4, uv).rgb * 0.92;
             float mistLuma = dot(wideMist, vec3(0.2126, 0.7152, 0.0722));
-            float mistMask = smoothstep(0.025, 0.48, mistLuma) * uSoftMist;
-            c = 1.0 - (1.0 - clamp(c, 0.0, 1.0)) * (1.0 - vec3(0.94, 0.97, 1.0) * mistMask);
+            float mistMask = smoothstep(0.006, 0.30, mistLuma) * uSoftMist;
+            c += vec3(0.93, 0.96, 1.0) * mistMask * 1.35;
+            float veilLuma = dot(dreamSoft, vec3(0.2126, 0.7152, 0.0722));
+            c += vec3(0.94, 0.97, 1.0) * smoothstep(0.08, 0.65, veilLuma) * uSoftMist * 0.22;
+            c = mix(c, vec3(1.0), mistMask * 0.075);
             c = mix(c, vec3(dot(c, vec3(0.2126, 0.7152, 0.0722))), 0.018);
             c = pow(clamp(c, 0.0, 1.0), vec3(0.96, 1.0, 1.025));
 
@@ -3580,9 +3601,12 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       const boost = 1.02;
       const mat = this.makeScreenMaterial(tex, d.seed, d.intensity * boost, 1);
       const grp = new THREE.Group();
-      // cant the panel a little toward the camera axis: blade signage, not wallpaper
-      grp.position.set(side * 13.05, y, z);
-      grp.rotation.y = -side * (Math.PI / 2 - 0.38);
+      // Cant the panel toward the street, but keep the whole frame outside the
+      // 13.7 m facade. Large canted signs used to bury their back edge in it.
+      const cant = Math.PI / 2 - 0.38;
+      const xExtent = (w + 0.7) * 0.5 * Math.abs(Math.cos(cant));
+      grp.position.set(side * (13.7 - xExtent - 0.12), y, z);
+      grp.rotation.y = -side * cant;
       this.scene.add(grp);
       const billboardColor = new THREE.Color(kind === 'axiom' || kind === 'void' ? 0x38e6ff : 0xff3b9d);
       this.addNeonSpill('ground', side * 8.8, 0.04, z, w * 1.35, 8.5, billboardColor, 0.66);
@@ -5184,8 +5208,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       if (i % 5 === 2) {
         this.lifeSigns.push({ mat, base: 1.55, phase: i * 1.17, next: 3 + i * 0.47, flicker: 0, x: side * 11.9, z, side });
       }
-      const bracket = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.07, 0.07), this.metalMat);
-      bracket.position.set(side * 12.9, y + h / 2 + 0.08, z);
+      const bracket = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.07, 0.07), this.metalMat);
+      bracket.position.set(side * 12.8, y + h / 2 + 0.08, z);
       g.add(bracket);
       const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: this._glowTex, color, transparent: true, opacity: 0.14, blending: THREE.AdditiveBlending, depthWrite: false }));
       glow.position.set(side * 11.8, y, z + 0.4);
@@ -5209,7 +5233,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       const tex = this._bladeTexture(d.txt, d.sub, '#' + d.color.toString(16).padStart(6, '0'), Math.floor(d.z + 99));
       const mat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, color: new THREE.Color(1.15, 1.15, 1.15), side: THREE.DoubleSide });
       const panel = new THREE.Mesh(new THREE.PlaneGeometry(d.w, d.h), mat);
-      panel.position.set(d.side * 13.1, d.y, d.z);
+      // Keep the full banner in front of the 13.7 m facade instead of letting
+      // its back half intersect the wall.
+      panel.position.set(d.side * (13.7 - d.w * 0.5 - 0.12), d.y, d.z);
       panel.rotation.y = -d.side * 0.18;
       g.add(panel);
       this.lifeSways.push({ obj: panel, phase: d.z * 0.11, amp: 0.007 });
@@ -7474,9 +7500,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   function tick() { return new Promise(r => requestAnimationFrame(() => setTimeout(r, 0))); }
 
   const QUALITY = {
-    high: { name: '高 / HIGH', msaa: 0, sceneScale: 1.25, bloomLevels: 5, reflectionScale: 0.55, rainCount: 15000, rainNearCount: 1200, shadowSize: 2048 },
-    medium: { name: '中 / MEDIUM', msaa: 0, sceneScale: 1.0, bloomLevels: 5, reflectionScale: 0.4, rainCount: 10500, rainNearCount: 900, shadowSize: 1024 },
-    low: { name: '低 / LOW', msaa: 0, sceneScale: 0.8, bloomLevels: 4, reflectionScale: 0.3, rainCount: 6750, rainNearCount: 675, shadowSize: 1024 }
+    high: { name: '高 / HIGH', msaa: 0, sceneScale: 1.25, bloomLevels: 5, reflectionScale: 0.55, rainCount: 19500, rainNearCount: 1560, shadowSize: 2048 },
+    medium: { name: '中 / MEDIUM', msaa: 0, sceneScale: 1.0, bloomLevels: 5, reflectionScale: 0.4, rainCount: 13650, rainNearCount: 1170, shadowSize: 1024 },
+    low: { name: '低 / LOW', msaa: 0, sceneScale: 0.8, bloomLevels: 4, reflectionScale: 0.3, rainCount: 8775, rainNearCount: 878, shadowSize: 1024 }
   };
 
   class App {
