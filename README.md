@@ -4,7 +4,7 @@
 
 **DSH-PTC**
 
-**v0.4.0 · 1 scene · 100% procedural · 0 assets · single-file build 1.04 MB**
+**v0.5.0 FIDELITY · 1 scene · 100% procedural · 0 assets · single-file build 1.02 MB**
 
 [**Live preview**](https://cl0ud-99.github.io/neon-district/) — runs in the browser, nothing to install.
 
@@ -30,7 +30,7 @@ A single-scene WebGL2 application with a ~272 m canyon: a rear gate, night marke
 | File | Role |
 | --- | --- |
 | `src/tex.js` | Canvas 2D texture atelier: facade atlases and bump fields, windows, billboards, shopfronts, smoke, whale hologram, reflection environment |
-| `src/post.js` | TAA, vertical-wall SSR, HDR target, four-level bloom, depth AO/DOF, FXAA, ACES grade, grain, lens droplets, adaptive scene scale |
+| `src/post.js` | TAA, vertical-wall SSR, HDR target, five-level bloom, depth AO/DOF, FXAA, ACES grade, grain, lens droplets, adaptive scene scale |
 | `src/world.js` | City generator, baked static shadow map sampled by wet ground, parallax hero windows, water, sky, planar mirror, lighting |
 | `src/props.js` | Storefronts, hero window bays/fire escapes, rear landmarks, parked bikes/cars, blade signs, cables, lanterns, volumetric shafts, steam, fog, gantry |
 | `src/actors.js` | GPU rain (lines, foreground ribbons, lamp mist), fountain, six citizen archetypes, high-altitude shuttle/swoop/hauler/drone traffic, holographic whale, ripples |
@@ -49,7 +49,7 @@ city / signs / rain (Three.js scene)
         │
         ├──> static shadow map (baked once)
         │
-        └──> HDR scene target (native 1.0× scene scale, TAA/FXAA)
+        └──> HDR scene target (1.25× supersample at 1080P high, TAA/FXAA)
                   │
              TAA resolve (Halton jitter + depth reprojection)
                   │
@@ -57,7 +57,7 @@ city / signs / rain (Three.js scene)
                   │
              bright pass at ½ resolution
                   │
-        four-mip Gaussian bloom chain ──> anamorphic streak
+        five-mip Gaussian bloom chain ──> anamorphic streak
                   │
         depth-edge AO + cinematic DOF + FXAA
                   │
@@ -69,17 +69,17 @@ city / signs / rain (Three.js scene)
 
 Details worth reading:
 
-- **Planar reflections are real geometry passes.** Every frame the architecture, signage and large props are rendered from a mirrored camera at a reduced resolution, then sampled by the wet ground and water shaders. Tiny clutter and glow sprites are layer-filtered out of this pass; the reflected image is blurred along screen-space Y to stretch window and neon highlights into wet-asphalt streaks.
+- **Planar reflections are real geometry passes.** Every frame the full city, signage, glow sprites and street clutter are rendered from a mirrored camera at 0.55× on the fidelity preset, then sampled by the wet ground and water shaders. The reflected image is blurred along screen-space Y to stretch window and neon highlights into wet-asphalt streaks.
 - **Water is its own material.** The plaza uses Fresnel-weighted mirror reflections, three broad wave layers, edge foam, a cold underwater light and a particle fountain. It has no rain-drop rings. It is not a tinted copy of the street.
 - **Static shadows are baked once.** The city never moves, so a 2048² PCF-soft directional shadow map is rendered once, then reused for the whole session. The custom wet-asphalt and sidewalk shaders sample that same map through Three's shadow chunks, so building silhouettes land on the ground as well as on the facades. Dynamic characters and props use contact-shadow decals instead of stale baked silhouettes. A depth-edge AO pass tightens seams where geometry meets the ground.
 - **Hero windows have interior parallax.** The close-up window bays use a small view-dependent UV offset against a drawn interior, so the room behind the glass shifts against the frame as the camera moves.
 - **TAA + FXAA + super-sampling.** The HDR frame is rendered with a Halton sub-pixel jitter, then resolved against the previous frame using depth reprojection and a neighbourhood clamp. FXAA cleans the final LDR image. Multisampled float targets caused a driver artifact on one test GPU, so this path is cheaper and keeps thin neon lines stable while reducing shimmer in motion.
-- **Adaptive quality and resolution.** The HUD exposes 1080P, 2K and 4K output modes. In play/cinematic mode the renderer lowers its internal resolution scale when frames get expensive, then steps down one quality tier if it still cannot recover; 2K never drops below 1080p internally and 4K is intended mainly for stills. The HUD’s quality control resets the dynamic scale at any time.
-- **Static batching for 60 fps.** After generation, opaque static meshes sharing a material signature are merged, static character and vehicle parts are batched per rig, and 180+ glow halos collapse into one instanced billboard draw. The planar-reflection pass is layer-filtered and the high preset targets a steady 60 fps at 1080p while keeping the full street, rear district, shops, traffic, rain and plaza intact.
+- **Adaptive quality and resolution.** The HUD exposes 1080P, 2K and 4K output modes. High is the fidelity preset and is never silently downscaled; medium and low can lower their internal resolution when frames get expensive. 4K is intended mainly for stills.
+- **Fidelity preset.** High keeps the pre-optimization look: all local shop/stall lights, individual glow sprites, the full reflection pass at 0.55×, five bloom mips, 20k rain lines and a 1.25× scene supersample at 1080P. Expect cinematic frame rates, not 60; use medium or low for playable frame rates.
 - **Vertical-wall SSR.** A half-resolution screen-space pass reconstructs world normals from depth, limits the effect to vertical surfaces, and ray-marches the depth buffer for neon reflections on wet facades. It is disabled on the low quality preset.
 - **Front and rear are different cities.** The frontage uses wider, taller corporate slabs with glass fins, clean crowns and sparse AC clutter. The rear is narrow-lot Kowloon stacking: overhanging floors, steel service towers, laundry rails, dense balconies and rooftop shacks.
 - **Volume collision everywhere it matters.** Parked bikes/cars, pedestrians, vending machines, market stalls, crates, bins, pallets, street lamps and the MTR entrance register circles or boxes. Player movement resolves against them with a 0.36 m capsule, using two sliding passes so you do not stick on corners.
-- **Layered rain, no fake ripples.** The far rain is 9–10k GPU line segments; a camera-following ribbon layer adds depth-faded, wind-sheared streaks near the lens and tints them with the colour of the nearest neon lights; soft motes under those lights form a local rain veil. The pavement keeps only subtle sparkle and real reflections, with no splash rings.
+- **Layered rain, no fake ripples.** The far rain is 16–20k GPU line segments; a camera-following ribbon layer adds depth-faded, wind-sheared streaks near the lens and tints them with the colour of the nearest neon lights; soft motes under those lights form a local rain veil. The pavement keeps only subtle sparkle and real reflections, with no splash rings.
 - **Five independent bloom mips.** A soft-threshold prefilter at half resolution feeds a Gaussian chain; all mips plus a horizontal anamorphic streak are composited before tonemapping.
 - **Every procedural texture is drawn in 2D at boot.** No `.png`, `.jpg`, `.glb` or audio file is loaded. The repository contains only code and documentation images.
 - **Screens use a shader, not a video.** Slow scanlines, RGB split, flicker and occasional UV glitches are applied in GLSL to canvas-generated billboard artwork.

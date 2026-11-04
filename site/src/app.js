@@ -13,9 +13,9 @@
   function tick() { return new Promise(r => requestAnimationFrame(() => setTimeout(r, 0))); }
 
   const QUALITY = {
-    high: { name: '高 / HIGH', msaa: 0, sceneScale: 1.0, bloomLevels: 4, reflectionScale: 0.26, rainCount: 16000, rainNearCount: 1400, shadowSize: 2048 },
-    medium: { name: '中 / MEDIUM', msaa: 0, sceneScale: 0.9, bloomLevels: 4, reflectionScale: 0.24, rainCount: 12000, rainNearCount: 1100, shadowSize: 1024 },
-    low: { name: '低 / LOW', msaa: 0, sceneScale: 0.78, bloomLevels: 4, reflectionScale: 0.18, rainCount: 8000, rainNearCount: 800, shadowSize: 1024 }
+    high: { name: '高 / HIGH', msaa: 0, sceneScale: 1.25, bloomLevels: 5, reflectionScale: 0.55, rainCount: 20000, rainNearCount: 1600, shadowSize: 2048 },
+    medium: { name: '中 / MEDIUM', msaa: 0, sceneScale: 1.0, bloomLevels: 5, reflectionScale: 0.4, rainCount: 14000, rainNearCount: 1200, shadowSize: 1024 },
+    low: { name: '低 / LOW', msaa: 0, sceneScale: 0.8, bloomLevels: 4, reflectionScale: 0.3, rainCount: 9000, rainNearCount: 900, shadowSize: 1024 }
   };
 
   class App {
@@ -889,6 +889,9 @@
 
 
     minRenderScale() {
+      // The high tier is the fidelity/painting preset; never soften it behind
+      // the user's back. Medium and low remain the adaptive gameplay tiers.
+      if (this.qualityKey === 'high') return 1.0;
       if (this.resolutionMode === '4k') return 0.5;
       return this.resolutionMode === '2k' ? 0.75 : 0.62;
     }
@@ -976,7 +979,11 @@
       const h = Math.max(1, Math.round(targetH * this.renderScale));
       this.renderer.setPixelRatio(1);
       this.renderer.setSize(w, h, false);
-      if (this.post) this.post.setSize(w, h, 1);
+      const sceneScale = this.resolutionMode === '4k' ? Math.min(this.quality.sceneScale, 1.0) : this.quality.sceneScale;
+      if (this.post) {
+        this.post.opts.sceneScale = sceneScale;
+        this.post.setSize(w, h, 1);
+      }
       if (this.world) this.world.setSize(w, h, 1);
     }
 
@@ -1195,7 +1202,7 @@
             this.autoScaleCooldown = 0;
             this.autoScaleTimer = 0;
           }
-          if (this.perfTimer > 8 && this.fps < 24 && this.renderScale <= this.minRenderScale() + 0.04 && this.qualityKey !== 'low') {
+          if (this.perfTimer > 8 && this.fps < 24 && this.renderScale <= this.minRenderScale() + 0.04 && this.qualityKey !== 'low' && this.qualityKey !== 'high') {
             this.perfTimer = 0;
             this.cycleQuality();
             this.showToast('自动降低画质 // AUTO QUALITY');

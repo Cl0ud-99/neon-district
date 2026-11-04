@@ -233,6 +233,9 @@
     const stallShadow = this.addContactShadow(g, 4.6, 3.6, 0.38, 0.012);
     stallShadow.position.x = -11.1;
     stallShadow.position.z = 18.0;
+    const stallGlow = new THREE.PointLight(0xff8a3a, 38, 10, 2);
+    stallGlow.position.set(-10.2, 2.1, 18.0);
+    this.scene.add(stallGlow);
 
 
     // floating holographic wayfinding near the plaza
@@ -963,8 +966,11 @@
         const signPost = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.65, 0.07), this.metalMat);
         signPost.position.set(side * 13.12, 3.18, sz); root.add(signPost);
       }
-      // street wash; the painted interior and neon spill carry the shop light
+      // street wash and local warm light
       this.addNeonSpill('ground', side * 10.3, 0.04, d.z, 4.6, 5.4, new THREE.Color(d.color), 0.38);
+      const light = new THREE.PointLight(d.color, 20, 7, 2);
+      light.position.set(side * 13.35, 2.05, d.z);
+      this.scene.add(light);
     }
   };
 
