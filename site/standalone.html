@@ -297,7 +297,7 @@
     <div class="boot-sub">霓虹街区 · 雨夜叙事场景<br>PROCEDURAL CITY / HDR / PLANAR REFLECTIONS / VOLUMETRIC RAIN</div>
     <div class="boot-bar-wrap"><div id="boot-bar"></div></div>
     <div id="boot-status">BOOTING CITY // 初始化城市</div>
-    <div class="boot-meta"><span>WEBGL2 RENDERER</span><span>BUILD 0.3.2</span><span>SECTOR 07</span></div>
+    <div class="boot-meta"><span>WEBGL2 RENDERER</span><span>BUILD 0.4.0</span><span>SECTOR 07</span></div>
   </div>
   <div class="boot-corners"></div>
 </div>
@@ -7810,7 +7810,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         ? '4k'
         : ((resParam === '2k' || resParam === '1440')
           ? '2k'
-          : (resParam === '1080' ? '1080' : (savedRes === '2k' ? '2k' : '1080')));
+          : (resParam === '1080' ? '1080' : (savedRes === '4k' ? '4k' : (savedRes === '2k' ? '2k' : '1080'))));
 
       this.player = {
         pos: new V3(0, 0, 29),
@@ -8640,7 +8640,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     }
 
     cycleResolution() {
-      this.resolutionMode = this.resolutionMode === '2k' ? '1080' : (this.resolutionMode === '4k' ? '1080' : '2k');
+      const order = ['1080', '2k', '4k'];
+      const idx = order.indexOf(this.resolutionMode);
+      this.resolutionMode = order[(idx + 1) % order.length];
       try { localStorage.setItem('nd-resolution', this.resolutionMode); } catch (e) {}
       this.renderScale = 1.0;
       this.autoScaleTimer = 0;
@@ -8648,8 +8650,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       this.applySizes();
       if (this.post) this.post.resetTAA();
       this.updateResolutionLabel();
-      const label = this.resolutionMode === '2k' ? '2K 2560×1440' : '1080P 1920×1080';
-      this.showToast('输出分辨率：' + label);
+      const labels = { '1080': '1080P 1920×1080', '2k': '2K 2560×1440', '4k': '4K 3840×2160' };
+      this.showToast('输出分辨率：' + labels[this.resolutionMode]);
       setTimeout(() => this.showToast(''), 2600);
     }
 

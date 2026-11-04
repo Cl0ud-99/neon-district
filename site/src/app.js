@@ -72,7 +72,7 @@
         ? '4k'
         : ((resParam === '2k' || resParam === '1440')
           ? '2k'
-          : (resParam === '1080' ? '1080' : (savedRes === '2k' ? '2k' : '1080')));
+          : (resParam === '1080' ? '1080' : (savedRes === '4k' ? '4k' : (savedRes === '2k' ? '2k' : '1080'))));
 
       this.player = {
         pos: new V3(0, 0, 29),
@@ -902,7 +902,9 @@
     }
 
     cycleResolution() {
-      this.resolutionMode = this.resolutionMode === '2k' ? '1080' : (this.resolutionMode === '4k' ? '1080' : '2k');
+      const order = ['1080', '2k', '4k'];
+      const idx = order.indexOf(this.resolutionMode);
+      this.resolutionMode = order[(idx + 1) % order.length];
       try { localStorage.setItem('nd-resolution', this.resolutionMode); } catch (e) {}
       this.renderScale = 1.0;
       this.autoScaleTimer = 0;
@@ -910,8 +912,8 @@
       this.applySizes();
       if (this.post) this.post.resetTAA();
       this.updateResolutionLabel();
-      const label = this.resolutionMode === '2k' ? '2K 2560×1440' : '1080P 1920×1080';
-      this.showToast('输出分辨率：' + label);
+      const labels = { '1080': '1080P 1920×1080', '2k': '2K 2560×1440', '4k': '4K 3840×2160' };
+      this.showToast('输出分辨率：' + labels[this.resolutionMode]);
       setTimeout(() => this.showToast(''), 2600);
     }
 
