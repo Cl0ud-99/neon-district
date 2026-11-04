@@ -231,6 +231,10 @@
   .pause-card h2{font:300 46px/1 var(--font-cn);letter-spacing:.18em;margin:0 0 8px;color:#fff}
   .pause-card p{font:400 10px/1.8 var(--font-cn);letter-spacing:.1em;color:rgba(255,255,255,.38);margin:0 0 28px}
   .pause-card .btn{width:100%;margin-top:9px;min-width:0}
+  .pause-settings{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 20px}
+  .setting-btn{pointer-events:auto;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:11px 12px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.46);font:400 9px/1 var(--mono);letter-spacing:.12em;cursor:pointer;transition:border-color .2s,color .2s,background .2s}
+  .setting-btn:hover{color:#fff;border-color:rgba(68,231,255,.55);background:rgba(68,231,255,.07)}
+  .setting-btn b{font-weight:400;color:var(--cyan);font-size:9px;letter-spacing:.08em}
   .help{position:fixed;right:clamp(18px,2.4vw,36px);top:120px;z-index:80;width:290px;padding:24px;background:rgba(4,3,9,.82);border:1px solid rgba(255,255,255,.13);backdrop-filter:blur(14px);clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px));opacity:0;visibility:hidden;transform:translateY(-6px);transition:.3s ease;pointer-events:none}
   .help.visible{opacity:1;visibility:visible;transform:translateY(0)}
   .help h3{font:400 10px/1 var(--mono);letter-spacing:.2em;color:var(--pink);margin:0 0 17px}
@@ -293,7 +297,7 @@
     <div class="boot-sub">霓虹街区 · 雨夜叙事场景<br>PROCEDURAL CITY / HDR / PLANAR REFLECTIONS / VOLUMETRIC RAIN</div>
     <div class="boot-bar-wrap"><div id="boot-bar"></div></div>
     <div id="boot-status">BOOTING CITY // 初始化城市</div>
-    <div class="boot-meta"><span>WEBGL2 RENDERER</span><span>BUILD 0.3.1</span><span>SECTOR 07</span></div>
+    <div class="boot-meta"><span>WEBGL2 RENDERER</span><span>BUILD 0.3.2</span><span>SECTOR 07</span></div>
   </div>
   <div class="boot-corners"></div>
 </div>
@@ -346,7 +350,7 @@
     <div class="mission-top"><span>DESTINATION</span><strong>麒麟广场 / KIRIN PLAZA</strong><span>120M</span></div>
     <div class="mission-bar"><i id="mission-progress"></i></div>
   </div>
-  <div class="hud-bottom-left"><kbd>WASD</kbd> MOVE <span>·</span> <kbd>MOUSE</kbd> LOOK <span>·</span> <kbd>SHIFT</kbd> RUN <span>·</span> <kbd>C</kbd> CINEMA <span>·</span> <kbd>P</kbd> PHOTO <span>·</span> <kbd>ESC</kbd> PAUSE</div>
+  <div class="hud-bottom-left"><kbd>WASD</kbd> MOVE <span>·</span> <kbd>MOUSE</kbd> LOOK <span>·</span> <kbd>SHIFT</kbd> RUN <span>·</span> <kbd>C</kbd> CINEMA <span>·</span> <kbd>P</kbd> PHOTO <span>·</span> <kbd>R</kbd> 1080P/2K <span>·</span> <kbd>ESC</kbd> PAUSE</div>
 </div>
 
 <div id="perf-panel">
@@ -384,6 +388,10 @@
     <div class="eyebrow"><span class="dot"></span>SIGNAL PAUSED</div>
     <h2>暂停</h2>
     <p>你已离开霓虹街区。<br><span style="font-family:var(--mono);font-size:8px;letter-spacing:.18em;color:rgba(255,255,255,.22)">THE RAIN WAITS FOR YOU.</span></p>
+    <div class="pause-settings">
+      <button id="btn-pause-res" class="setting-btn"><span>分辨率</span><b id="pause-res-label">1080P</b></button>
+      <button id="btn-pause-quality" class="setting-btn"><span>画质</span><b id="pause-quality-label">HIGH</b></button>
+    </div>
     <button id="btn-resume" class="btn primary"><span class="btn-icon">▶</span><span>继续<small>RESUME EXPLORATION</small></span></button>
     <button id="btn-pause-menu" class="btn ghost"><span class="btn-icon">◂</span><span>返回标题<small>BACK TO TITLE</small></span></button>
   </div>
@@ -398,6 +406,7 @@
   <div class="help-row"><span>P</span><b>摄影模式 / PHOTO MODE</b></div>
   <div class="help-row"><span>F</span><b>拍照保存 / SAVE PNG</b></div>
   <div class="help-row"><span>M</span><b>声音 / AUDIO</b></div>
+  <div class="help-row"><span>R</span><b>分辨率 1080P/2K / RESOLUTION</b></div>
   <div class="help-row"><span>ESC</span><b>暂停 / PAUSE</b></div>
   <div class="help-note">这里是一个完全由代码生成的实时场景。所有招牌、建筑、雨水与反射均在浏览器中逐帧计算。</div>
 </div>
@@ -8031,7 +8040,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       $('btn-mute').addEventListener('click', () => this.toggleMute());
       $('btn-quality').addEventListener('click', () => this.cycleQuality());
       $('btn-res').addEventListener('click', () => this.cycleResolution());
+      $('btn-pause-res').addEventListener('click', () => this.cycleResolution());
+      $('btn-pause-quality').addEventListener('click', () => this.cycleQuality());
       this.updateResolutionLabel();
+      this.setQualityLabel();
       $('btn-resume').addEventListener('click', () => this.resumePlay());
       $('btn-pause-menu').addEventListener('click', () => this.returnToMenu());
       $('btn-cine-exit').addEventListener('click', () => this.returnToMenu());
@@ -8090,6 +8102,11 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
           if (e.code === 'BracketLeft') { this.photo.focus = Math.max(2, this.photo.focus - 2); this.updatePhotoHud(); return; }
           if (e.code === 'BracketRight') { this.photo.focus = Math.min(80, this.photo.focus + 2); this.updatePhotoHud(); return; }
           if (e.code === 'Escape') { this.exitPhoto(); return; }
+        }
+        if (e.code === 'KeyR' && (this.state === 'play' || this.state === 'pause' || this.state === 'menu')) {
+          e.preventDefault();
+          this.cycleResolution();
+          return;
         }
         if (e.code === 'Enter' && this.state === 'menu') this.startPlay();
         if (e.code === 'KeyC' && (this.state === 'menu' || this.state === 'play' || this.state === 'pause')) this.startCinematic();
@@ -8615,8 +8632,11 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     }
 
     updateResolutionLabel() {
+      const value = this.resolutionMode === '4k' ? '4K' : (this.resolutionMode === '2k' ? '2K' : '1080P');
       const el = $('res-label');
-      if (el) el.textContent = this.resolutionMode === '4k' ? '4K' : (this.resolutionMode === '2k' ? '2K' : '1080P');
+      if (el) el.textContent = value;
+      const p = $('pause-res-label');
+      if (p) p.textContent = value;
     }
 
     cycleResolution() {
@@ -8656,6 +8676,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     setQualityLabel() {
       const q = $('quality-label');
       if (q) q.textContent = this.quality.name;
+      const p = $('pause-quality-label');
+      if (p) p.textContent = this.quality.name;
     }
 
     toggleHelp() {

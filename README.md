@@ -4,7 +4,7 @@
 
 **DSH-PTC**
 
-**v0.3.1 · 1 scene · 100% procedural · 0 assets · single-file build 1.03 MB**
+**v0.3.2 · 1 scene · 100% procedural · 0 assets · single-file build 1.03 MB**
 
 [**Live preview**](https://cl0ud-99.github.io/neon-district/) — runs in the browser, nothing to install.
 
@@ -135,6 +135,7 @@ The local preview server does not need any npm packages; `npm install` is only f
 | Shift | Sprint |
 | C | Cinematic mode |
 | M | Mute / restore ambience |
+| R | Toggle 1080P / 2K resolution |
 | P | Photo Mode (free camera, save PNG) |
 | H | Toggle controls panel |
 | HUD 分辨率 | Toggle 1080P / 2K output resolution |

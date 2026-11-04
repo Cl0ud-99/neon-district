@@ -302,7 +302,10 @@
       $('btn-mute').addEventListener('click', () => this.toggleMute());
       $('btn-quality').addEventListener('click', () => this.cycleQuality());
       $('btn-res').addEventListener('click', () => this.cycleResolution());
+      $('btn-pause-res').addEventListener('click', () => this.cycleResolution());
+      $('btn-pause-quality').addEventListener('click', () => this.cycleQuality());
       this.updateResolutionLabel();
+      this.setQualityLabel();
       $('btn-resume').addEventListener('click', () => this.resumePlay());
       $('btn-pause-menu').addEventListener('click', () => this.returnToMenu());
       $('btn-cine-exit').addEventListener('click', () => this.returnToMenu());
@@ -361,6 +364,11 @@
           if (e.code === 'BracketLeft') { this.photo.focus = Math.max(2, this.photo.focus - 2); this.updatePhotoHud(); return; }
           if (e.code === 'BracketRight') { this.photo.focus = Math.min(80, this.photo.focus + 2); this.updatePhotoHud(); return; }
           if (e.code === 'Escape') { this.exitPhoto(); return; }
+        }
+        if (e.code === 'KeyR' && (this.state === 'play' || this.state === 'pause' || this.state === 'menu')) {
+          e.preventDefault();
+          this.cycleResolution();
+          return;
         }
         if (e.code === 'Enter' && this.state === 'menu') this.startPlay();
         if (e.code === 'KeyC' && (this.state === 'menu' || this.state === 'play' || this.state === 'pause')) this.startCinematic();
@@ -886,8 +894,11 @@
     }
 
     updateResolutionLabel() {
+      const value = this.resolutionMode === '4k' ? '4K' : (this.resolutionMode === '2k' ? '2K' : '1080P');
       const el = $('res-label');
-      if (el) el.textContent = this.resolutionMode === '4k' ? '4K' : (this.resolutionMode === '2k' ? '2K' : '1080P');
+      if (el) el.textContent = value;
+      const p = $('pause-res-label');
+      if (p) p.textContent = value;
     }
 
     cycleResolution() {
@@ -927,6 +938,8 @@
     setQualityLabel() {
       const q = $('quality-label');
       if (q) q.textContent = this.quality.name;
+      const p = $('pause-quality-label');
+      if (p) p.textContent = this.quality.name;
     }
 
     toggleHelp() {
