@@ -232,7 +232,7 @@
           uBloomStrength: { value: this.opts.bloomStrength },
           uFlash: { value: 0 },
           uContrast: { value: 1.04 },
-          uSoftMist: { value: 0.055 },
+          uSoftMist: { value: 0.11 },
           uFade: { value: 1 },
           uLetterbox: { value: 0 },
           uNear: { value: 0.08 },

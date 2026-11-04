@@ -4,7 +4,7 @@
 
 **DSH-PTC**
 
-**v0.5.7 FIDELITY · 1 scene · 100% procedural · 0 assets · single-file build 1.03 MB**
+**v0.5.8 FIDELITY · 1 scene · 100% procedural · 0 assets · single-file build 1.03 MB**
 
 [**Live preview**](https://cl0ud-99.github.io/neon-district/) — runs in the browser, nothing to install.
 
