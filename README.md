@@ -10,13 +10,15 @@
 
 A real-time cyberpunk rain street built entirely in code: wet asphalt, mirrored neon, a flooded plaza, volumetric rain, procedural neon signage and synthesized city ambience. No model files, no image textures, no audio samples. Every surface, every sign, every raindrop and every sound is generated at load time.
 
-![hero](docs/shots/hero.jpg)
+![NEON DISTRICT — 4K title card](docs/shots/titlecard.jpg)
+
+*4K title card rendered by the live HDR pipeline.*
 
 ## Views
 
 | | |
 |---|---|
-| ![rain market](docs/shots/hero.jpg) | ![water](docs/shots/water.jpg) |
+| ![hero](docs/shots/hero.jpg) | ![water](docs/shots/water.jpg) |
 | ![kirin plaza](docs/shots/plaza.jpg) | ![cinematic](docs/shots/cinema.jpg) |
 | ![title](docs/shots/title.jpg) | ![detail](docs/shots/detail.jpg) |
 | ![street](docs/shots/street.jpg) | ![hud](docs/shots/hud.jpg) |
@@ -212,7 +214,7 @@ All asset paths are relative (`./src/...`), so the site works both at a domain r
 
 ## Screenshots
 
-`docs/shots/` holds the views shown above, captured at 1600×900 with `?shot=1&quality=high`. The root `/shots/` directory is git-ignored: it is reserved for temporary parameter-sweep captures while tuning the renderer.
+`docs/shots/` holds the views shown above. The title card is a 3840×2160 render; the other views were captured at 1600×900 with `?shot=1&quality=high`. The root `/shots/` directory is git-ignored: it is reserved for temporary parameter-sweep captures while tuning the renderer.
 
 ## Notes on the look
 
