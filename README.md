@@ -2,8 +2,6 @@
 
 **by DeepSeek-V4.1flash-1017🐳**
 
-**DSH-PTC**
-
 **v0.6.0 FIDELITY · 1 scene · 100% procedural · 0 assets · single-file build 1.03 MB**
 
 [**Live preview**](https://cl0ud-99.github.io/neon-district/) — runs in the browser, nothing to install.
